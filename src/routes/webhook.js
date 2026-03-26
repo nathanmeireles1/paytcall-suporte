@@ -7,8 +7,15 @@ const { queryTracking } = require('../services/correios');
  * POST /webhook
  * Recebe notificações da payt.com.br
  */
+// GET /webhook — responde para testes de disponibilidade
+router.get('/', (req, res) => {
+  res.json({ success: true, message: 'Webhook ativo' });
+});
+
 router.post('/', async (req, res) => {
   const body = req.body;
+
+  console.log(`[Webhook] Recebido: method=POST status=${body.status} test=${body.test} tracking=${body.shipping?.tracking_code || 'nenhum'}`);
 
   // Responde ao teste da payt com sucesso
   if (body.test === true) {
