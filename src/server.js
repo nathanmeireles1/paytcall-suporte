@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { init } = require('./config/database');
 const app = require('./app');
+const { startScheduler } = require('./services/scheduler');
 
 const PORT = process.env.PORT || 3000;
 
@@ -16,6 +17,7 @@ init()
   ║  API:       GET  /api/tracking/:code  ║
   ╚══════════════════════════════════════╝
       `);
+      startScheduler();
     });
   })
   .catch((err) => {

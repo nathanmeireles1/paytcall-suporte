@@ -43,34 +43,10 @@ router.get('/:code', async (req, res) => {
 
 // POST /api/tracking/refresh — atualiza todos os envios ainda em trânsito
 router.post('/refresh', async (req, res) => {
+  const { refreshPendingShipments } = require('../services/scheduler');
   const pending = await Shipment.getPendingForRefresh();
-  res.json({ message: `Atualizando ${pending.length} envios...` });
-
-  for (const shipment of pending) {
-    try {
-      const tracking = await queryTracking(shipment.tracking_code);
-
-      await Shipment.upsert({
-        tracking_code: shipment.tracking_code,
-        order_id: shipment.order_id,
-        customer_name: shipment.customer_name,
-        customer_email: shipment.customer_email,
-        customer_phone: shipment.customer_phone,
-        status: tracking.status,
-        last_event: tracking.last_event,
-        last_event_date: tracking.last_event_date,
-      });
-
-      if (tracking.events?.length) {
-        await Shipment.saveEvents(shipment.tracking_code, tracking.events);
-      }
-
-      // Delay entre consultas pra não sobrecarregar os Correios
-      await new Promise((r) => setTimeout(r, 500));
-    } catch (err) {
-      console.error(`[Refresh] Erro em ${shipment.tracking_code}:`, err.message);
-    }
-  }
+  res.json({ message: `Atualizando ${pending.length} envio(s)...`, total: pending.length });
+  refreshPendingShipments().catch(console.error);
 });
 
 module.exports = router;
