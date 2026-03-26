@@ -5,6 +5,9 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
+// Necessário para Railway/proxies reversos (rate limit e IPs corretos)
+app.set('trust proxy', 1);
+
 // Views
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
