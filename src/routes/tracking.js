@@ -14,6 +14,8 @@ router.get('/:code', async (req, res) => {
     const updated = await Shipment.upsert({
       tracking_code: code,
       order_id: shipment?.order_id,
+      seller_id: shipment?.seller_id,
+      company_name: shipment?.company_name,
       customer_name: shipment?.customer_name,
       customer_email: shipment?.customer_email,
       customer_phone: shipment?.customer_phone,
