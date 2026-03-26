@@ -45,6 +45,8 @@
     th { padding: 12px 16px; text-align: left; font-weight: 600; color: #555; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
     td { padding: 12px 16px; border-top: 1px solid #f0f0f0; }
     tr:hover td { background: #fafafa; }
+    tr.clickable { cursor: pointer; }
+    tr.clickable:hover td { background: #f0f0ff; }
 
     .badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
     .badge-delivered { background: #dcfce7; color: #16a34a; }
@@ -164,16 +166,25 @@
           <th>Código</th>
           <th>Empresa</th>
           <th>Pedido</th>
+          <th>Produto</th>
           <th>Cliente</th>
           <th>Status</th>
           <th>Último evento</th>
           <th>Atualizado</th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
+        <%
+        const sLabel = {
+          pending: 'Pendente', posted_object: 'Obj. Postado', forwarded: 'Em Trânsito',
+          delivering: 'Saiu p/ Entrega', recipient_not_found: 'Dest. não encontrado',
+          delivery_problem: 'Prob. Entrega', wrong_address: 'End. Incorreto',
+          waiting_client: 'Ag. Retirada', delivered: 'Entregue',
+          returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
+        };
+        %>
         <% shipments.forEach(s => { %>
-        <tr>
+        <tr class="clickable" onclick="window.location='/shipment/<%= s.tracking_code %>'">
           <td><span class="code"><%= s.tracking_code %></span></td>
           <td>
             <% if (s.company_name) { %>
@@ -185,27 +196,21 @@
           </td>
           <td><% if (s.order_id) { %><%= s.order_id %><% } else { %><span class="text-muted">—</span><% } %></td>
           <td>
+            <% if (s.product_name) { %>
+              <%= s.product_name %>
+              <% if (s.product_quantity > 1) { %><br><span class="text-muted">Qtd: <%= s.product_quantity %></span><% } %>
+            <% } else { %><span class="text-muted">—</span><% } %>
+          </td>
+          <td>
             <% if (s.customer_name) { %><%= s.customer_name %><% } else { %><span class="text-muted">—</span><% } %>
             <% if (s.customer_email) { %><br><span class="text-muted"><%= s.customer_email %></span><% } %>
           </td>
-          <%
-          const sLabel = {
-            pending: 'Pendente', posted_object: 'Obj. Postado', forwarded: 'Em Trânsito',
-            delivering: 'Saiu p/ Entrega', recipient_not_found: 'Dest. não encontrado',
-            delivery_problem: 'Prob. Entrega', wrong_address: 'End. Incorreto',
-            waiting_client: 'Ag. Retirada', delivered: 'Entregue',
-            returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
-          };
-          %>
           <td><span class="badge badge-<%= s.status %>"><%= sLabel[s.status] || s.status %></span></td>
           <td>
             <% if (s.last_event) { %><%= s.last_event %><% } else { %><span class="text-muted">—</span><% } %>
             <% if (s.last_event_date) { %><br><span class="text-muted"><%= s.last_event_date %></span><% } %>
           </td>
           <td><span class="text-muted"><%= s.updated_at ? s.updated_at.substring(0, 16).replace('T', ' ') : '—' %></span></td>
-          <td>
-            <a href="/shipment/<%= s.tracking_code %>" class="btn btn-ghost btn-sm">Ver</a>
-          </td>
         </tr>
         <% }) %>
       </tbody>

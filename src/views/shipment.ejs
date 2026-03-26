@@ -104,24 +104,6 @@ const statusLabel = {
         <div class="val"><%= shipment.company_name %></div>
       </div>
       <% } %>
-      <% if (shipment.customer_name) { %>
-      <div class="info-item">
-        <div class="label">Cliente</div>
-        <div class="val"><%= shipment.customer_name %></div>
-      </div>
-      <% } %>
-      <% if (shipment.customer_email) { %>
-      <div class="info-item">
-        <div class="label">E-mail</div>
-        <div class="val"><%= shipment.customer_email %></div>
-      </div>
-      <% } %>
-      <% if (shipment.customer_phone) { %>
-      <div class="info-item">
-        <div class="label">Telefone</div>
-        <div class="val"><%= shipment.customer_phone %></div>
-      </div>
-      <% } %>
       <div class="info-item">
         <div class="label">Última consulta Correios</div>
         <div class="val"><%= shipment.last_queried_at ? shipment.last_queried_at.substring(0, 16).replace('T', ' ') : 'Nunca' %></div>
@@ -137,6 +119,102 @@ const statusLabel = {
       <a href="/" class="btn btn-ghost">Voltar</a>
     </div>
   </div>
+
+  <!-- Cliente -->
+  <div class="card">
+    <h2>Cliente</h2>
+    <div class="info-grid">
+      <% if (shipment.customer_name) { %>
+      <div class="info-item">
+        <div class="label">Nome</div>
+        <div class="val"><%= shipment.customer_name %></div>
+      </div>
+      <% } %>
+      <% if (shipment.customer_doc) { %>
+      <div class="info-item">
+        <div class="label">CPF</div>
+        <div class="val"><%= shipment.customer_doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') %></div>
+      </div>
+      <% } %>
+      <% if (shipment.customer_email) { %>
+      <div class="info-item">
+        <div class="label">E-mail</div>
+        <div class="val"><%= shipment.customer_email %></div>
+      </div>
+      <% } %>
+      <% if (shipment.customer_phone) { %>
+      <div class="info-item">
+        <div class="label">Telefone</div>
+        <div class="val"><%= shipment.customer_phone %></div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Produto e Pagamento -->
+  <div class="card">
+    <h2>Pedido</h2>
+    <div class="info-grid">
+      <% if (shipment.product_name) { %>
+      <div class="info-item">
+        <div class="label">Produto</div>
+        <div class="val"><%= shipment.product_name %></div>
+      </div>
+      <% } %>
+      <% if (shipment.product_quantity) { %>
+      <div class="info-item">
+        <div class="label">Quantidade</div>
+        <div class="val"><%= shipment.product_quantity %></div>
+      </div>
+      <% } %>
+      <% if (shipment.product_price) { %>
+      <div class="info-item">
+        <div class="label">Preço unitário</div>
+        <div class="val">R$ <%= (shipment.product_price / 100).toFixed(2).replace('.', ',') %></div>
+      </div>
+      <% } %>
+      <% if (shipment.total_price) { %>
+      <div class="info-item">
+        <div class="label">Total pago</div>
+        <div class="val" style="color:#16a34a;font-weight:700">R$ <%= (shipment.total_price / 100).toFixed(2).replace('.', ',') %></div>
+      </div>
+      <% } %>
+      <% if (shipment.payment_method) { %>
+      <div class="info-item">
+        <div class="label">Forma de pagamento</div>
+        <div class="val"><%= {pix:'PIX', credit_card:'Cartão de crédito', boleto:'Boleto', debit_card:'Cartão de débito'}[shipment.payment_method] || shipment.payment_method %></div>
+      </div>
+      <% } %>
+      <% if (shipment.payment_status) { %>
+      <div class="info-item">
+        <div class="label">Status do pagamento</div>
+        <div class="val"><%= {paid:'Pago', waiting_payment:'Aguardando', canceled:'Cancelado', refunded:'Reembolsado'}[shipment.payment_status] || shipment.payment_status %></div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Endereço de entrega -->
+  <% if (shipment.shipping_address) { %>
+  <%
+    const addr = typeof shipment.shipping_address === 'string'
+      ? JSON.parse(shipment.shipping_address)
+      : shipment.shipping_address;
+  %>
+  <div class="card">
+    <h2>Endereço de Entrega</h2>
+    <div class="info-grid">
+      <div class="info-item" style="grid-column:1/-1">
+        <div class="label">Endereço</div>
+        <div class="val">
+          <%= addr.street %><% if (addr.street_number) { %>, <%= addr.street_number %><% } %>
+          <% if (addr.complement) { %> — <%= addr.complement %><% } %><br>
+          <%= addr.district %> · <%= addr.city %>/<%= addr.state %> · CEP <%= addr.zipcode %>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% } %>
 
   <% if (events.length > 0) { %>
   <div class="card">

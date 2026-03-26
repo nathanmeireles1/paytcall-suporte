@@ -41,6 +41,9 @@ router.post('/', async (req, res) => {
   const customer = body.customer || {};
   const commissions = Array.isArray(body.commission) ? body.commission : [];
   const producer = commissions.find(c => c.type === 'producer');
+  const transaction = body.transaction || {};
+  const product = body.product || {};
+  const shippingAddress = body.shipping?.address || null;
 
   // Responde imediatamente para a payt não fazer retry
   res.json({ message: 'Recebido', tracking_code: code });
@@ -55,6 +58,14 @@ router.post('/', async (req, res) => {
       customer_name: customer.name || null,
       customer_email: customer.email || null,
       customer_phone: customer.phone || null,
+      customer_doc: customer.doc || null,
+      product_name: product.name || null,
+      product_price: product.price || null,
+      product_quantity: product.quantity || null,
+      payment_method: transaction.payment_method || null,
+      payment_status: transaction.payment_status || null,
+      total_price: transaction.total_price || null,
+      shipping_address: shippingAddress,
     });
     console.log(`[Webhook] Salvo: ${code}`);
   } catch (err) {
