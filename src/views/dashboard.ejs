@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>payt Tracker — Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+
+    .navbar { background: #1a1a2e; padding: 0 24px; display: flex; align-items: center; height: 56px; gap: 16px; }
+    .navbar h1 { color: #fff; font-size: 18px; font-weight: 700; }
+    .navbar span { color: #888; font-size: 13px; }
+    .navbar a { color: #aaa; font-size: 13px; text-decoration: none; margin-left: auto; }
+    .navbar a:hover { color: #fff; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .stat-card .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+    .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+    .stat-card.total .value { color: #1a1a2e; }
+    .stat-card.delivered .value { color: #16a34a; }
+    .stat-card.transit .value { color: #2563eb; }
+    .stat-card.attempt .value { color: #d97706; }
+    .stat-card.returned .value { color: #dc2626; }
+    .stat-card.out .value { color: #7c3aed; }
+
+    .toolbar { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .toolbar form { display: flex; gap: 12px; flex-wrap: wrap; width: 100%; }
+    .toolbar input, .toolbar select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; }
+    .toolbar input:focus, .toolbar select:focus { border-color: #4f46e5; }
+    .toolbar input[name="search"] { flex: 1; min-width: 200px; }
+    .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
+    .btn-ghost:hover { background: #f5f5f5; }
+
+    .table-wrap { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead tr { background: #f8f8f8; }
+    th { padding: 12px 16px; text-align: left; font-weight: 600; color: #555; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+    td { padding: 12px 16px; border-top: 1px solid #f0f0f0; }
+    tr:hover td { background: #fafafa; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+    .badge-delivered { background: #dcfce7; color: #16a34a; }
+    .badge-in_transit { background: #dbeafe; color: #2563eb; }
+    .badge-out_for_delivery { background: #ede9fe; color: #7c3aed; }
+    .badge-delivery_attempt { background: #fef3c7; color: #d97706; }
+    .badge-returned { background: #fee2e2; color: #dc2626; }
+    .badge-pending { background: #f3f4f6; color: #6b7280; }
+
+    .code { font-family: monospace; font-size: 13px; font-weight: 600; color: #1a1a2e; }
+    .text-muted { color: #999; font-size: 12px; }
+
+    .pagination { display: flex; gap: 8px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+    .pagination a { padding: 6px 12px; border-radius: 6px; border: 1px solid #ddd; font-size: 13px; text-decoration: none; color: #555; }
+    .pagination a:hover { background: #f0f0f0; }
+    .pagination a.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+
+    .empty { text-align: center; padding: 60px 20px; color: #999; }
+    .empty svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: .3; }
+
+    .refresh-btn { margin-left: auto; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <h1>payt Tracker</h1>
+  <span>Rastreamento Correios</span>
+  <a href="/api/tracking/refresh" onclick="refreshAll(event)">↻ Atualizar todos</a>
+</nav>
+
+<div class="container">
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card total">
+      <div class="label">Total</div>
+      <div class="value"><%= stats.total %></div>
+    </div>
+    <div class="stat-card delivered">
+      <div class="label">Entregues</div>
+      <div class="value"><%= stats.delivered %></div>
+    </div>
+    <div class="stat-card transit">
+      <div class="label">Em trânsito</div>
+      <div class="value"><%= stats.in_transit %></div>
+    </div>
+    <div class="stat-card out">
+      <div class="label">Saiu p/ entrega</div>
+      <div class="value"><%= stats.out_for_delivery %></div>
+    </div>
+    <div class="stat-card attempt">
+      <div class="label">Tentativa</div>
+      <div class="value"><%= stats.delivery_attempt %></div>
+    </div>
+    <div class="stat-card returned">
+      <div class="label">Devolvidos</div>
+      <div class="value"><%= stats.returned %></div>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="toolbar">
+    <form method="GET" action="/">
+      <input type="text" name="search" placeholder="Buscar código, pedido ou cliente..." value="<%= filters.search || '' %>">
+      <select name="status">
+        <option value="">Todos os status</option>
+        <option value="pending" <%= filters.status === 'pending' ? 'selected' : '' %>>Pendente</option>
+        <option value="in_transit" <%= filters.status === 'in_transit' ? 'selected' : '' %>>Em trânsito</option>
+        <option value="out_for_delivery" <%= filters.status === 'out_for_delivery' ? 'selected' : '' %>>Saiu para entrega</option>
+        <option value="delivery_attempt" <%= filters.status === 'delivery_attempt' ? 'selected' : '' %>>Tentativa</option>
+        <option value="delivered" <%= filters.status === 'delivered' ? 'selected' : '' %>>Entregue</option>
+        <option value="returned" <%= filters.status === 'returned' ? 'selected' : '' %>>Devolvido</option>
+      </select>
+      <button type="submit" class="btn btn-primary">Filtrar</button>
+      <% if (filters.status || filters.search) { %>
+        <a href="/" class="btn btn-ghost">Limpar</a>
+      <% } %>
+    </form>
+  </div>
+
+  <!-- Tabela -->
+  <div class="table-wrap">
+    <% if (shipments.length === 0) { %>
+      <div class="empty">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/></svg>
+        <p>Nenhum envio encontrado</p>
+      </div>
+    <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Pedido</th>
+          <th>Cliente</th>
+          <th>Status</th>
+          <th>Último evento</th>
+          <th>Atualizado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% shipments.forEach(s => { %>
+        <tr>
+          <td><span class="code"><%= s.tracking_code %></span></td>
+          <td><%= s.order_id || '<span class="text-muted">—</span>' %></td>
+          <td>
+            <%= s.customer_name || '<span class="text-muted">—</span>' %>
+            <% if (s.customer_email) { %><br><span class="text-muted"><%= s.customer_email %></span><% } %>
+          </td>
+          <td><span class="badge badge-<%= s.status %>"><%= s.status %></span></td>
+          <td>
+            <%= s.last_event || '<span class="text-muted">—</span>' %>
+            <% if (s.last_event_date) { %><br><span class="text-muted"><%= s.last_event_date %></span><% } %>
+          </td>
+          <td><span class="text-muted"><%= s.updated_at ? s.updated_at.substring(0, 16) : '—' %></span></td>
+          <td>
+            <a href="/shipment/<%= s.tracking_code %>" class="btn btn-ghost btn-sm">Ver</a>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+
+  <!-- Paginação -->
+  <% if (pages > 1) { %>
+  <div class="pagination">
+    <% for (let i = 1; i <= pages; i++) { %>
+      <a href="?page=<%= i %><%= filters.status ? '&status=' + filters.status : '' %><%= filters.search ? '&search=' + filters.search : '' %>"
+         class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
+    <% } %>
+  </div>
+  <% } %>
+
+</div>
+
+<script>
+function refreshAll(e) {
+  e.preventDefault();
+  if (!confirm('Atualizar todos os envios ativos nos Correios?')) return;
+  fetch('/api/tracking/refresh', {
+    method: 'POST',
+    headers: { 'x-admin-secret': '' }
+  }).then(() => alert('Atualização iniciada! Aguarde alguns instantes.')).catch(() => alert('Erro ao iniciar atualização.'));
+}
+</script>
+</body>
+</html>
