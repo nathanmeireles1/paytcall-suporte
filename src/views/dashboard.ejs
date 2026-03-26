@@ -53,6 +53,7 @@
     .badge-delivery_attempt { background: #fef3c7; color: #d97706; }
     .badge-returned { background: #fee2e2; color: #dc2626; }
     .badge-pending { background: #f3f4f6; color: #6b7280; }
+    .badge-waiting_pickup { background: #fef9c3; color: #854d0e; }
 
     .code { font-family: monospace; font-size: 13px; font-weight: 600; color: #1a1a2e; }
     .text-muted { color: #999; font-size: 12px; }
@@ -125,6 +126,7 @@
         <option value="out_for_delivery" <%= filters.status === 'out_for_delivery' ? 'selected' : '' %>>Saiu para entrega</option>
         <option value="delivery_attempt" <%= filters.status === 'delivery_attempt' ? 'selected' : '' %>>Tentativa</option>
         <option value="delivered" <%= filters.status === 'delivered' ? 'selected' : '' %>>Entregue</option>
+        <option value="waiting_pickup" <%= filters.status === 'waiting_pickup' ? 'selected' : '' %>>Aguardando retirada</option>
         <option value="returned" <%= filters.status === 'returned' ? 'selected' : '' %>>Devolvido</option>
         <option value="expired" <%= filters.status === 'expired' ? 'selected' : '' %>>Expirado</option>
       </select>

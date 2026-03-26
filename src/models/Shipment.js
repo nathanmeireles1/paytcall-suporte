@@ -127,8 +127,9 @@ const Shipment = {
   },
 
   async getPendingForRefresh() {
+    // Só atualiza pedidos aguardando retirada — payt para de notificar nesses casos
     const r = await db.execute(
-      `SELECT * FROM shipments WHERE status NOT IN ('delivered', 'returned') ORDER BY updated_at ASC LIMIT 50`
+      `SELECT * FROM shipments WHERE status = 'waiting_pickup' ORDER BY updated_at ASC LIMIT 100`
     );
     return r.rows;
   },

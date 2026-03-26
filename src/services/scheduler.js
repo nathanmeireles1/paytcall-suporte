@@ -7,13 +7,13 @@ const { queryTracking } = require('./correios');
  * Roda automaticamente a cada 3 horas
  */
 function startScheduler() {
-  // Executa a cada 3 horas: minuto 0, a cada 3 horas
-  cron.schedule('0 */3 * * *', async () => {
-    console.log('[Scheduler] Iniciando atualização automática de rastreios...');
+  // Executa 1x por dia às 8h da manhã (horário de Brasília = UTC-3 → 11h UTC)
+  cron.schedule('0 11 * * *', async () => {
+    console.log('[Scheduler] Iniciando atualização diária de rastreios aguardando retirada...');
     await refreshPendingShipments();
   });
 
-  console.log('[Scheduler] Agendado: atualização automática a cada 3 horas');
+  console.log('[Scheduler] Agendado: atualização diária às 8h (somente aguardando retirada)');
 }
 
 async function refreshPendingShipments() {

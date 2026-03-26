@@ -84,6 +84,7 @@ function mapStatus(desc) {
   if (val.includes('TENTATIVA') || val.includes('AUSENTE')) return 'delivery_attempt';
   if (val.includes('DEVOLVIDO') || val.includes('DEVOLU')) return 'returned';
   if (val.includes('SAIU') || val.includes('DISTRIBUI') || val.includes('OUT FOR DELIVERY')) return 'out_for_delivery';
+  if (val.includes('RETIRADA') || val.includes('DISPONIVEL') || val.includes('DISPONÍVEL')) return 'waiting_pickup';
   if (val.includes('AGUARD') || val.includes('POSTADO')) return 'posted';
   if (val.includes('ENCAMINH') || val.includes('IN TRANSIT')) return 'in_transit';
   if (val.includes('EXPIRADA') || val.includes('PRAZO') || val.includes('EXPIRED')) return 'expired';
