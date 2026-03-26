@@ -1,61 +1,20 @@
-const { createClient } = require('@libsql/client');
-const path = require('path');
-const fs = require('fs');
+const { createClient } = require('@supabase/supabase-js');
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data/tracker.db');
-const dbDir = path.dirname(dbPath);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('SUPABASE_URL e SUPABASE_SERVICE_KEY são obrigatórios');
 }
 
-const db = createClient({ url: `file:${dbPath}` });
+const db = createClient(supabaseUrl, supabaseKey);
 
 async function init() {
-  await db.executeMultiple(`
-    CREATE TABLE IF NOT EXISTS shipments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      tracking_code TEXT NOT NULL UNIQUE,
-      order_id TEXT,
-      seller_id TEXT,
-      company_name TEXT,
-      customer_name TEXT,
-      customer_email TEXT,
-      customer_phone TEXT,
-      status TEXT DEFAULT 'pending',
-      last_event TEXT,
-      last_event_date TEXT,
-      last_queried_at TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS tracking_events (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      tracking_code TEXT NOT NULL,
-      event_date TEXT,
-      description TEXT,
-      location TEXT,
-      status_code TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      tracking_code TEXT NOT NULL,
-      type TEXT NOT NULL,
-      recipient TEXT NOT NULL,
-      message TEXT,
-      sent_at TEXT,
-      status TEXT DEFAULT 'pending',
-      error TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_shipments_tracking ON shipments(tracking_code);
-    CREATE INDEX IF NOT EXISTS idx_shipments_seller ON shipments(seller_id);
-    CREATE INDEX IF NOT EXISTS idx_events_tracking ON tracking_events(tracking_code);
-  `);
+  const { error } = await db.from('shipments').select('id').limit(1);
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`Erro ao conectar ao Supabase: ${error.message}`);
+  }
+  console.log('[DB] Conectado ao Supabase com sucesso');
 }
 
 module.exports = { db, init };
