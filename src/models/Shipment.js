@@ -45,6 +45,7 @@ const Shipment = {
     if (!existing) {
       const { error } = await db.from('shipments').insert({
         tracking_code: data.tracking_code,
+        carrier: data.carrier || null,
         order_id: data.order_id || null,
         seller_id: data.seller_id || null,
         company_name: data.company_name || null,
@@ -67,6 +68,7 @@ const Shipment = {
       // Atualiza apenas dados do pedido — preserva status/eventos dos Correios
       const { error } = await db.from('shipments')
         .update({
+          carrier: data.carrier || existing.carrier,
           order_id: data.order_id || existing.order_id,
           seller_id: data.seller_id || existing.seller_id,
           company_name: data.company_name || existing.company_name,

@@ -164,6 +164,7 @@
       <thead>
         <tr>
           <th>Código</th>
+          <th>Transportadora</th>
           <th>Empresa</th>
           <th>Pedido</th>
           <th>Produto</th>
@@ -186,6 +187,7 @@
         <% shipments.forEach(s => { %>
         <tr class="clickable" onclick="window.location='/shipment/<%= s.tracking_code %>'">
           <td><span class="code"><%= s.tracking_code %></span></td>
+          <td><span class="text-muted"><%= s.carrier || '—' %></span></td>
           <td>
             <% if (s.company_name) { %>
               <span style="font-weight:600;color:#1a1a2e"><%= s.company_name %></span><br>

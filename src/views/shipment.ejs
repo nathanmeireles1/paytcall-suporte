@@ -104,6 +104,12 @@ const statusLabel = {
         <div class="val"><%= shipment.company_name %></div>
       </div>
       <% } %>
+      <% if (shipment.carrier) { %>
+      <div class="info-item">
+        <div class="label">Transportadora</div>
+        <div class="val"><%= shipment.carrier %></div>
+      </div>
+      <% } %>
       <div class="info-item">
         <div class="label">Última consulta Correios</div>
         <div class="val"><%= shipment.last_queried_at ? shipment.last_queried_at.substring(0, 16).replace('T', ' ') : 'Nunca' %></div>

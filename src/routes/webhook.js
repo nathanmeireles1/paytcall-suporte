@@ -38,6 +38,7 @@ router.post('/', async (req, res) => {
   }
 
   const code = trackingCode.trim().toUpperCase();
+  const carrier = /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(code) ? 'Correios' : 'Loggi';
   const customer = body.customer || {};
   const commissions = Array.isArray(body.commission) ? body.commission : [];
   const producer = commissions.find(c => c.type === 'producer');
@@ -52,6 +53,7 @@ router.post('/', async (req, res) => {
   try {
     await Shipment.upsertFromPaytcall({
       tracking_code: code,
+      carrier,
       order_id: body.transaction_id || null,
       seller_id: body.seller_id || null,
       company_name: producer?.name || null,
