@@ -10,9 +10,9 @@ const { queryTracking } = require('../services/correios');
 router.post('/', async (req, res) => {
   const body = req.body;
 
-  // Ignora eventos de teste
+  // Responde ao teste da payt com sucesso
   if (body.test === true) {
-    return res.json({ message: 'Evento de teste ignorado' });
+    return res.json({ success: true, message: 'Webhook recebido com sucesso' });
   }
 
   const trackingCode = body.shipping?.tracking_code;
