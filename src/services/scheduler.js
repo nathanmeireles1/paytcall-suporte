@@ -3,17 +3,16 @@ const Shipment = require('../models/Shipment');
 const { queryTracking } = require('./correios');
 
 /**
- * Atualiza rastreios que ainda não foram finalizados
- * Roda automaticamente a cada 3 horas
+ * Scheduler — consulta Correios a cada 5 dias por rastreio
+ * Roda a cada 6h para verificar quais pedidos estão prontos para atualização
  */
 function startScheduler() {
-  // Executa 1x por dia às 8h da manhã (horário de Brasília = UTC-3 → 11h UTC)
-  cron.schedule('0 11 * * *', async () => {
-    console.log('[Scheduler] Iniciando atualização diária de rastreios aguardando retirada...');
+  cron.schedule('0 */6 * * *', async () => {
+    console.log('[Scheduler] Verificando rastreios pendentes de atualização...');
     await refreshPendingShipments();
   });
 
-  console.log('[Scheduler] Agendado: atualização diária às 8h (somente aguardando retirada)');
+  console.log('[Scheduler] Agendado: verificação a cada 6h (atualiza rastreios com 5+ dias sem consulta)');
 }
 
 async function refreshPendingShipments() {
@@ -50,11 +49,14 @@ async function refreshPendingShipments() {
         await Shipment.saveEvents(shipment.tracking_code, tracking.events);
       }
 
-      console.log(`[Scheduler] ${shipment.tracking_code} → ${tracking.status}`);
+      const log = tracking.status !== shipment.status
+        ? `${shipment.tracking_code}: ${shipment.status} → ${tracking.status}`
+        : `${shipment.tracking_code}: sem mudança (${tracking.status})`;
+      console.log(`[Scheduler] ${log}`);
       updated++;
 
-      // Pequena pausa para não sobrecarregar a API da Wonca
-      await sleep(500);
+      // Pausa entre consultas para não sobrecarregar a API
+      await sleep(800);
     } catch (err) {
       console.error(`[Scheduler] Erro em ${shipment.tracking_code}:`, err.message);
       errors++;

@@ -1,5 +1,7 @@
 const { db } = require('../config/database');
 
+const TERMINAL_STATUSES = ['delivered', 'returned'];
+
 const Shipment = {
   async findByCode(trackingCode) {
     const { data, error } = await db
@@ -33,6 +35,49 @@ const Shipment = {
     return { rows: data || [], total, page, pages: Math.ceil(total / limit) };
   },
 
+  /**
+   * Upsert vindo da Paytcall — salva dados do pedido/cliente
+   * Nunca sobrescreve status/eventos que já vieram dos Correios
+   */
+  async upsertFromPaytcall(data) {
+    const existing = await this.findByCode(data.tracking_code);
+
+    if (!existing) {
+      const { error } = await db.from('shipments').insert({
+        tracking_code: data.tracking_code,
+        order_id: data.order_id || null,
+        seller_id: data.seller_id || null,
+        company_name: data.company_name || null,
+        customer_name: data.customer_name || null,
+        customer_email: data.customer_email || null,
+        customer_phone: data.customer_phone || null,
+        status: 'pending',
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    } else {
+      // Atualiza apenas dados do pedido — preserva status/eventos dos Correios
+      const { error } = await db.from('shipments')
+        .update({
+          order_id: data.order_id || existing.order_id,
+          seller_id: data.seller_id || existing.seller_id,
+          company_name: data.company_name || existing.company_name,
+          customer_name: data.customer_name || existing.customer_name,
+          customer_email: data.customer_email || existing.customer_email,
+          customer_phone: data.customer_phone || existing.customer_phone,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('tracking_code', data.tracking_code);
+      if (error) throw error;
+    }
+
+    return this.findByCode(data.tracking_code);
+  },
+
+  /**
+   * Upsert vindo dos Correios — sempre sobrescreve status e eventos
+   * Atualiza last_queried_at para controle do ciclo de 5 dias
+   */
   async upsert(data) {
     const payload = {
       tracking_code: data.tracking_code,
@@ -115,13 +160,21 @@ const Shipment = {
     return Object.values(map).sort((a, b) => (a.company_name || '').localeCompare(b.company_name || ''));
   },
 
+  /**
+   * Retorna pedidos ativos prontos para consulta nos Correios
+   * Critério: não finalizados + (nunca consultado OU última consulta >= 5 dias atrás)
+   */
   async getPendingForRefresh() {
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+
     const { data, error } = await db
       .from('shipments')
       .select('*')
-      .eq('status', 'waiting_client')
-      .order('updated_at', { ascending: true })
-      .limit(100);
+      .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
+      .or(`last_queried_at.is.null,last_queried_at.lt.${fiveDaysAgo}`)
+      .order('last_queried_at', { ascending: true, nullsFirst: true })
+      .limit(50);
+
     if (error) throw error;
     return data || [];
   },
