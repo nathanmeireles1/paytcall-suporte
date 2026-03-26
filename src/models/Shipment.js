@@ -1,6 +1,6 @@
 const { db } = require('../config/database');
 
-const TERMINAL_STATUSES = ['delivered', 'returned'];
+const TERMINAL_STATUSES = ['delivered', 'returned', 'overdue'];
 
 const Shipment = {
   async findByCode(trackingCode) {
