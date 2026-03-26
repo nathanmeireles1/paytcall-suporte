@@ -1,0 +1,72 @@
+const express = require('express');
+const router = express.Router();
+const Shipment = require('../models/Shipment');
+const { queryTracking } = require('../services/correios');
+
+/**
+ * POST /webhook
+ * Recebe notificações da payt.com.br
+ */
+router.post('/', async (req, res) => {
+  const body = req.body;
+
+  // Ignora eventos de teste
+  if (body.test === true) {
+    return res.json({ message: 'Evento de teste ignorado' });
+  }
+
+  const trackingCode = body.shipping?.tracking_code;
+
+  // Sem código de rastreio ainda (ex: pedido em waiting_payment) — só confirma recebimento
+  if (!trackingCode) {
+    console.log(`[Webhook] Pedido ${body.transaction_id} sem tracking_code ainda (status: ${body.status})`);
+    return res.json({ message: 'Recebido, sem tracking_code para processar' });
+  }
+
+  const code = trackingCode.trim().toUpperCase();
+  const customer = body.customer || {};
+
+  res.json({ message: 'Recebido, processando...', tracking_code: code });
+
+  // Processa em background
+  try {
+    await processTracking({
+      tracking_code: code,
+      order_id: body.transaction_id || null,
+      customer_name: customer.name || null,
+      customer_email: customer.email || null,
+      customer_phone: customer.phone || null,
+    });
+  } catch (err) {
+    console.error(`[Webhook] Erro ao processar ${code}:`, err.message);
+  }
+});
+
+async function processTracking(data) {
+  console.log(`[Webhook] Processando: ${data.tracking_code}`);
+
+  // Salva/atualiza no banco com status pendente
+  await Shipment.upsert({ ...data, status: 'pending' });
+
+  // Consulta nos Correios e atualiza
+  try {
+    const tracking = await queryTracking(data.tracking_code);
+
+    await Shipment.upsert({
+      ...data,
+      status: tracking.status,
+      last_event: tracking.last_event,
+      last_event_date: tracking.last_event_date,
+    });
+
+    if (tracking.events?.length) {
+      await Shipment.saveEvents(data.tracking_code, tracking.events);
+    }
+
+    console.log(`[Webhook] ${data.tracking_code} → ${tracking.status}`);
+  } catch (err) {
+    console.error(`[Webhook] Falha Correios para ${data.tracking_code}:`, err.message);
+  }
+}
+
+module.exports = router;
