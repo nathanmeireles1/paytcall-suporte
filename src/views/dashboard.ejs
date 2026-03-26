@@ -183,9 +183,9 @@
               <span class="text-muted"><%= s.seller_id || '—' %></span>
             <% } %>
           </td>
-          <td><%= s.order_id || '<span class="text-muted">—</span>' %></td>
+          <td><% if (s.order_id) { %><%= s.order_id %><% } else { %><span class="text-muted">—</span><% } %></td>
           <td>
-            <%= s.customer_name || '<span class="text-muted">—</span>' %>
+            <% if (s.customer_name) { %><%= s.customer_name %><% } else { %><span class="text-muted">—</span><% } %>
             <% if (s.customer_email) { %><br><span class="text-muted"><%= s.customer_email %></span><% } %>
           </td>
           <%
@@ -199,10 +199,10 @@
           %>
           <td><span class="badge badge-<%= s.status %>"><%= sLabel[s.status] || s.status %></span></td>
           <td>
-            <%= s.last_event || '<span class="text-muted">—</span>' %>
+            <% if (s.last_event) { %><%= s.last_event %><% } else { %><span class="text-muted">—</span><% } %>
             <% if (s.last_event_date) { %><br><span class="text-muted"><%= s.last_event_date %></span><% } %>
           </td>
-          <td><span class="text-muted"><%= s.updated_at ? s.updated_at.substring(0, 16) : '—' %></span></td>
+          <td><span class="text-muted"><%= s.updated_at ? s.updated_at.substring(0, 16).replace('T', ' ') : '—' %></span></td>
           <td>
             <a href="/shipment/<%= s.tracking_code %>" class="btn btn-ghost btn-sm">Ver</a>
           </td>

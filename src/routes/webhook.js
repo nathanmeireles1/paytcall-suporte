@@ -23,6 +23,13 @@ router.post('/', async (req, res) => {
     return res.json({ success: true, message: 'Webhook recebido com sucesso' });
   }
 
+  // Ignora webhooks históricos — só processa a partir de 26/03/2026
+  const WEBHOOK_START_DATE = new Date('2026-03-26T00:00:00Z');
+  const webhookDate = body.dates?.created_at ? new Date(body.dates.created_at) : null;
+  if (webhookDate && webhookDate < WEBHOOK_START_DATE) {
+    return res.json({ message: 'Ignorado: webhook histórico' });
+  }
+
   const trackingCode = body.shipping?.tracking_code;
 
   // Sem código de rastreio — confirma recebimento mas não processa
