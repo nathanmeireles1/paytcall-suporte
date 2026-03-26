@@ -42,11 +42,6 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests' },
 });
 
-// ACME challenge — necessário para Railway emitir certificado SSL
-app.get('/.well-known/acme-challenge/:token', (req, res) => {
-  res.status(200).send(req.params.token);
-});
-
 // Rotas
 app.use('/webhook', webhookLimiter, require('./routes/webhook'));
 app.use('/api/tracking', apiLimiter, require('./routes/tracking'));
