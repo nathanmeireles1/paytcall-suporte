@@ -105,11 +105,11 @@ const Shipment = {
       SELECT
         COUNT(*) as total,
         SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered,
-        SUM(CASE WHEN status = 'in_transit' THEN 1 ELSE 0 END) as in_transit,
-        SUM(CASE WHEN status = 'out_for_delivery' THEN 1 ELSE 0 END) as out_for_delivery,
-        SUM(CASE WHEN status = 'delivery_attempt' THEN 1 ELSE 0 END) as delivery_attempt,
-        SUM(CASE WHEN status = 'returned' THEN 1 ELSE 0 END) as returned,
-        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+        SUM(CASE WHEN status IN ('forwarded', 'posted_object') THEN 1 ELSE 0 END) as in_transit,
+        SUM(CASE WHEN status = 'delivering' THEN 1 ELSE 0 END) as out_for_delivery,
+        SUM(CASE WHEN status = 'recipient_not_found' THEN 1 ELSE 0 END) as delivery_attempt,
+        SUM(CASE WHEN status IN ('returned', 'returning') THEN 1 ELSE 0 END) as returned,
+        SUM(CASE WHEN status = 'waiting_client' THEN 1 ELSE 0 END) as waiting_client
       FROM shipments
     `);
     return r.rows[0] || {};
@@ -128,8 +128,9 @@ const Shipment = {
 
   async getPendingForRefresh() {
     // Só atualiza pedidos aguardando retirada — payt para de notificar nesses casos
+    // 'waiting_client' = status payt para "Objeto aguardando retirada do cliente"
     const r = await db.execute(
-      `SELECT * FROM shipments WHERE status = 'waiting_pickup' ORDER BY updated_at ASC LIMIT 100`
+      `SELECT * FROM shipments WHERE status = 'waiting_client' ORDER BY updated_at ASC LIMIT 100`
     );
     return r.rows;
   },

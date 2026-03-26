@@ -48,12 +48,17 @@
 
     .badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
     .badge-delivered { background: #dcfce7; color: #16a34a; }
-    .badge-in_transit { background: #dbeafe; color: #2563eb; }
-    .badge-out_for_delivery { background: #ede9fe; color: #7c3aed; }
-    .badge-delivery_attempt { background: #fef3c7; color: #d97706; }
+    .badge-forwarded { background: #dbeafe; color: #2563eb; }
+    .badge-posted_object { background: #e0f2fe; color: #0369a1; }
+    .badge-delivering { background: #ede9fe; color: #7c3aed; }
+    .badge-recipient_not_found { background: #fef3c7; color: #d97706; }
     .badge-returned { background: #fee2e2; color: #dc2626; }
+    .badge-returning { background: #fce7f3; color: #9d174d; }
+    .badge-waiting_client { background: #fef9c3; color: #854d0e; }
+    .badge-overdue { background: #ffedd5; color: #c2410c; }
+    .badge-wrong_address { background: #fee2e2; color: #991b1b; }
+    .badge-delivery_problem { background: #fef3c7; color: #92400e; }
     .badge-pending { background: #f3f4f6; color: #6b7280; }
-    .badge-waiting_pickup { background: #fef9c3; color: #854d0e; }
 
     .code { font-family: monospace; font-size: 13px; font-weight: 600; color: #1a1a2e; }
     .text-muted { color: #999; font-size: 12px; }
@@ -105,6 +110,10 @@
       <div class="label">Devolvidos</div>
       <div class="value"><%= stats.returned %></div>
     </div>
+    <div class="stat-card attempt">
+      <div class="label">Ag. Retirada</div>
+      <div class="value" style="color:#854d0e"><%= stats.waiting_client %></div>
+    </div>
   </div>
 
   <!-- Filtros -->
@@ -122,13 +131,17 @@
       <select name="status">
         <option value="">Todos os status</option>
         <option value="pending" <%= filters.status === 'pending' ? 'selected' : '' %>>Pendente</option>
-        <option value="in_transit" <%= filters.status === 'in_transit' ? 'selected' : '' %>>Em trânsito</option>
-        <option value="out_for_delivery" <%= filters.status === 'out_for_delivery' ? 'selected' : '' %>>Saiu para entrega</option>
-        <option value="delivery_attempt" <%= filters.status === 'delivery_attempt' ? 'selected' : '' %>>Tentativa</option>
+        <option value="posted_object" <%= filters.status === 'posted_object' ? 'selected' : '' %>>Objeto Postado</option>
+        <option value="forwarded" <%= filters.status === 'forwarded' ? 'selected' : '' %>>Encaminhado</option>
+        <option value="delivering" <%= filters.status === 'delivering' ? 'selected' : '' %>>Saiu para entrega</option>
+        <option value="recipient_not_found" <%= filters.status === 'recipient_not_found' ? 'selected' : '' %>>Tentativa / Dest. não encontrado</option>
+        <option value="delivery_problem" <%= filters.status === 'delivery_problem' ? 'selected' : '' %>>Problema na entrega</option>
+        <option value="wrong_address" <%= filters.status === 'wrong_address' ? 'selected' : '' %>>Endereço errado</option>
+        <option value="waiting_client" <%= filters.status === 'waiting_client' ? 'selected' : '' %>>Aguardando retirada</option>
         <option value="delivered" <%= filters.status === 'delivered' ? 'selected' : '' %>>Entregue</option>
-        <option value="waiting_pickup" <%= filters.status === 'waiting_pickup' ? 'selected' : '' %>>Aguardando retirada</option>
+        <option value="returning" <%= filters.status === 'returning' ? 'selected' : '' %>>Devolvendo</option>
         <option value="returned" <%= filters.status === 'returned' ? 'selected' : '' %>>Devolvido</option>
-        <option value="expired" <%= filters.status === 'expired' ? 'selected' : '' %>>Expirado</option>
+        <option value="overdue" <%= filters.status === 'overdue' ? 'selected' : '' %>>Em atraso</option>
       </select>
       <button type="submit" class="btn btn-primary">Filtrar</button>
       <% if (filters.status || filters.search || filters.seller_id) { %>

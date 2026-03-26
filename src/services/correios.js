@@ -76,20 +76,38 @@ function parseWoncaResponse(code, data) {
   };
 }
 
+/**
+ * Mapeia o texto do evento dos Correios (via Wonca) para os status da payt.
+ * Referência: docs/payt-postback.md
+ *
+ * Status payt usados aqui:
+ *   waiting_client  → Objeto aguardando retirada do cliente  ⚠️ payt para de notificar aqui
+ *   delivered       → Entrega Realizada
+ *   delivering      → Saiu para entrega
+ *   recipient_not_found → Destinatário não encontrado / tentativa
+ *   returned        → Devolvido
+ *   returning       → Devolvendo ao Remetente
+ *   forwarded       → Encaminhado (em trânsito)
+ *   posted_object   → Objeto Postado
+ *   overdue         → Em Atraso / Prazo expirado
+ *   delivery_problem → Problema na Entrega
+ */
 function mapStatus(desc) {
-  if (!desc) return 'in_transit';
+  if (!desc) return 'forwarded';
   const val = desc.toUpperCase();
 
   if (val.includes('ENTREGUE') || val.includes('DELIVERED')) return 'delivered';
-  if (val.includes('TENTATIVA') || val.includes('AUSENTE')) return 'delivery_attempt';
+  if (val.includes('TENTATIVA') || val.includes('AUSENTE')) return 'recipient_not_found';
   if (val.includes('DEVOLVIDO') || val.includes('DEVOLU')) return 'returned';
-  if (val.includes('SAIU') || val.includes('DISTRIBUI') || val.includes('OUT FOR DELIVERY')) return 'out_for_delivery';
-  if (val.includes('RETIRADA') || val.includes('DISPONIVEL') || val.includes('DISPONÍVEL')) return 'waiting_pickup';
-  if (val.includes('AGUARD') || val.includes('POSTADO')) return 'posted';
-  if (val.includes('ENCAMINH') || val.includes('IN TRANSIT')) return 'in_transit';
-  if (val.includes('EXPIRADA') || val.includes('PRAZO') || val.includes('EXPIRED')) return 'expired';
+  if (val.includes('DEVOLVENDO') || val.includes('RETORNO AO')) return 'returning';
+  if (val.includes('SAIU') || val.includes('DISTRIBUI') || val.includes('OUT FOR DELIVERY')) return 'delivering';
+  if (val.includes('RETIRADA') || val.includes('DISPONIVEL') || val.includes('DISPONÍVEL') || val.includes('AGUARDANDO CLIENTE')) return 'waiting_client';
+  if (val.includes('POSTADO') || val.includes('POSTED')) return 'posted_object';
+  if (val.includes('ENCAMINH') || val.includes('IN TRANSIT') || val.includes('TRANSPORTE')) return 'forwarded';
+  if (val.includes('EXPIRADA') || val.includes('PRAZO') || val.includes('EXPIRED') || val.includes('ATRASO')) return 'overdue';
+  if (val.includes('ENDERE') || val.includes('CEP')) return 'wrong_address';
 
-  return 'in_transit';
+  return 'forwarded';
 }
 
 module.exports = { queryTracking };
