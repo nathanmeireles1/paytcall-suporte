@@ -110,6 +110,14 @@
   <div class="toolbar">
     <form method="GET" action="/">
       <input type="text" name="search" placeholder="Buscar código, pedido ou cliente..." value="<%= filters.search || '' %>">
+      <select name="seller_id">
+        <option value="">Todas as empresas</option>
+        <% companies.forEach(c => { %>
+          <option value="<%= c.seller_id %>" <%= filters.seller_id === c.seller_id ? 'selected' : '' %>>
+            <%= c.company_name || c.seller_id %> (<%= c.total %>)
+          </option>
+        <% }) %>
+      </select>
       <select name="status">
         <option value="">Todos os status</option>
         <option value="pending" <%= filters.status === 'pending' ? 'selected' : '' %>>Pendente</option>
@@ -118,9 +126,10 @@
         <option value="delivery_attempt" <%= filters.status === 'delivery_attempt' ? 'selected' : '' %>>Tentativa</option>
         <option value="delivered" <%= filters.status === 'delivered' ? 'selected' : '' %>>Entregue</option>
         <option value="returned" <%= filters.status === 'returned' ? 'selected' : '' %>>Devolvido</option>
+        <option value="expired" <%= filters.status === 'expired' ? 'selected' : '' %>>Expirado</option>
       </select>
       <button type="submit" class="btn btn-primary">Filtrar</button>
-      <% if (filters.status || filters.search) { %>
+      <% if (filters.status || filters.search || filters.seller_id) { %>
         <a href="/" class="btn btn-ghost">Limpar</a>
       <% } %>
     </form>
@@ -138,6 +147,7 @@
       <thead>
         <tr>
           <th>Código</th>
+          <th>Empresa</th>
           <th>Pedido</th>
           <th>Cliente</th>
           <th>Status</th>
@@ -150,6 +160,14 @@
         <% shipments.forEach(s => { %>
         <tr>
           <td><span class="code"><%= s.tracking_code %></span></td>
+          <td>
+            <% if (s.company_name) { %>
+              <span style="font-weight:600;color:#1a1a2e"><%= s.company_name %></span><br>
+              <span class="text-muted"><%= s.seller_id %></span>
+            <% } else { %>
+              <span class="text-muted"><%= s.seller_id || '—' %></span>
+            <% } %>
+          </td>
           <td><%= s.order_id || '<span class="text-muted">—</span>' %></td>
           <td>
             <%= s.customer_name || '<span class="text-muted">—</span>' %>

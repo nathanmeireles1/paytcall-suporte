@@ -26,6 +26,12 @@ router.post('/', async (req, res) => {
   const code = trackingCode.trim().toUpperCase();
   const customer = body.customer || {};
 
+  // Extrai nome da empresa pelo commission onde type = 'producer'
+  const commissions = Array.isArray(body.commission) ? body.commission : [];
+  const producer = commissions.find(c => c.type === 'producer');
+  const company_name = producer?.name || null;
+  const seller_id = body.seller_id || null;
+
   res.json({ message: 'Recebido, processando...', tracking_code: code });
 
   // Processa em background
@@ -33,6 +39,8 @@ router.post('/', async (req, res) => {
     await processTracking({
       tracking_code: code,
       order_id: body.transaction_id || null,
+      seller_id,
+      company_name,
       customer_name: customer.name || null,
       customer_email: customer.email || null,
       customer_phone: customer.phone || null,

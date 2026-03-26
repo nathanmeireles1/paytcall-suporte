@@ -17,6 +17,8 @@ async function init() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tracking_code TEXT NOT NULL UNIQUE,
       order_id TEXT,
+      seller_id TEXT,
+      company_name TEXT,
       customer_name TEXT,
       customer_email TEXT,
       customer_phone TEXT,
@@ -51,6 +53,7 @@ async function init() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_shipments_tracking ON shipments(tracking_code);
+    CREATE INDEX IF NOT EXISTS idx_shipments_seller ON shipments(seller_id);
     CREATE INDEX IF NOT EXISTS idx_events_tracking ON tracking_events(tracking_code);
   `);
 }
