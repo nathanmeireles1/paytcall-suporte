@@ -20,10 +20,16 @@
     .code { font-family: monospace; font-size: 22px; font-weight: 700; letter-spacing: 2px; color: #1a1a2e; }
     .badge { display: inline-block; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
     .badge-delivered { background: #dcfce7; color: #16a34a; }
-    .badge-in_transit { background: #dbeafe; color: #2563eb; }
-    .badge-out_for_delivery { background: #ede9fe; color: #7c3aed; }
-    .badge-delivery_attempt { background: #fef3c7; color: #d97706; }
+    .badge-forwarded { background: #dbeafe; color: #2563eb; }
+    .badge-posted_object { background: #e0f2fe; color: #0369a1; }
+    .badge-delivering { background: #ede9fe; color: #7c3aed; }
+    .badge-recipient_not_found { background: #fef3c7; color: #d97706; }
     .badge-returned { background: #fee2e2; color: #dc2626; }
+    .badge-returning { background: #fce7f3; color: #9d174d; }
+    .badge-waiting_client { background: #fef9c3; color: #854d0e; }
+    .badge-overdue { background: #ffedd5; color: #c2410c; }
+    .badge-wrong_address { background: #fee2e2; color: #991b1b; }
+    .badge-delivery_problem { background: #fef3c7; color: #92400e; }
     .badge-pending { background: #f3f4f6; color: #6b7280; }
     .timeline { position: relative; padding-left: 24px; }
     .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: #e5e7eb; }
@@ -37,7 +43,11 @@
     .btn-primary { background: #4f46e5; color: #fff; }
     .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
     .btn-ghost:hover { background: #f5f5f5; }
-    .actions { display: flex; gap: 12px; margin-top: 8px; }
+    .actions { display: flex; gap: 12px; margin-top: 20px; }
+    .last-event-box { margin-top: 16px; padding: 12px 16px; background: #f8f8fb; border-radius: 8px; border-left: 3px solid #4f46e5; }
+    .last-event-box .ev-label { font-size: 12px; color: #999; margin-bottom: 4px; }
+    .last-event-box .ev-text { font-size: 14px; font-weight: 500; }
+    .last-event-box .ev-date { font-size: 12px; color: #999; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -46,6 +56,23 @@
   <a href="/">← Voltar ao painel</a>
 </nav>
 
+<%
+const statusLabel = {
+  pending: 'Pendente',
+  posted_object: 'Objeto Postado',
+  forwarded: 'Em Trânsito',
+  delivering: 'Saiu p/ Entrega',
+  recipient_not_found: 'Dest. não encontrado',
+  delivery_problem: 'Problema na Entrega',
+  wrong_address: 'Endereço Incorreto',
+  waiting_client: 'Ag. Retirada',
+  delivered: 'Entregue',
+  returning: 'Devolvendo',
+  returned: 'Devolvido',
+  overdue: 'Em Atraso',
+};
+%>
+
 <div class="container">
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
@@ -53,14 +80,28 @@
         <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Código de Rastreio</div>
         <div class="code"><%= shipment.tracking_code %></div>
       </div>
-      <span class="badge badge-<%= shipment.status %>"><%= shipment.status %></span>
+      <span class="badge badge-<%= shipment.status %>"><%= statusLabel[shipment.status] || shipment.status %></span>
     </div>
+
+    <% if (shipment.last_event) { %>
+    <div class="last-event-box">
+      <div class="ev-label">Último evento</div>
+      <div class="ev-text"><%= shipment.last_event %></div>
+      <% if (shipment.last_event_date) { %><div class="ev-date"><%= shipment.last_event_date %></div><% } %>
+    </div>
+    <% } %>
 
     <div class="info-grid" style="margin-top:20px">
       <% if (shipment.order_id) { %>
       <div class="info-item">
         <div class="label">Pedido</div>
         <div class="val">#<%= shipment.order_id %></div>
+      </div>
+      <% } %>
+      <% if (shipment.company_name) { %>
+      <div class="info-item">
+        <div class="label">Empresa</div>
+        <div class="val"><%= shipment.company_name %></div>
       </div>
       <% } %>
       <% if (shipment.customer_name) { %>
@@ -82,17 +123,17 @@
       </div>
       <% } %>
       <div class="info-item">
-        <div class="label">Última consulta</div>
-        <div class="val"><%= shipment.last_queried_at ? shipment.last_queried_at.substring(0, 16) : '—' %></div>
+        <div class="label">Última consulta Correios</div>
+        <div class="val"><%= shipment.last_queried_at ? shipment.last_queried_at.substring(0, 16).replace('T', ' ') : 'Nunca' %></div>
       </div>
       <div class="info-item">
         <div class="label">Cadastrado em</div>
-        <div class="val"><%= shipment.created_at ? shipment.created_at.substring(0, 16) : '—' %></div>
+        <div class="val"><%= shipment.created_at ? shipment.created_at.substring(0, 16).replace('T', ' ') : '—' %></div>
       </div>
     </div>
 
     <div class="actions">
-      <button class="btn btn-primary" onclick="refreshTracking()">↻ Atualizar agora</button>
+      <button class="btn btn-primary" onclick="refreshTracking(event)">↻ Atualizar agora</button>
       <a href="/" class="btn btn-ghost">Voltar</a>
     </div>
   </div>
@@ -105,7 +146,7 @@
       <div class="event">
         <div class="desc"><%= ev.description %></div>
         <div class="meta">
-          <%= ev.event_date || '' %>
+          <%= ev.event_date ? ev.event_date.substring(0, 16).replace('T', ' ') : '' %>
           <% if (ev.location) { %> · <%= ev.location %><% } %>
         </div>
       </div>
@@ -115,19 +156,27 @@
   <% } else { %>
   <div class="card" style="text-align:center;color:#999;padding:40px">
     <p>Nenhum evento de rastreamento encontrado ainda.</p>
+    <p style="font-size:13px;margin-top:8px">Clique em "Atualizar agora" para consultar os Correios.</p>
   </div>
   <% } %>
 </div>
 
 <script>
-function refreshTracking() {
-  const btn = event.target;
+function refreshTracking(e) {
+  const btn = e.target;
   btn.disabled = true;
-  btn.textContent = 'Consultando...';
+  btn.textContent = 'Consultando Correios...';
   fetch('/api/tracking/<%= shipment.tracking_code %>')
     .then(r => r.json())
-    .then(() => location.reload())
-    .catch(() => { btn.disabled = false; btn.textContent = '↻ Atualizar agora'; alert('Erro ao consultar Correios.'); });
+    .then(data => {
+      if (data.warning) alert('Aviso: ' + data.warning);
+      location.reload();
+    })
+    .catch(() => {
+      btn.disabled = false;
+      btn.textContent = '↻ Atualizar agora';
+      alert('Erro ao consultar Correios. Tente novamente.');
+    });
 }
 </script>
 </body>

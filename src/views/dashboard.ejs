@@ -188,7 +188,16 @@
             <%= s.customer_name || '<span class="text-muted">—</span>' %>
             <% if (s.customer_email) { %><br><span class="text-muted"><%= s.customer_email %></span><% } %>
           </td>
-          <td><span class="badge badge-<%= s.status %>"><%= s.status %></span></td>
+          <%
+          const sLabel = {
+            pending: 'Pendente', posted_object: 'Obj. Postado', forwarded: 'Em Trânsito',
+            delivering: 'Saiu p/ Entrega', recipient_not_found: 'Dest. não encontrado',
+            delivery_problem: 'Prob. Entrega', wrong_address: 'End. Incorreto',
+            waiting_client: 'Ag. Retirada', delivered: 'Entregue',
+            returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
+          };
+          %>
+          <td><span class="badge badge-<%= s.status %>"><%= sLabel[s.status] || s.status %></span></td>
           <td>
             <%= s.last_event || '<span class="text-muted">—</span>' %>
             <% if (s.last_event_date) { %><br><span class="text-muted"><%= s.last_event_date %></span><% } %>
