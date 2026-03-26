@@ -24,19 +24,21 @@ function requireAuth(req, res, next) {
 }
 
 router.get('/', requireAuth, async (req, res) => {
-  const { status, search, page = 1 } = req.query;
-  const [stats, result] = await Promise.all([
+  const { status, search, seller_id, page = 1 } = req.query;
+  const [stats, result, companies] = await Promise.all([
     Shipment.getStats(),
-    Shipment.findAll({ status, search, page: parseInt(page) }),
+    Shipment.findAll({ status, search, seller_id, page: parseInt(page) }),
+    Shipment.getCompanies(),
   ]);
 
   res.render('dashboard', {
     shipments: result.rows,
     stats,
+    companies,
     total: result.total,
     pages: result.pages,
     currentPage: parseInt(page),
-    filters: { status, search },
+    filters: { status, search, seller_id },
   });
 });
 

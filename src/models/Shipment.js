@@ -6,15 +6,16 @@ const Shipment = {
     return r.rows[0] || null;
   },
 
-  async findAll({ page = 1, limit = 50, status, search } = {}) {
+  async findAll({ page = 1, limit = 50, status, search, seller_id } = {}) {
     const offset = (page - 1) * limit;
     const conditions = [];
     const params = [];
 
     if (status) { conditions.push('status = ?'); params.push(status); }
+    if (seller_id) { conditions.push('seller_id = ?'); params.push(seller_id); }
     if (search) {
-      conditions.push('(tracking_code LIKE ? OR order_id LIKE ? OR customer_name LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      conditions.push('(tracking_code LIKE ? OR order_id LIKE ? OR customer_name LIKE ? OR company_name LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
@@ -35,6 +36,8 @@ const Shipment = {
       await db.execute({
         sql: `UPDATE shipments SET
           order_id = COALESCE(?, order_id),
+          seller_id = COALESCE(?, seller_id),
+          company_name = COALESCE(?, company_name),
           customer_name = COALESCE(?, customer_name),
           customer_email = COALESCE(?, customer_email),
           customer_phone = COALESCE(?, customer_phone),
@@ -46,6 +49,8 @@ const Shipment = {
         WHERE tracking_code = ?`,
         args: [
           data.order_id || null,
+          data.seller_id || null,
+          data.company_name || null,
           data.customer_name || null,
           data.customer_email || null,
           data.customer_phone || null,
@@ -57,11 +62,13 @@ const Shipment = {
       });
     } else {
       await db.execute({
-        sql: `INSERT INTO shipments (tracking_code, order_id, customer_name, customer_email, customer_phone, status, last_event, last_event_date, last_queried_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+        sql: `INSERT INTO shipments (tracking_code, order_id, seller_id, company_name, customer_name, customer_email, customer_phone, status, last_event, last_event_date, last_queried_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
         args: [
           data.tracking_code,
           data.order_id || null,
+          data.seller_id || null,
+          data.company_name || null,
           data.customer_name || null,
           data.customer_email || null,
           data.customer_phone || null,
@@ -106,6 +113,17 @@ const Shipment = {
       FROM shipments
     `);
     return r.rows[0] || {};
+  },
+
+  async getCompanies() {
+    const r = await db.execute(`
+      SELECT seller_id, company_name, COUNT(*) as total
+      FROM shipments
+      WHERE seller_id IS NOT NULL
+      GROUP BY seller_id, company_name
+      ORDER BY company_name ASC
+    `);
+    return r.rows;
   },
 
   async getPendingForRefresh() {
