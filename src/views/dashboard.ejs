@@ -93,12 +93,16 @@
 <nav class="navbar">
   <h1>payt Tracker</h1>
   <div class="nav-info">
-    <% if (lastQueried) { %>
-    <span>Última consulta: <strong><%= lastQueried %></strong></span>
+    <% if (lastLog) { %>
+    <span>Última consulta: <strong><%= lastLog.ran_at_fmt %></strong>
+      · <strong style="color:#86efac"><%= lastLog.updated %> atualizados</strong>
+      <% if (lastLog.promoted > 0) { %> · <strong style="color:#c4b5fd"><%= lastLog.promoted %> promovidos</strong><% } %>
+      <% if (lastLog.errors > 0) { %> · <strong style="color:#fca5a5"><%= lastLog.errors %> erros</strong><% } %>
+    </span>
     <% } else { %>
     <span>Última consulta: <strong>—</strong></span>
     <% } %>
-    <span>Próxima janela: <strong><%= nextWindow %></strong></span>
+    <span>Próxima janela: <strong><%= nextWindow %></strong> · <strong style="color:#93c5fd"><%= pendingCount.toLocaleString('pt-BR') %> pendentes</strong></span>
     <a href="/api/tracking/refresh" class="nav-refresh" onclick="refreshAll(event)">↻ Atualizar todos</a>
   </div>
 </nav>
@@ -163,10 +167,18 @@
         <option value="returning" <%= filters.status === 'returning' ? 'selected' : '' %>>Devolvendo</option>
         <option value="returned" <%= filters.status === 'returned' ? 'selected' : '' %>>Devolvido</option>
         <option value="overdue" <%= filters.status === 'overdue' ? 'selected' : '' %>>Em atraso</option>
-        <option value="no_tracking" <%= filters.status === 'no_tracking' ? 'selected' : '' %>>Sem rastreio gerado</option>
+          <option value="no_tracking" <%= filters.status === 'no_tracking' ? 'selected' : '' %>>Sem rastreio gerado</option>
       </select>
+      <select name="carrier">
+        <option value="">Todas as transportadoras</option>
+        <option value="Loggi"    <%= filters.carrier === 'Loggi'    ? 'selected' : '' %>>Loggi</option>
+        <option value="Correios" <%= filters.carrier === 'Correios' ? 'selected' : '' %>>Correios</option>
+      </select>
+      <input type="text" name="product" placeholder="Filtrar por produto..." value="<%= filters.product || '' %>" style="min-width:160px">
+      <input type="date" name="paid_at_from" value="<%= filters.paid_at_from || '' %>" title="Pago a partir de">
+      <input type="date" name="paid_at_to"   value="<%= filters.paid_at_to   || '' %>" title="Pago até">
       <button type="submit" class="btn btn-primary">Filtrar</button>
-      <% if (filters.status || filters.search || filters.seller_id) { %>
+      <% if (filters.status || filters.search || filters.seller_id || filters.carrier || filters.product || filters.paid_at_from || filters.paid_at_to) { %>
         <a href="/" class="btn btn-ghost">Limpar</a>
       <% } %>
     </form>

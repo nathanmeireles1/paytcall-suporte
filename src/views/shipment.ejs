@@ -13,7 +13,7 @@
     .navbar a:hover { color: #fff; }
     .container { max-width: 800px; margin: 0 auto; padding: 24px; }
     .card { background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
-    .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #555; }
+    .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #555; text-transform: uppercase; letter-spacing: .5px; }
     .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .info-item .label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #999; margin-bottom: 4px; }
     .info-item .val { font-size: 15px; font-weight: 500; }
@@ -31,6 +31,7 @@
     .badge-wrong_address { background: #fee2e2; color: #991b1b; }
     .badge-delivery_problem { background: #fef3c7; color: #92400e; }
     .badge-pending { background: #f3f4f6; color: #6b7280; }
+    .badge-no_tracking { background: #f1f5f9; color: #94a3b8; }
     .timeline { position: relative; padding-left: 24px; }
     .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: #e5e7eb; }
     .event { position: relative; padding-bottom: 20px; }
@@ -41,13 +42,28 @@
     .event .meta { font-size: 12px; color: #999; margin-top: 2px; }
     .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; }
     .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-danger { background: #dc2626; color: #fff; }
     .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
     .btn-ghost:hover { background: #f5f5f5; }
-    .actions { display: flex; gap: 12px; margin-top: 20px; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
     .last-event-box { margin-top: 16px; padding: 12px 16px; background: #f8f8fb; border-radius: 8px; border-left: 3px solid #4f46e5; }
     .last-event-box .ev-label { font-size: 12px; color: #999; margin-bottom: 4px; }
     .last-event-box .ev-text { font-size: 14px; font-weight: 500; }
     .last-event-box .ev-date { font-size: 12px; color: #999; margin-top: 2px; }
+    .expected-box { display:inline-flex; align-items:center; gap:8px; background:#ecfdf5; border:1px solid #6ee7b7; border-radius:8px; padding:8px 14px; margin-top:12px; }
+    .expected-box .exp-label { font-size:11px; color:#059669; text-transform:uppercase; letter-spacing:.5px; }
+    .expected-box .exp-val { font-size:15px; font-weight:700; color:#065f46; }
+    .ticket { border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px; margin-bottom:10px; }
+    .ticket.open { border-left:3px solid #4f46e5; }
+    .ticket.closed { border-left:3px solid #d1d5db; opacity:.7; }
+    .ticket-title { font-weight:600; font-size:14px; }
+    .ticket-meta { font-size:12px; color:#999; margin-top:4px; }
+    .ticket-desc { font-size:13px; color:#555; margin-top:8px; }
+    .ticket-form input, .ticket-form textarea, .ticket-form select { width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px; margin-bottom:10px; outline:none; font-family:inherit; }
+    .ticket-form textarea { resize:vertical; min-height:80px; }
+    .ticket-form input:focus, .ticket-form textarea:focus { border-color:#4f46e5; }
+    .priority-normal { color:#6b7280; } .priority-high { color:#dc2626; } .priority-low { color:#16a34a; }
   </style>
 </head>
 <body>
@@ -58,27 +74,27 @@
 
 <%
 const statusLabel = {
-  pending: 'Pendente',
-  posted_object: 'Objeto Postado',
-  forwarded: 'Em Trânsito',
-  delivering: 'Saiu p/ Entrega',
-  recipient_not_found: 'Dest. não encontrado',
-  delivery_problem: 'Problema na Entrega',
-  wrong_address: 'Endereço Incorreto',
-  waiting_client: 'Ag. Retirada',
-  delivered: 'Entregue',
-  returning: 'Devolvendo',
-  returned: 'Devolvido',
-  overdue: 'Em Atraso',
+  pending: 'Pendente', posted_object: 'Objeto Postado', forwarded: 'Em Trânsito',
+  delivering: 'Saiu p/ Entrega', recipient_not_found: 'Dest. não encontrado',
+  delivery_problem: 'Problema na Entrega', wrong_address: 'Endereço Incorreto',
+  waiting_client: 'Ag. Retirada', delivered: 'Entregue',
+  returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
+  no_tracking: 'Sem Rastreio',
 };
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
 %>
 
 <div class="container">
+
+  <!-- Rastreio principal -->
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
       <div>
         <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Código de Rastreio</div>
         <div class="code"><%= shipment.tracking_code %></div>
+        <% if (shipment.loggi_code && shipment.loggi_code !== shipment.tracking_code) { %>
+        <div style="font-size:12px;color:#666;margin-top:4px">Cód. Loggi: <strong><%= shipment.loggi_code %></strong></div>
+        <% } %>
       </div>
       <span class="badge badge-<%= shipment.status %>"><%= statusLabel[shipment.status] || shipment.status %></span>
     </div>
@@ -88,6 +104,15 @@ const statusLabel = {
       <div class="ev-label">Último evento</div>
       <div class="ev-text"><%= shipment.last_event %></div>
       <% if (shipment.last_event_date) { %><div class="ev-date"><%= shipment.last_event_date %></div><% } %>
+    </div>
+    <% } %>
+
+    <% if (shipment.expected_date) { %>
+    <div class="expected-box">
+      <div>
+        <div class="exp-label">Data prevista de entrega</div>
+        <div class="exp-val"><%= shipment.expected_date %></div>
+      </div>
     </div>
     <% } %>
 
@@ -111,12 +136,18 @@ const statusLabel = {
       </div>
       <% } %>
       <div class="info-item">
-        <div class="label">Última consulta Correios</div>
-        <div class="val"><%= shipment.last_queried_at ? new Date(shipment.last_queried_at).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : 'Nunca' %></div>
+        <div class="label">Última consulta H7</div>
+        <div class="val"><%= fmtDate(shipment.last_queried_at) %></div>
       </div>
+      <% if (shipment.paid_at) { %>
+      <div class="info-item">
+        <div class="label">Pagamento aprovado em</div>
+        <div class="val"><%= fmtDate(shipment.paid_at) %></div>
+      </div>
+      <% } %>
       <div class="info-item">
         <div class="label">Cadastrado em</div>
-        <div class="val"><%= shipment.created_at ? new Date(shipment.created_at).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—' %></div>
+        <div class="val"><%= fmtDate(shipment.created_at) %></div>
       </div>
     </div>
 
@@ -134,100 +165,64 @@ const statusLabel = {
     <h2>Cliente</h2>
     <div class="info-grid">
       <% if (shipment.customer_name) { %>
-      <div class="info-item">
-        <div class="label">Nome</div>
-        <div class="val"><%= shipment.customer_name %></div>
-      </div>
+      <div class="info-item"><div class="label">Nome</div><div class="val"><%= shipment.customer_name %></div></div>
       <% } %>
       <% if (shipment.customer_doc) { %>
-      <div class="info-item">
-        <div class="label">CPF</div>
-        <div class="val"><%= shipment.customer_doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') %></div>
-      </div>
+      <div class="info-item"><div class="label">CPF</div><div class="val"><%= shipment.customer_doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') %></div></div>
       <% } %>
       <% if (shipment.customer_email) { %>
-      <div class="info-item">
-        <div class="label">E-mail</div>
-        <div class="val"><%= shipment.customer_email %></div>
-      </div>
+      <div class="info-item"><div class="label">E-mail</div><div class="val"><%= shipment.customer_email %></div></div>
       <% } %>
       <% if (shipment.customer_phone) { %>
-      <div class="info-item">
-        <div class="label">Telefone</div>
-        <div class="val"><%= shipment.customer_phone %></div>
-      </div>
+      <div class="info-item"><div class="label">Telefone</div><div class="val"><%= shipment.customer_phone %></div></div>
       <% } %>
     </div>
   </div>
 
-  <!-- Produto e Pagamento -->
+  <!-- Pedido e pagamento -->
   <div class="card">
     <h2>Pedido</h2>
     <div class="info-grid">
       <% if (shipment.product_name) { %>
-      <div class="info-item">
-        <div class="label">Produto</div>
-        <div class="val"><%= shipment.product_name %></div>
-      </div>
+      <div class="info-item" style="grid-column:1/-1"><div class="label">Produto</div><div class="val"><%= shipment.product_name %></div></div>
       <% } %>
       <% if (shipment.product_quantity) { %>
-      <div class="info-item">
-        <div class="label">Quantidade</div>
-        <div class="val"><%= shipment.product_quantity %></div>
-      </div>
+      <div class="info-item"><div class="label">Quantidade</div><div class="val"><%= shipment.product_quantity %></div></div>
       <% } %>
       <% if (shipment.product_price) { %>
-      <div class="info-item">
-        <div class="label">Preço unitário</div>
-        <div class="val">R$ <%= (shipment.product_price / 100).toFixed(2).replace('.', ',') %></div>
-      </div>
+      <div class="info-item"><div class="label">Preço unitário</div><div class="val">R$ <%= (shipment.product_price/100).toFixed(2).replace('.',',') %></div></div>
       <% } %>
       <% if (shipment.total_price) { %>
-      <div class="info-item">
-        <div class="label">Total pago</div>
-        <div class="val" style="color:#16a34a;font-weight:700">R$ <%= (shipment.total_price / 100).toFixed(2).replace('.', ',') %></div>
-      </div>
+      <div class="info-item"><div class="label">Total pago</div><div class="val" style="color:#16a34a;font-weight:700">R$ <%= (shipment.total_price/100).toFixed(2).replace('.',',') %></div></div>
       <% } %>
       <% if (shipment.payment_method) { %>
-      <div class="info-item">
-        <div class="label">Forma de pagamento</div>
-        <div class="val"><%= {pix:'PIX', credit_card:'Cartão de crédito', boleto:'Boleto', debit_card:'Cartão de débito'}[shipment.payment_method] || shipment.payment_method %></div>
-      </div>
+      <div class="info-item"><div class="label">Forma de pagamento</div><div class="val"><%= {pix:'PIX',credit_card:'Cartão de crédito',boleto:'Boleto',debit_card:'Cartão de débito'}[shipment.payment_method] || shipment.payment_method %></div></div>
       <% } %>
       <% if (shipment.payment_status) { %>
-      <div class="info-item">
-        <div class="label">Status do pagamento</div>
-        <div class="val"><%= {paid:'Pago', waiting_payment:'Aguardando', canceled:'Cancelado', refunded:'Reembolsado'}[shipment.payment_status] || shipment.payment_status %></div>
-      </div>
+      <div class="info-item"><div class="label">Status do pagamento</div><div class="val"><%= {paid:'Pago',waiting_payment:'Aguardando',canceled:'Cancelado',refunded:'Reembolsado',chargeback:'Chargeback',chargeback_presented:'Chargeback Apresentado',refunded_partial:'Reembolso Parcial'}[shipment.payment_status] || shipment.payment_status %></div></div>
       <% } %>
     </div>
   </div>
 
-  <!-- Endereço de entrega -->
+  <!-- Endereço -->
   <% if (shipment.shipping_address) { %>
-  <%
-    const addr = typeof shipment.shipping_address === 'string'
-      ? JSON.parse(shipment.shipping_address)
-      : shipment.shipping_address;
-  %>
+  <% const addr = typeof shipment.shipping_address === 'string' ? JSON.parse(shipment.shipping_address) : shipment.shipping_address; %>
   <div class="card">
     <h2>Endereço de Entrega</h2>
-    <div class="info-grid">
-      <div class="info-item" style="grid-column:1/-1">
-        <div class="label">Endereço</div>
-        <div class="val">
-          <%= addr.street %><% if (addr.street_number) { %>, <%= addr.street_number %><% } %>
-          <% if (addr.complement) { %> — <%= addr.complement %><% } %><br>
-          <%= addr.district %> · <%= addr.city %>/<%= addr.state %> · CEP <%= addr.zipcode %>
-        </div>
+    <div class="info-item">
+      <div class="val">
+        <%= addr.street %><% if (addr.street_number) { %>, <%= addr.street_number %><% } %>
+        <% if (addr.complement) { %> — <%= addr.complement %><% } %><br>
+        <%= addr.district %> · <%= addr.city %>/<%= addr.state %> · CEP <%= addr.zipcode %>
       </div>
     </div>
   </div>
   <% } %>
 
+  <!-- Timeline H7 -->
   <% if (events.length > 0) { %>
   <div class="card">
-    <h2>Histórico de rastreamento (<%= events.length %> eventos)</h2>
+    <h2>Histórico de Rastreamento (<%= events.length %> eventos)</h2>
     <div class="timeline">
       <% events.forEach(ev => { %>
       <div class="event">
@@ -242,17 +237,59 @@ const statusLabel = {
   </div>
   <% } else { %>
   <div class="card" style="text-align:center;color:#999;padding:40px">
-    <p>Nenhum evento de rastreamento encontrado ainda.</p>
-    <p style="font-size:13px;margin-top:8px">Clique em "Atualizar agora" para consultar os Correios.</p>
+    <p>Nenhum evento de rastreamento ainda.</p>
+    <p style="font-size:13px;margin-top:8px">Clique em "Atualizar agora" para consultar a H7.</p>
   </div>
   <% } %>
+
+  <!-- Tickets de suporte -->
+  <div class="card">
+    <h2>Tickets de Suporte (<%= tickets.length %>)</h2>
+
+    <% if (tickets.length > 0) { %>
+    <% tickets.forEach(t => { %>
+    <div class="ticket <%= t.status %>">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <span class="ticket-title"><%= t.title %></span>
+          <span style="margin-left:8px;font-size:11px;font-weight:600" class="priority-<%= t.priority %>">[<%= {high:'URGENTE',normal:'Normal',low:'Baixa'}[t.priority]||t.priority %>]</span>
+        </div>
+        <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:<%= t.status==='open'?'#ede9fe':'#f3f4f6' %>;color:<%= t.status==='open'?'#7c3aed':'#9ca3af' %>"><%= t.status==='open'?'Aberto':'Fechado' %></span>
+      </div>
+      <div class="ticket-meta"><%= t.created_by || 'Suporte' %> · <%= new Date(t.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) %></div>
+      <% if (t.description) { %><div class="ticket-desc"><%= t.description %></div><% } %>
+      <% if (t.status === 'open') { %>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="closeTicket('<%= t.id %>', this)">Fechar ticket</button>
+      <% } %>
+    </div>
+    <% }) %>
+    <% } %>
+
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;font-size:14px;font-weight:600;color:#4f46e5">+ Abrir novo ticket</summary>
+      <form class="ticket-form" method="POST" action="/shipment/<%= shipment.tracking_code %>/ticket" style="margin-top:14px">
+        <input type="text" name="title" placeholder="Título do ticket" required>
+        <textarea name="description" placeholder="Descreva o problema ou ocorrência..."></textarea>
+        <div style="display:flex;gap:10px">
+          <input type="text" name="created_by" placeholder="Seu nome" style="flex:1">
+          <select name="priority" style="flex:0 0 140px">
+            <option value="normal">Normal</option>
+            <option value="high">Urgente</option>
+            <option value="low">Baixa</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Abrir ticket</button>
+      </form>
+    </details>
+  </div>
+
 </div>
 
 <script>
 function refreshTracking(e) {
   const btn = e.target;
   btn.disabled = true;
-  btn.textContent = 'Consultando Correios...';
+  btn.textContent = 'Consultando H7...';
   fetch('/api/tracking/<%= shipment.tracking_code %>')
     .then(r => r.json())
     .then(data => {
@@ -262,8 +299,15 @@ function refreshTracking(e) {
     .catch(() => {
       btn.disabled = false;
       btn.textContent = '↻ Atualizar agora';
-      alert('Erro ao consultar Correios. Tente novamente.');
+      alert('Erro ao consultar H7. Tente novamente.');
     });
+}
+function closeTicket(id, btn) {
+  if (!confirm('Fechar este ticket?')) return;
+  btn.disabled = true;
+  fetch('/ticket/' + id + '/close', { method: 'POST' })
+    .then(() => location.reload())
+    .catch(() => { btn.disabled = false; alert('Erro ao fechar ticket.'); });
 }
 </script>
 </body>

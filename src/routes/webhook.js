@@ -55,22 +55,27 @@ router.post('/', async (req, res) => {
   const trackingUrl = body.shipping?.tracking_url || null;
   const orderId = body.transaction_id || null;
 
+  const paidAt = body.status === 'paid'
+    ? (body.started_at || body.transaction?.created_at || body.updated_at || null)
+    : null;
+
   const orderData = {
-    order_id: orderId,
-    seller_id: body.seller_id || null,
-    company_name: producer?.name || null,
-    customer_name: customer.name || null,
-    customer_email: customer.email || null,
-    customer_phone: customer.phone || null,
-    customer_doc: customer.doc || null,
-    product_name: product.name || null,
-    product_price: product.price || null,
+    order_id:         orderId,
+    seller_id:        body.seller_id || null,
+    company_name:     producer?.name || null,
+    customer_name:    customer.name || null,
+    customer_email:   customer.email || null,
+    customer_phone:   customer.phone || null,
+    customer_doc:     customer.doc || null,
+    product_name:     product.name || null,
+    product_price:    product.price || null,
     product_quantity: product.quantity || null,
-    payment_method: transaction.payment_method || null,
-    payment_status: body.status || transaction.payment_status || null,
-    total_price: transaction.total_price || null,
+    payment_method:   transaction.payment_method || null,
+    payment_status:   body.status || transaction.payment_status || null,
+    total_price:      transaction.total_price || null,
     shipping_address: shippingAddress,
-    tracking_url: trackingUrl,
+    tracking_url:     trackingUrl,
+    paid_at:          paidAt,
   };
 
   // Responde imediatamente para a payt não fazer retry
