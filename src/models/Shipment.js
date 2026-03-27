@@ -95,8 +95,8 @@ const Shipment = {
   },
 
   /**
-   * Upsert vindo dos Correios — sempre sobrescreve status e eventos
-   * Atualiza last_queried_at para controle do ciclo de 5 dias
+   * Upsert vindo do H7 — sempre sobrescreve status e eventos
+   * Atualiza last_queried_at (exibido na tela do pedido)
    */
   async upsert(data) {
     const payload = {

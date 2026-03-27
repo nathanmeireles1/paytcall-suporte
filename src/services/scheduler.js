@@ -5,15 +5,15 @@ const { queryH7ByCpf } = require('./haga7');
 
 /**
  * Scheduler — consulta H7 (Correios + Loggi via CPF) 2x ao dia
- * 09:00 e 15:00 horário de Brasília
+ * Inicia às 08:00 e 14:00 BRT para resultados prontos às 09:00 e 15:00
  */
 function startScheduler() {
-  cron.schedule('0 9,15 * * *', async () => {
+  cron.schedule('0 8,14 * * *', async () => {
     console.log('[Scheduler] Iniciando atualização via H7...');
     await refreshPendingShipments();
   }, { timezone: 'America/Sao_Paulo' });
 
-  console.log('[Scheduler] Agendado: consulta H7 às 09:00 e 15:00 (horário de Brasília)');
+  console.log('[Scheduler] Agendado: consulta H7 às 08:00 e 14:00 BRT (resultados prontos às 09:00 e 15:00)');
 }
 
 async function refreshPendingShipments() {
@@ -99,7 +99,7 @@ async function refreshPendingShipments() {
         }
       }
 
-      await sleep(400);
+      await sleep(200);
     } catch (err) {
       console.error(`[H7] Erro no CPF ${cpf.slice(0, 3)}***:`, err.message);
       errors += (shipments.length + queued.length);
