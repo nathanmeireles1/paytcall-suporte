@@ -23,6 +23,13 @@ router.post('/', async (req, res) => {
     return res.json({ success: true, message: 'Webhook recebido com sucesso' });
   }
 
+  // Aceita apenas: pedidos pagos/enviados, chargebacks e reembolsos
+  // Nota: 'chargeback' e 'refunded' são termos prováveis — confirmar com Payt se necessário
+  const ACCEPTED_STATUSES = ['paid', 'shipped', 'chargeback', 'refunded', 'refund'];
+  if (body.status && !ACCEPTED_STATUSES.includes(body.status)) {
+    return res.json({ message: `Ignorado: status '${body.status}' não processado` });
+  }
+
   // Ignora webhooks históricos — só processa a partir de 26/03/2026
   const WEBHOOK_START_DATE = new Date('2026-03-26T00:00:00Z');
   const rawDate = body.started_at || body.transaction?.created_at || body.updated_at;

@@ -175,19 +175,17 @@ const Shipment = {
   },
 
   /**
-   * Retorna pedidos ativos prontos para consulta nos Correios
-   * Critério: não finalizados + (nunca consultado OU última consulta >= 5 dias atrás)
+   * Retorna todos os pedidos ativos com CPF para consulta no H7
+   * Critério: não finalizados + com customer_doc (CPF obrigatório para H7)
+   * Scheduler roda 2x/dia (09h e 15h BRT) — sem restrição de intervalo
    */
   async getPendingForRefresh() {
-    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
-
     const { data, error } = await db
       .from('shipments')
       .select('*')
       .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
-      .or(`last_queried_at.is.null,last_queried_at.lt.${fiveDaysAgo}`)
-      .order('last_queried_at', { ascending: true, nullsFirst: true })
-      .limit(50);
+      .not('customer_doc', 'is', null)
+      .order('updated_at', { ascending: true });
 
     if (error) throw error;
     return data || [];
