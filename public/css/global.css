@@ -1,6 +1,6 @@
 /* ===========================
    PAYT SUPORTE — Design System
-   Inspired by shadcn/ui
+   Inspired by Shopify Polaris
    =========================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -17,18 +17,26 @@
   --brand-600:    #ea580c;
   --brand-700:    #c2410c;
 
-  /* Neutral — shadcn/ui slate scale */
-  --gray-50:  #f8fafc;
-  --gray-100: #f1f5f9;
-  --gray-150: #eef2f7;
-  --gray-200: #e2e8f0;
-  --gray-300: #cbd5e1;
-  --gray-400: #94a3b8;
-  --gray-500: #64748b;
-  --gray-600: #475569;
-  --gray-700: #334155;
-  --gray-800: #1e293b;
-  --gray-900: #0f172a;
+  /* Neutral — Shopify Polaris scale */
+  --gray-50:  #f6f6f7;
+  --gray-100: #f1f2f3;
+  --gray-150: #ebebec;
+  --gray-200: #e1e3e5;
+  --gray-300: #c9cccf;
+  --gray-400: #8c9196;
+  --gray-500: #6d7175;
+  --gray-600: #4b4f54;
+  --gray-700: #3a3d40;
+  --gray-800: #202223;
+  --gray-900: #0d0e0f;
+
+  /* Sidebar dark (Polaris nav) */
+  --nav-bg:           #1c2333;
+  --nav-bg-hover:     #ffffff14;
+  --nav-bg-active:    #ffffff1f;
+  --nav-text:         #b3bac5;
+  --nav-text-active:  #ffffff;
+  --nav-border:       #ffffff18;
 
   /* Semantic */
   --success:         #16a34a;
@@ -50,9 +58,9 @@
   /* Layout */
   --sidebar-w:  248px;
   --topbar-h:   56px;
-  --radius:     6px;
+  --radius:     4px;
   --radius-md:  8px;
-  --radius-lg:  10px;
+  --radius-lg:  12px;
 
   --shadow-xs: 0 1px 2px rgba(0,0,0,.04);
   --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
@@ -74,11 +82,11 @@ img { max-width: 100%; }
 /* ===== App Shell ===== */
 .app { display: flex; min-height: 100vh; }
 
-/* ===== Sidebar ===== */
+/* ===== Sidebar — Shopify Polaris dark nav ===== */
 .sidebar {
   width: var(--sidebar-w);
-  background: #fff;
-  border-right: 1px solid var(--gray-200);
+  background: var(--nav-bg);
+  border-right: none;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -94,7 +102,7 @@ img { max-width: 100%; }
   align-items: center;
   padding: 0 16px;
   gap: 10px;
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--nav-border);
   flex-shrink: 0;
 }
 .sidebar-brand .brand-logo {
@@ -103,18 +111,18 @@ img { max-width: 100%; }
   background: var(--brand);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(249,115,22,.3);
+  box-shadow: 0 1px 3px rgba(249,115,22,.4);
 }
 .sidebar-brand .brand-logo svg { width: 17px; height: 17px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .sidebar-brand .brand-name {
   font-size: 14px;
   font-weight: 700;
-  color: var(--gray-900);
+  color: #fff;
   letter-spacing: -.2px;
 }
 .sidebar-brand .brand-tag {
   font-size: 10px;
-  color: var(--gray-400);
+  color: var(--nav-text);
   font-weight: 500;
   letter-spacing: .3px;
   text-transform: uppercase;
@@ -130,7 +138,7 @@ img { max-width: 100%; }
 .sidebar-section-label {
   font-size: 10px;
   font-weight: 600;
-  color: var(--gray-400);
+  color: #ffffff55;
   text-transform: uppercase;
   letter-spacing: .8px;
   padding: 10px 10px 4px;
@@ -143,25 +151,26 @@ img { max-width: 100%; }
   gap: 9px;
   padding: 7px 10px;
   border-radius: var(--radius-md);
-  color: var(--gray-600);
+  color: var(--nav-text);
   font-size: 13px;
   font-weight: 500;
   transition: background .12s, color .12s;
   white-space: nowrap;
   margin-bottom: 1px;
 }
-.nav-item:hover { background: var(--gray-100); color: var(--gray-900); }
-.nav-item.active { background: var(--brand-50); color: var(--brand-700); font-weight: 600; }
+.nav-item:hover { background: var(--nav-bg-hover); color: #fff; }
+.nav-item.active { background: var(--nav-bg-active); color: var(--nav-text-active); font-weight: 600; }
 .nav-item.active .nav-icon { color: var(--brand); }
 
 .nav-icon {
   width: 18px; height: 18px;
   flex-shrink: 0;
-  color: var(--gray-400);
+  color: #ffffff55;
   display: flex; align-items: center; justify-content: center;
   transition: color .12s;
 }
-.nav-item:hover .nav-icon { color: var(--gray-600); }
+.nav-item:hover .nav-icon { color: #ffffffaa; }
+.nav-item.active .nav-icon { color: var(--brand); }
 .nav-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 
 .nav-badge {
@@ -178,7 +187,7 @@ img { max-width: 100%; }
 
 .sidebar-footer {
   padding: 10px 12px;
-  border-top: 1px solid var(--gray-200);
+  border-top: 1px solid var(--nav-border);
   flex-shrink: 0;
 }
 .sidebar-user {
@@ -189,31 +198,30 @@ img { max-width: 100%; }
 .sidebar-user .avatar {
   width: 30px; height: 30px;
   border-radius: 99px;
-  background: var(--brand-100);
-  color: var(--brand-700);
+  background: var(--brand);
+  color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700;
   flex-shrink: 0;
-  border: 1.5px solid var(--brand-200);
 }
 .sidebar-user .user-info { min-width: 0; flex: 1; }
 .sidebar-user .user-name {
   font-size: 12.5px; font-weight: 600;
-  color: var(--gray-800);
+  color: #fff;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .sidebar-user .user-role {
-  font-size: 11px; color: var(--gray-400); font-weight: 500; text-transform: capitalize;
+  font-size: 11px; color: var(--nav-text); font-weight: 500; text-transform: capitalize;
 }
 .sidebar-user .btn-logout {
   padding: 5px;
   border-radius: var(--radius);
-  color: var(--gray-400);
+  color: var(--nav-text);
   transition: background .12s, color .12s;
   flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.sidebar-user .btn-logout:hover { background: var(--gray-100); color: var(--gray-600); }
+.sidebar-user .btn-logout:hover { background: var(--nav-bg-hover); color: #fff; }
 .sidebar-user .btn-logout svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ===== Main ===== */
@@ -225,11 +233,12 @@ img { max-width: 100%; }
   flex-direction: column;
 }
 
-/* ===== Topbar ===== */
+/* ===== Topbar — Polaris ===== */
 .topbar {
   height: var(--topbar-h);
   background: #fff;
   border-bottom: 1px solid var(--gray-200);
+  box-shadow: 0 1px 0 var(--gray-200);
   display: flex;
   align-items: center;
   padding: 0 24px;
@@ -288,16 +297,16 @@ img { max-width: 100%; }
 }
 .stat-sub { font-size: 11px; color: var(--gray-400); margin-top: 5px; font-weight: 500; }
 
-/* ===== Cards ===== */
+/* ===== Cards — Polaris ===== */
 .card {
   background: #fff;
   border-radius: var(--radius-lg);
   border: 1px solid var(--gray-200);
-  box-shadow: var(--shadow-xs);
+  box-shadow: 0 0 0 1px rgba(63,63,68,.05), 0 1px 3px 0 rgba(63,63,68,.15);
   overflow: hidden;
   transition: box-shadow .15s;
 }
-.card:hover { box-shadow: var(--shadow-sm); }
+.card:hover { box-shadow: 0 0 0 1px rgba(63,63,68,.08), 0 2px 6px 0 rgba(63,63,68,.2); }
 .card-header {
   padding: 14px 18px;
   border-bottom: 1px solid var(--gray-100);
@@ -345,11 +354,11 @@ tbody tr:hover td { background: var(--gray-50); }
 tbody tr.clickable { cursor: pointer; }
 tbody tr.clickable:hover td { background: var(--brand-50); }
 
-/* ===== Badges ===== */
+/* ===== Badges — Polaris style (semi-rounded) ===== */
 .badge {
   display: inline-flex; align-items: center;
-  padding: 2px 9px;
-  border-radius: 99px;
+  padding: 2px 8px;
+  border-radius: 4px;
   font-size: 11px; font-weight: 600;
   letter-spacing: .1px; line-height: 18px;
   white-space: nowrap; border: 1px solid transparent;
