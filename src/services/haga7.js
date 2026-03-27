@@ -41,14 +41,16 @@ function parseH7Response(data) {
   }));
 
   const latest = events[0] || {};
+  const hasData = events.length > 0 || data.info?.trackingCode;
 
   return {
-    status: mapH7Status(latest.description),
-    last_event: latest.detail || latest.description || '',
+    status: hasData ? mapH7Status(latest.description) : 'no_tracking',
+    last_event: hasData ? (latest.detail || latest.description || '') : 'Sem rastreio gerado',
     last_event_date: latest.date || '',
     loggi_code: data.info?.trackingCode || null,
     expected_date: data.info?.expected_date || null,
     events,
+    hasData,
   };
 }
 

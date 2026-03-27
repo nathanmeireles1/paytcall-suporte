@@ -60,7 +60,8 @@ async function refreshPendingShipments() {
           last_event_date: tracking.last_event_date,
         });
         if (tracking.events?.length) await Shipment.saveEvents(shipment.tracking_code, tracking.events);
-        console.log(`[H7] ${shipment.tracking_code} (CPF ${cpf.slice(0, 3)}***): ${shipment.status} → ${tracking.status}`);
+        const tag = tracking.hasData ? '' : ' [sem rastreio]';
+        console.log(`[H7] ${shipment.tracking_code} (CPF ${cpf.slice(0, 3)}***): ${shipment.status} → ${tracking.status}${tag}`);
         updated++;
       }
 
