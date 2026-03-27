@@ -212,22 +212,15 @@ closed_at        TIMESTAMPTZ (preenchido quando status vira terminal)
 
 ---
 
-## 4 — NOTIFICAÇÕES
+## 4 — NOTIFICAÇÕES ✅
 
-- [ ] Ícone de sino (🔔) na barra superior com contador
-- [ ] Notificar o **criador** do ticket quando status mudar
-- [ ] Notificar o **responsável** do ticket quando status mudar
-- [ ] Tabela `notifications` no Supabase:
-  ```
-  id          UUID PK
-  user_id     TEXT (nome ou ID do usuário)
-  ticket_id   UUID FK → tickets
-  message     TEXT
-  read        BOOLEAN DEFAULT false
-  created_at  TIMESTAMPTZ DEFAULT NOW()
-  ```
-- [ ] Dropdown ao clicar no sino mostrando notificações recentes
-- [ ] Marcar como lida ao clicar
+- [x] Ícone de sino (🔔) na barra superior com contador
+- [x] Notificar o **criador** do ticket quando status mudar
+- [x] Notificar o **responsável** do ticket quando novo ticket criado
+- [x] Dropdown ao clicar no sino mostrando notificações recentes
+- [x] Marcar todas como lidas
+- [x] Clique na notificação leva ao pedido
+- [x] Nome do usuário salvo no localStorage (temporário até Login ser implementado)
 
 ---
 
