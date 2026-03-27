@@ -73,6 +73,7 @@
     .badge-delivery_problem { background: #fef3c7; color: #92400e; }
     .badge-pending { background: #f3f4f6; color: #6b7280; }
     .badge-no_tracking { background: #f1f5f9; color: #94a3b8; }
+    .badge-tracking_delayed { background: #fee2e2; color: #dc2626; }
 
     .code { font-family: monospace; font-size: 13px; font-weight: 600; color: #1a1a2e; }
     .text-muted { color: #999; font-size: 12px; }
@@ -139,6 +140,10 @@
       <div class="label">Ag. Retirada</div>
       <div class="value" style="color:#854d0e"><%= stats.waiting_client %></div>
     </div>
+    <div class="stat-card">
+      <div class="label">Rastreio em Atraso</div>
+      <div class="value" style="color:#dc2626"><%= stats.tracking_delayed || 0 %></div>
+    </div>
   </div>
 
   <!-- Filtros -->
@@ -168,6 +173,7 @@
         <option value="returned" <%= filters.status === 'returned' ? 'selected' : '' %>>Devolvido</option>
         <option value="overdue" <%= filters.status === 'overdue' ? 'selected' : '' %>>Em atraso</option>
           <option value="no_tracking" <%= filters.status === 'no_tracking' ? 'selected' : '' %>>Sem rastreio gerado</option>
+          <option value="tracking_delayed" <%= filters.status === 'tracking_delayed' ? 'selected' : '' %>>Rastreio em Atraso</option>
       </select>
       <select name="carrier">
         <option value="">Todas as transportadoras</option>
@@ -214,6 +220,7 @@
           waiting_client: 'Ag. Retirada', delivered: 'Entregue',
           returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
           no_tracking: 'Sem Rastreio',
+          tracking_delayed: 'Rastreio em Atraso',
         };
         %>
         <% shipments.forEach(s => { %>

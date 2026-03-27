@@ -4,12 +4,14 @@ const { queryH7ByCpf } = require('./haga7');
 
 /**
  * Scheduler — consulta H7 2x ao dia (08:00 e 14:00 BRT)
- * Resultados prontos às 09:00 e 15:00 BRT
+ * + verificação de rastreios em atraso
  */
 function startScheduler() {
   cron.schedule('0 8,14 * * *', async () => {
     console.log('[Scheduler] Iniciando atualização via H7...');
     await refreshPendingShipments();
+    console.log('[Scheduler] Verificando rastreios em atraso...');
+    await checkTrackingDelays();
   }, { timezone: 'America/Sao_Paulo' });
 
   console.log('[Scheduler] Agendado: 08:00 e 14:00 BRT');
@@ -91,6 +93,77 @@ async function refreshPendingShipments() {
   const pending_after = await Shipment.countPendingForRefresh();
   await Shipment.saveSchedulerLog({ total_cpfs: totalCpfs, updated, promoted, errors, pending_after });
   console.log(`[Scheduler] Concluído: ${updated} atualizados, ${promoted} promovidos, ${errors} erros, ${pending_after} ainda ativos`);
+}
+
+/**
+ * Verifica rastreios em atraso:
+ * - 1 dia após paid_at sem código de rastreio → status "tracking_delayed"
+ * - 3 dias após paid_at sem movimentação física → status "tracking_delayed" + abre ticket automático
+ */
+async function checkTrackingDelays() {
+  const now = new Date();
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+  let delayed1 = 0, delayed3 = 0, ticketsCreated = 0;
+
+  // Statuses que indicam movimentação física
+  const PHYSICAL_MOVEMENT = ['forwarded', 'delivering', 'delivered', 'posted_object',
+    'recipient_not_found', 'returning', 'returned', 'waiting_client', 'wrong_address', 'delivery_problem'];
+
+  // 1) Fila de clientes (sem tracking_code) com paid_at > 1 dia
+  try {
+    const queue = await Shipment.getCustomerQueue();
+    for (const q of queue) {
+      if (!q.paid_at) continue;
+      const paidAt = new Date(q.paid_at);
+      const daysSincePaid = (now - paidAt) / ONE_DAY;
+
+      if (daysSincePaid >= 1) {
+        console.log(`[Atraso] Fila sem rastreio há ${Math.floor(daysSincePaid)}d: order=${q.order_id}`);
+        delayed1++;
+      }
+    }
+  } catch (err) {
+    console.error('[Atraso] Erro ao verificar fila:', err.message);
+  }
+
+  // 2) Shipments com paid_at > 3 dias e sem movimentação física
+  try {
+    const shipments = await Shipment.getShipmentsWithoutMovement();
+    for (const s of shipments) {
+      if (!s.paid_at) continue;
+      const paidAt = new Date(s.paid_at);
+      const daysSincePaid = (now - paidAt) / ONE_DAY;
+
+      if (daysSincePaid >= 3 && !PHYSICAL_MOVEMENT.includes(s.status)) {
+        // Atualiza status
+        await Shipment.updateTrackingDelayed(s.tracking_code);
+        delayed3++;
+        console.log(`[Atraso] 3+ dias sem movimentação: ${s.tracking_code} (status: ${s.status})`);
+
+        // Abre ticket automático de Logística/Envio se não existir
+        const existingTickets = await Shipment.getTickets(s.tracking_code);
+        const hasDelayTicket = existingTickets.some(t =>
+          t.tipo === 'LOGISTICA' && t.motivo === 'Envio' && !['Concluído'].includes(t.status)
+        );
+        if (!hasDelayTicket) {
+          await Shipment.createTicket({
+            tracking_code: s.tracking_code,
+            order_id: s.order_id,
+            tipo: 'LOGISTICA',
+            motivo: 'Envio',
+            observacao: `Ticket automático: ${Math.floor(daysSincePaid)} dias após pagamento sem movimentação física do produto.`,
+            created_by: 'Sistema',
+          });
+          ticketsCreated++;
+          console.log(`[Atraso] Ticket automático criado: ${s.tracking_code}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Atraso] Erro ao verificar shipments:', err.message);
+  }
+
+  console.log(`[Atraso] Resumo: ${delayed1} sem rastreio (>1d), ${delayed3} sem movimentação (>3d), ${ticketsCreated} tickets criados`);
 }
 
 function sleep(ms) {

@@ -32,6 +32,7 @@
     .badge-delivery_problem { background: #fef3c7; color: #92400e; }
     .badge-pending { background: #f3f4f6; color: #6b7280; }
     .badge-no_tracking { background: #f1f5f9; color: #94a3b8; }
+    .badge-tracking_delayed { background: #fee2e2; color: #dc2626; }
     .timeline { position: relative; padding-left: 24px; }
     .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: #e5e7eb; }
     .event { position: relative; padding-bottom: 20px; }
@@ -80,6 +81,7 @@ const statusLabel = {
   waiting_client: 'Ag. Retirada', delivered: 'Entregue',
   returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
   no_tracking: 'Sem Rastreio',
+  tracking_delayed: 'Rastreio em Atraso',
 };
 const fmtDate = (iso) => {
   if (!iso) return '—';

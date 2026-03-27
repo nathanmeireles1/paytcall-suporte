@@ -212,6 +212,26 @@ const Shipment = {
     return count || 0;
   },
 
+  async getShipmentsWithoutMovement() {
+    // Busca shipments que não estão em status terminal e não tiveram movimentação física
+    const NON_MOVEMENT = ['pending', 'no_tracking', 'tracking_delayed'];
+    const { data, error } = await db
+      .from('shipments')
+      .select('*')
+      .in('status', NON_MOVEMENT)
+      .not('paid_at', 'is', null);
+    if (error) throw error;
+    return data || [];
+  },
+
+  async updateTrackingDelayed(trackingCode) {
+    const { error } = await db
+      .from('shipments')
+      .update({ status: 'tracking_delayed', updated_at: new Date().toISOString() })
+      .eq('tracking_code', trackingCode);
+    if (error) throw error;
+  },
+
   async updatePaymentStatus(orderId, paymentStatus) {
     if (!orderId) return;
     const { error } = await db
