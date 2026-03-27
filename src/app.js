@@ -45,6 +45,7 @@ const apiLimiter = rateLimit({
 // Rotas
 app.use('/webhook', webhookLimiter, require('./routes/webhook'));
 app.use('/api/tracking', apiLimiter, require('./routes/tracking'));
+app.use('/relatorios', require('./routes/relatorios'));
 app.use('/', require('./routes/dashboard'));
 
 // 404

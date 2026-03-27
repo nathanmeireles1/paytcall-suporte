@@ -232,6 +232,17 @@ const Shipment = {
     if (error) throw error;
   },
 
+  async findByOrderId(orderId) {
+    if (!orderId) return null;
+    const { data, error } = await db
+      .from('shipments')
+      .select('*')
+      .eq('order_id', orderId)
+      .maybeSingle();
+    if (error) return null;
+    return data;
+  },
+
   async updatePaymentStatus(orderId, paymentStatus) {
     if (!orderId) return;
     const { error } = await db
@@ -239,6 +250,69 @@ const Shipment = {
       .update({ payment_status: paymentStatus, updated_at: new Date().toISOString() })
       .eq('order_id', orderId);
     if (error) throw error;
+  },
+
+  // --- Cancelamentos / Chargebacks ---
+
+  async upsertCancelamento(data) {
+    const { error } = await db.from('cancelamentos').upsert(
+      { ...data, updated_at: new Date().toISOString() },
+      { onConflict: 'order_id', ignoreDuplicates: false }
+    );
+    if (error) throw error;
+  },
+
+  async getCancelamentos({ tipo, payment_status, status_atendimento, search, page = 1, limit = 50 } = {}) {
+    const offset = (page - 1) * limit;
+    let query = db.from('cancelamentos').select('*', { count: 'exact' });
+
+    if (tipo)               query = query.eq('tipo', tipo);
+    if (payment_status)     query = query.eq('payment_status', payment_status);
+    if (status_atendimento) query = query.eq('status_atendimento', status_atendimento);
+    if (search) {
+      query = query.or(
+        `order_id.ilike.%${search}%,customer_name.ilike.%${search}%,customer_doc.ilike.%${search}%,product_name.ilike.%${search}%`
+      );
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    return { rows: data || [], total: count || 0, page, pages: Math.ceil((count || 0) / limit) };
+  },
+
+  async updateCancelamento(id, fields) {
+    const { error } = await db
+      .from('cancelamentos')
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  // --- Relatório de Tickets ---
+
+  async getAllTickets({ tipo, status, assigned_to, priority, search, page = 1, limit = 50 } = {}) {
+    const offset = (page - 1) * limit;
+    let query = db.from('tickets').select('*, shipments!inner(customer_name, customer_doc, order_id, company_name)', { count: 'exact' });
+
+    if (tipo)        query = query.eq('tipo', tipo);
+    if (status)      query = query.eq('status', status);
+    if (assigned_to) query = query.eq('assigned_to', assigned_to);
+    if (priority)    query = query.eq('priority', parseInt(priority));
+    if (search) {
+      query = query.or(
+        `tracking_code.ilike.%${search}%,order_id.ilike.%${search}%,created_by.ilike.%${search}%`
+      );
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    return { rows: data || [], total: count || 0, page, pages: Math.ceil((count || 0) / limit) };
   },
 
   // --- Scheduler logs ---

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cancelamentos e Reembolsos — payt Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+    .navbar { background: #1a1a2e; padding: 0 24px; display: flex; align-items: center; height: 56px; gap: 16px; }
+    .navbar h1 { color: #fff; font-size: 18px; font-weight: 700; }
+    .navbar .nav-links { margin-left: auto; display: flex; gap: 16px; }
+    .navbar a { color: #aaa; font-size: 13px; text-decoration: none; }
+    .navbar a:hover { color: #fff; }
+    .container { max-width: 100%; margin: 0 auto; padding: 24px; overflow-x: auto; }
+    .filters { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .filters select, .filters input { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+    .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
+    .table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    table { border-collapse: collapse; background: #fff; min-width: 1800px; width: 100%; }
+    th { background: #f8f9fa; padding: 8px 6px; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; color: #666; text-align: left; white-space: nowrap; position: sticky; top: 0; }
+    td { padding: 8px 6px; font-size: 12px; border-top: 1px solid #f0f0f0; white-space: nowrap; }
+    tr:hover td { background: #f8f9fb; }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 99px; font-size: 10px; font-weight: 600; }
+    .badge-chargeback { background: #fee2e2; color: #dc2626; }
+    .badge-reembolso { background: #fef3c7; color: #d97706; }
+    .editable { cursor: pointer; border-bottom: 1px dashed #ccc; }
+    .editable:hover { background: #fef3c7; }
+    .inline-select { padding: 2px 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; max-width: 130px; }
+    .inline-input { padding: 2px 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; max-width: 100px; }
+    .pagination { display: flex; gap: 6px; margin-top: 16px; justify-content: center; }
+    .pagination a { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; text-decoration: none; font-size: 13px; color: #555; }
+    .pagination a.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+    .total-info { font-size: 13px; color: #666; margin-bottom: 12px; }
+    .group-header { background: #e5e7eb !important; font-weight: 700 !important; color: #374151 !important; text-align: center !important; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <h1>Cancelamentos e Reembolsos</h1>
+  <div class="nav-links">
+    <a href="/relatorios/tickets">Tickets</a>
+    <a href="/">← Painel</a>
+  </div>
+</nav>
+
+<%
+const fmtDate = (iso) => {
+  if (!iso) return '';
+  try { return new Date(String(iso).replace(' ','T')).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch(e) { return iso; }
+};
+const fmtMoney = (v) => v ? 'R$ ' + (v/100).toFixed(2).replace('.',',') : '';
+const fmtCpf = (d) => d ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '';
+const paymentLabels = {
+  paid:'Pago', chargeback_presented:'CB Apresentado', chargeback:'Chargeback',
+  refunded:'Estornado', one_click_buy_refunded:'Upsell Estornado',
+  refunded_partial:'Reemb. Parcial', one_click_buy_refunded_partial:'Upsell Reemb. Parcial',
+};
+const STATUS_ATEND = ['A contatar','Sem contato','Sem retorno','Em contato','Aguardando retorno','Concluído'];
+const STATUS_ENTREGA = ['Trânsito','Entregue','Retornou','Ag. retirada','Sem envio','Em devolução','Aguardando postagem','Envio suspenso','Etiqueta emitida','Etiqueta expirada','Postado','Tentativa de entrega'];
+const STATUS_NF = ['Sem NF','Pendente','Cancelada','Sem alteração','Alterada'];
+%>
+
+<div class="container">
+  <form class="filters" method="GET">
+    <select name="tipo">
+      <option value="">Tipo</option>
+      <option value="chargeback" <%= filters.tipo==='chargeback'?'selected':'' %>>Chargeback</option>
+      <option value="reembolso" <%= filters.tipo==='reembolso'?'selected':'' %>>Reembolso</option>
+    </select>
+    <select name="payment_status">
+      <option value="">Status pgto.</option>
+      <option value="chargeback_presented" <%= filters.payment_status==='chargeback_presented'?'selected':'' %>>CB Apresentado</option>
+      <option value="chargeback" <%= filters.payment_status==='chargeback'?'selected':'' %>>Chargeback</option>
+      <option value="refunded" <%= filters.payment_status==='refunded'?'selected':'' %>>Estornado</option>
+      <option value="refunded_partial" <%= filters.payment_status==='refunded_partial'?'selected':'' %>>Reemb. Parcial</option>
+    </select>
+    <select name="status_atendimento">
+      <option value="">Atendimento</option>
+      <% STATUS_ATEND.forEach(s => { %>
+      <option value="<%= s %>" <%= filters.status_atendimento===s?'selected':'' %>><%= s %></option>
+      <% }) %>
+    </select>
+    <input type="text" name="search" placeholder="Buscar..." value="<%= filters.search || '' %>">
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+    <a href="/relatorios/cancelamentos" class="btn btn-ghost">Limpar</a>
+  </form>
+
+  <div class="total-info"><strong><%= total %></strong> registros</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="group-header" colspan="6">CONTROLE</th>
+          <th class="group-header" colspan="10">DADOS DA COMPRA</th>
+          <th class="group-header" colspan="3">LOGÍSTICA</th>
+          <th class="group-header" colspan="4">DEVOLUÇÃO</th>
+        </tr>
+        <tr>
+          <th>Tipo</th><th>Atendimento</th><th>Status Pgto.</th><th>Status Entrega</th>
+          <th>Rastreio</th><th>Suspenso?</th>
+          <th>Data Compra</th><th>ID</th><th>SRC</th><th>Cliente</th><th>CPF</th>
+          <th>Produto</th><th>Qtd</th><th>Valor</th><th>Motivo</th><th>Obs</th>
+          <th>NF ID</th><th>NF Status</th><th>NF Data</th>
+          <th>Postagem</th><th>Reverso?</th><th>Rastreio</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (items.length === 0) { %>
+        <tr><td colspan="23" style="text-align:center;color:#999;padding:40px">Nenhum registro</td></tr>
+        <% } %>
+        <% items.forEach(r => { %>
+        <tr data-id="<%= r.id %>">
+          <td><span class="badge badge-<%= r.tipo %>"><%= r.tipo === 'chargeback' ? 'CB' : 'Reemb.' %></span></td>
+          <td>
+            <select class="inline-select" onchange="updateField('<%= r.id %>','status_atendimento',this.value)">
+              <% STATUS_ATEND.forEach(s => { %>
+              <option value="<%= s %>" <%= r.status_atendimento===s?'selected':'' %>><%= s %></option>
+              <% }) %>
+            </select>
+          </td>
+          <td style="font-size:11px"><%= paymentLabels[r.payment_status] || r.payment_status %></td>
+          <td style="font-size:11px"><%= r.status_entrega || '—' %></td>
+          <td style="font-family:monospace;font-size:11px"><%= r.tracking_code || '—' %></td>
+          <td>
+            <select class="inline-select" onchange="updateField('<%= r.id %>','pedido_suspenso',this.value)">
+              <option value="Não" <%= r.pedido_suspenso==='Não'?'selected':'' %>>Não</option>
+              <option value="Sim" <%= r.pedido_suspenso==='Sim'?'selected':'' %>>Sim</option>
+              <option value="Produto digital" <%= r.pedido_suspenso==='Produto digital'?'selected':'' %>>Digital</option>
+            </select>
+          </td>
+          <td style="font-size:11px"><%= fmtDate(r.data_compra) %></td>
+          <td style="font-family:monospace;font-size:11px" title="<%= r.order_id || '' %>"><%= r.order_id ? r.order_id.slice(0,10) : '—' %></td>
+          <td style="font-size:11px" title="<%= r.seller_email || '' %>"><%= r.seller_email ? r.seller_email.split('@')[0] : '—' %></td>
+          <td><%= r.customer_name || '—' %></td>
+          <td style="font-size:11px"><%= fmtCpf(r.customer_doc) %></td>
+          <td title="<%= r.product_name || '' %>"><%= r.product_name ? r.product_name.slice(0,20) : '—' %></td>
+          <td><%= r.product_quantity || '—' %></td>
+          <td><%= fmtMoney(r.total_price) %></td>
+          <td><input class="inline-input" value="<%= r.motivo || '' %>" onchange="updateField('<%= r.id %>','motivo',this.value)" placeholder="—"></td>
+          <td><input class="inline-input" value="<%= r.observacao || '' %>" onchange="updateField('<%= r.id %>','observacao',this.value)" placeholder="—"></td>
+          <td><input class="inline-input" value="<%= r.nf_id || '' %>" onchange="updateField('<%= r.id %>','nf_id',this.value)" placeholder="—" style="width:70px"></td>
+          <td>
+            <select class="inline-select" onchange="updateField('<%= r.id %>','nf_status',this.value)" style="width:90px">
+              <% STATUS_NF.forEach(s => { %>
+              <option value="<%= s %>" <%= r.nf_status===s?'selected':'' %>><%= s %></option>
+              <% }) %>
+            </select>
+          </td>
+          <td><input class="inline-input" type="date" value="<%= r.nf_data || '' %>" onchange="updateField('<%= r.id %>','nf_data',this.value)" style="width:110px"></td>
+          <td><input class="inline-input" type="date" value="<%= r.devolucao_data_postagem || '' %>" onchange="updateField('<%= r.id %>','devolucao_data_postagem',this.value)" style="width:110px"></td>
+          <td>
+            <select class="inline-select" onchange="updateField('<%= r.id %>','devolucao_reverso',this.value)" style="width:60px">
+              <option value="Não" <%= r.devolucao_reverso==='Não'?'selected':'' %>>Não</option>
+              <option value="Sim" <%= r.devolucao_reverso==='Sim'?'selected':'' %>>Sim</option>
+            </select>
+          </td>
+          <td><input class="inline-input" value="<%= r.devolucao_rastreio || '' %>" onchange="updateField('<%= r.id %>','devolucao_rastreio',this.value)" placeholder="—" style="width:90px"></td>
+          <td style="font-size:11px"><%= r.devolucao_status || '—' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (pages > 1) { %>
+  <div class="pagination">
+    <% for (let p = 1; p <= Math.min(pages, 20); p++) { %>
+    <a href="?<%= Object.entries({...filters, page: p}).filter(([,v])=>v).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&') %>" class="<%= p === currentPage ? 'active' : '' %>"><%= p %></a>
+    <% } %>
+  </div>
+  <% } %>
+</div>
+
+<script>
+function updateField(id, field, value) {
+  fetch('/relatorios/cancelamentos/' + id, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [field]: value }),
+  })
+  .then(r => r.json())
+  .then(d => { if (!d.ok) alert(d.error || 'Erro'); })
+  .catch(() => alert('Erro ao salvar'));
+}
+</script>
+</body>
+</html>

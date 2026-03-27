@@ -89,7 +89,30 @@ router.post('/', async (req, res) => {
     if (isChargeback || isRefund) {
       // Atualiza payment_status no pedido existente pelo order_id
       await Shipment.updatePaymentStatus(orderId, body.status);
-      console.log(`[Webhook] payment_status atualizado: order=${orderId} → ${body.status}`);
+
+      // Salva no relatório de cancelamentos
+      const tipo = isChargeback ? 'chargeback' : 'reembolso';
+      const existing = await Shipment.findByOrderId(orderId);
+      await Shipment.upsertCancelamento({
+        order_id:       orderId,
+        tracking_code:  existing?.tracking_code || trackingCode || null,
+        tipo,
+        payment_status: body.status,
+        status_entrega: existing?.status || null,
+        data_compra:    body.started_at || body.transaction?.created_at || null,
+        seller_id:      body.seller_id || existing?.seller_id || null,
+        seller_email:   body.seller_email || existing?.seller_email || null,
+        company_name:   producer?.name || existing?.company_name || null,
+        customer_name:  customer.name || existing?.customer_name || null,
+        customer_doc:   customer.doc || existing?.customer_doc || null,
+        customer_email: customer.email || existing?.customer_email || null,
+        customer_phone: customer.phone || existing?.customer_phone || null,
+        product_name:   product.name || existing?.product_name || null,
+        product_quantity: product.quantity || existing?.product_quantity || null,
+        total_price:    transaction.total_price || existing?.total_price || null,
+        contestar_ate:  isChargeback ? (body.chargeback_deadline || null) : null,
+      });
+      console.log(`[Webhook] ${tipo} salvo no relatório: order=${orderId} → ${body.status}`);
       return;
     }
 
