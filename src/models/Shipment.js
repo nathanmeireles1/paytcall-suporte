@@ -1,6 +1,8 @@
 const { db } = require('../config/database');
 
-const TERMINAL_STATUSES = ['delivered', 'returned', 'overdue'];
+// Terminal = entrega definitivamente encerrada (parar de consultar H7)
+// 'overdue' removido: etiqueta expirada pode ser atualizada pela H7 posteriormente
+const TERMINAL_STATUSES = ['delivered', 'returned'];
 
 const Shipment = {
   async findByCode(trackingCode) {
