@@ -10,7 +10,7 @@
     .group-header { background: var(--gray-200) !important; font-weight: 700 !important; color: var(--gray-700) !important; text-align: center !important; font-size: 11px !important; text-transform: uppercase; letter-spacing: .5px; }
     .editable { cursor: pointer; border-bottom: 1px dashed var(--gray-300); }
     .editable:hover { background: var(--warning-bg); }
-    .inline-select { padding: 3px 4px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; max-width: 130px; background: #fff; }
+    .inline-select { padding: 3px 4px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; max-width: 130px; background: var(--surface); }
     .inline-select:focus { border-color: var(--brand); outline: none; }
     .inline-input { padding: 3px 6px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; max-width: 100px; }
     .inline-input:focus { border-color: var(--brand); outline: none; }
@@ -24,7 +24,7 @@
   <%- include('partials/sidebar', { activePage: 'cancelamentos' }) %>
 
   <div class="main">
-    <%- include('partials/topbar', { pageTitle: 'Cancelamentos e Reembolsos', breadcrumb: [{ label: 'Suporte', href: '/dashboard' }, { label: 'Cancelamentos' }] }) %>
+    <%- include('partials/topbar', { pageTitle: 'Cancelamentos e Reembolsos', breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Cancelamentos' }] }) %>
 
     <div class="page">
 
@@ -46,20 +46,11 @@
       %>
 
       <!-- Filtros -->
-      <form method="GET" class="toolbar" style="background:#fff;padding:14px 16px;border-radius:var(--radius-lg);border:1px solid var(--gray-200)">
+      <form method="GET" class="toolbar">
         <select name="tipo" class="form-select">
           <option value="">Tipo</option>
           <option value="chargeback" <%= filters.tipo==='chargeback'?'selected':'' %>>Chargeback</option>
           <option value="reembolso" <%= filters.tipo==='reembolso'?'selected':'' %>>Reembolso</option>
-        </select>
-        <select name="payment_status" class="form-select">
-          <option value="">Status pgto.</option>
-          <option value="chargeback_presented" <%= filters.payment_status==='chargeback_presented'?'selected':'' %>>Chargeback Apresentado</option>
-          <option value="chargeback" <%= filters.payment_status==='chargeback'?'selected':'' %>>Chargeback</option>
-          <option value="refunded" <%= filters.payment_status==='refunded'?'selected':'' %>>Reembolsado</option>
-          <option value="one_click_buy_refunded" <%= filters.payment_status==='one_click_buy_refunded'?'selected':'' %>>Upsell Reembolsado</option>
-          <option value="refunded_partial" <%= filters.payment_status==='refunded_partial'?'selected':'' %>>Reembolso Parcial</option>
-          <option value="one_click_buy_refunded_partial" <%= filters.payment_status==='one_click_buy_refunded_partial'?'selected':'' %>>Upsell Reembolso Parcial</option>
         </select>
         <select name="status_atendimento" class="form-select">
           <option value="">Atendimento</option>

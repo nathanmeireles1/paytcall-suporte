@@ -7,31 +7,33 @@
 
 /* ===== Light theme (default) ===== */
 :root {
-  /* Brand — Payt orange */
-  --brand:        #E87820;
-  --brand-dark:   #D06A14;
-  --brand-light:  #E8782010;
-  --brand-dim:    rgba(232,120,32,.12);
-  --brand-dim2:   rgba(232,120,32,.07);
-  --brand-border: rgba(232,120,32,.25);
+  /* Brand — Payt palette */
+  --brand:        #e47c24;
+  --brand-dark:   #884710;
+  --brand-deeper: #763d0e;
+  --brand-light:  #fcc48c;
+  --brand-warm:   #dcccbc;
+  --brand-dim:    rgba(228,124,36,.1);
+  --brand-dim2:   rgba(228,124,36,.06);
+  --brand-border: rgba(228,124,36,.28);
 
-  /* Surfaces */
-  --bg:           #f5f5f5;
+  /* Surfaces — warm off-white */
+  --bg:           #faf8f5;
   --bg-2:         #ffffff;
   --surface:      #ffffff;
-  --surface-2:    #f7f7f7;
-  --surface-3:    #efefef;
+  --surface-2:    #f7f3ee;
+  --surface-3:    #ede8e0;
 
-  /* Borders */
-  --border:       #e8e8e8;
-  --border-2:     #d8d8d8;
-  --border-3:     #c8c8c8;
+  /* Borders — warm beige */
+  --border:       #e0d8cc;
+  --border-2:     #cfc5b4;
+  --border-3:     #bfb09a;
 
   /* Text */
-  --text:         #0a0a0a;
-  --text-2:       #404040;
-  --text-3:       #808080;
-  --text-4:       #b8b8b8;
+  --text:         #1a1410;
+  --text-2:       #4a3f35;
+  --text-3:       #8a7a6a;
+  --text-4:       #b8aba0;
 
   /* Semantic */
   --success:         #16a34a;

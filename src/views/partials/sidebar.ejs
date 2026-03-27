@@ -18,13 +18,16 @@
 
   <!-- Brand -->
   <div class="sidebar-brand">
-    <!-- Logo Payt: círculo aberto + P -->
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
-      <path d="M24 14A10 10 0 1 1 19.5 5.4" stroke="#E87820" stroke-width="2.8" stroke-linecap="round" fill="none"/>
-      <text x="8" y="19" font-family="'Plus Jakarta Sans', sans-serif" font-weight="700" font-size="11" fill="#E87820">p</text>
-    </svg>
+    <!-- Logo Payt: círculo aberto (SVG) + letra p (HTML) -->
+    <div style="position:relative;width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="position:absolute;top:0;left:0">
+        <circle cx="14" cy="14" r="11.5" stroke="#e47c24" stroke-width="2.5"
+          stroke-dasharray="54 18" stroke-dashoffset="-6" stroke-linecap="round"/>
+      </svg>
+      <span style="font-size:13px;font-weight:800;color:#e47c24;font-family:'Plus Jakarta Sans',sans-serif;position:relative;z-index:1;line-height:1;padding-bottom:1px">p</span>
+    </div>
     <div>
-      <div class="brand-name">payt</div>
+      <div class="brand-name">Paytcall</div>
       <div class="brand-tag">Suporte</div>
     </div>
   </div>

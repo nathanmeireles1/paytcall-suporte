@@ -14,7 +14,7 @@
   <div class="main">
     <%- include('partials/topbar', {
       pageTitle: 'Rastreios',
-      breadcrumb: [{ label: 'payt Suporte' }, { label: 'Rastreios' }],
+      breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Rastreios' }],
       polarisTopbar: true,
       searchAction: '/',
       searchValue: filters.search || ''
@@ -46,14 +46,14 @@
       <!-- Summary bar (Polaris style — stat row dentro do card) -->
       <%
       const summaries = [
-        { label: 'Total',         value: stats.total,              key: '' },
-        { label: 'Entregues',     value: stats.delivered,          key: 'delivered' },
-        { label: 'Em trânsito',   value: stats.in_transit,         key: 'forwarded' },
-        { label: 'Saiu p/ entrega', value: stats.out_for_delivery, key: 'delivering' },
-        { label: 'Tentativa',     value: stats.delivery_attempt,   key: 'recipient_not_found' },
-        { label: 'Devolvidos',    value: stats.returned,           key: 'returned' },
-        { label: 'Ag. retirada',  value: stats.waiting_client,     key: 'waiting_client' },
-        { label: 'Em atraso',     value: stats.tracking_delayed || 0, key: 'tracking_delayed' },
+        { label: 'Total',       value: stats.total,                 key: '' },
+        { label: 'Entregues',  value: stats.delivered,             key: 'delivered' },
+        { label: 'Em trânsito',value: stats.in_transit,            key: 'forwarded' },
+        { label: 'Saiu p/ent.',value: stats.out_for_delivery,      key: 'delivering' },
+        { label: 'Tentativa',  value: stats.delivery_attempt,      key: 'recipient_not_found' },
+        { label: 'Devolvidos', value: stats.returned,              key: 'returned' },
+        { label: 'Ag. ret.',   value: stats.waiting_client,        key: 'waiting_client' },
+        { label: 'Em atraso',  value: stats.tracking_delayed || 0, key: 'tracking_delayed' },
       ];
       %>
       <div class="p-summary">

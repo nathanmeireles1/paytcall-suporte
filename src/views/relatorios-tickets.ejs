@@ -20,7 +20,7 @@
   <%- include('partials/sidebar', { activePage: 'tickets' }) %>
 
   <div class="main">
-    <%- include('partials/topbar', { pageTitle: 'Tickets', breadcrumb: [{ label: 'Suporte', href: '/dashboard' }, { label: 'Tickets' }] }) %>
+    <%- include('partials/topbar', { pageTitle: 'Tickets', breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Tickets' }] }) %>
 
     <div class="page">
 
@@ -33,7 +33,7 @@
       %>
 
       <!-- Filtros -->
-      <form method="GET" class="toolbar" style="background:#fff;padding:14px 16px;border-radius:var(--radius-lg);border:1px solid var(--gray-200)">
+      <form method="GET" class="toolbar">
         <select name="tipo" class="form-select">
           <option value="">Tipo</option>
           <option value="RETENCAO" <%= filters.tipo==='RETENCAO'?'selected':'' %>>Retenção</option>
