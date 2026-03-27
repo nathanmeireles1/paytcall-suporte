@@ -60,6 +60,7 @@ const Shipment = {
         payment_status: data.payment_status || null,
         total_price: data.total_price || null,
         shipping_address: data.shipping_address || null,
+        tracking_url: data.tracking_url || null,
         status: 'pending',
         updated_at: new Date().toISOString(),
       });
@@ -83,6 +84,7 @@ const Shipment = {
           payment_status: data.payment_status || existing.payment_status,
           total_price: data.total_price || existing.total_price,
           shipping_address: data.shipping_address || existing.shipping_address,
+          tracking_url: data.tracking_url || existing.tracking_url,
           updated_at: new Date().toISOString(),
         })
         .eq('tracking_code', data.tracking_code);

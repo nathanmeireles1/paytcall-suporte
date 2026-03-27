@@ -122,6 +122,9 @@ const statusLabel = {
 
     <div class="actions">
       <button class="btn btn-primary" onclick="refreshTracking(event)">↻ Atualizar agora</button>
+      <% if (shipment.tracking_url) { %>
+      <a href="<%= shipment.tracking_url %>" target="_blank" class="btn btn-ghost">🔗 Ver rastreio <%= shipment.carrier || '' %></a>
+      <% } %>
       <a href="/" class="btn btn-ghost">Voltar</a>
     </div>
   </div>

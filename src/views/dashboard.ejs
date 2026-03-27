@@ -40,13 +40,22 @@
     .btn-ghost:hover { background: #f5f5f5; }
 
     .table-wrap { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
     thead tr { background: #f8f8f8; }
-    th { padding: 12px 16px; text-align: left; font-weight: 600; color: #555; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
-    td { padding: 12px 16px; border-top: 1px solid #f0f0f0; }
+    th { padding: 10px 12px; text-align: left; font-weight: 600; color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; overflow: hidden; }
+    td { padding: 10px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
     tr:hover td { background: #fafafa; }
     tr.clickable { cursor: pointer; }
     tr.clickable:hover td { background: #f0f0ff; }
+    col.col-code { width: 140px; }
+    col.col-carrier { width: 80px; }
+    col.col-company { width: 140px; }
+    col.col-order { width: 90px; }
+    col.col-product { width: 160px; }
+    col.col-client { width: 180px; }
+    col.col-status { width: 110px; }
+    col.col-event { width: 160px; }
+    col.col-date { width: 110px; }
 
     .badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
     .badge-delivered { background: #dcfce7; color: #16a34a; }
@@ -161,17 +170,16 @@
       </div>
     <% } else { %>
     <table>
+      <colgroup>
+        <col class="col-code"><col class="col-carrier"><col class="col-company">
+        <col class="col-order"><col class="col-product"><col class="col-client">
+        <col class="col-status"><col class="col-event"><col class="col-date">
+      </colgroup>
       <thead>
         <tr>
-          <th>Código</th>
-          <th>Transportadora</th>
-          <th>Empresa</th>
-          <th>Pedido</th>
-          <th>Produto</th>
-          <th>Cliente</th>
-          <th>Status</th>
-          <th>Último evento</th>
-          <th>Atualizado</th>
+          <th>Código</th><th>Transp.</th><th>Empresa</th>
+          <th>Pedido</th><th>Produto</th><th>Cliente</th>
+          <th>Status</th><th>Último evento</th><th>Atualizado</th>
         </tr>
       </thead>
       <tbody>
@@ -222,11 +230,21 @@
 
   <!-- Paginação -->
   <% if (pages > 1) { %>
+  <%
+    const qs = (filters.status ? '&status=' + filters.status : '') + (filters.search ? '&search=' + filters.search : '') + (filters.seller_id ? '&seller_id=' + filters.seller_id : '');
+    const pUrl = (p) => '?page=' + p + qs;
+    const showPage = (p) => p === 1 || p === pages || (p >= currentPage - 2 && p <= currentPage + 2);
+  %>
   <div class="pagination">
-    <% for (let i = 1; i <= pages; i++) { %>
-      <a href="?page=<%= i %><%= filters.status ? '&status=' + filters.status : '' %><%= filters.search ? '&search=' + filters.search : '' %>"
-         class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
+    <% if (currentPage > 1) { %><a href="<%= pUrl(currentPage - 1) %>">‹ Anterior</a><% } %>
+    <% let lastShown = 0; for (let i = 1; i <= pages; i++) { %>
+      <% if (showPage(i)) { %>
+        <% if (lastShown && i - lastShown > 1) { %><span style="padding:6px 4px;color:#999">…</span><% } %>
+        <a href="<%= pUrl(i) %>" class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
+        <% lastShown = i; %>
+      <% } %>
     <% } %>
+    <% if (currentPage < pages) { %><a href="<%= pUrl(currentPage + 1) %>">Próxima ›</a><% } %>
   </div>
   <% } %>
 

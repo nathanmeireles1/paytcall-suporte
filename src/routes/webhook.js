@@ -46,6 +46,7 @@ router.post('/', async (req, res) => {
   const transaction = body.transaction || {};
   const product = body.product || {};
   const shippingAddress = body.shipping?.address || null;
+  const trackingUrl = body.shipping?.tracking_url || null;
 
   // Responde imediatamente para a payt não fazer retry
   res.json({ message: 'Recebido', tracking_code: code });
@@ -69,6 +70,7 @@ router.post('/', async (req, res) => {
       payment_status: transaction.payment_status || null,
       total_price: transaction.total_price || null,
       shipping_address: shippingAddress,
+      tracking_url: trackingUrl,
     });
     console.log(`[Webhook] Salvo: ${code}`);
   } catch (err) {
