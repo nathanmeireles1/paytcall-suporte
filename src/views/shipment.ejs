@@ -70,7 +70,13 @@
 <body>
 <nav class="navbar">
   <h1>payt Tracker</h1>
-  <a href="/">← Voltar ao painel</a>
+  <div style="margin-left:auto;display:flex;gap:16px;align-items:center">
+    <a href="/">← Voltar ao painel</a>
+    <% if (typeof currentUser !== 'undefined') { %>
+    <span style="color:#4f46e5;background:rgba(79,70,229,.1);padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600"><%= currentUser.name %></span>
+    <a href="/logout" style="color:#f87171">Sair</a>
+    <% } %>
+  </div>
 </nav>
 
 <%
@@ -347,7 +353,6 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
         </div>
 
         <textarea name="observacao" placeholder="Observações (opcional)"></textarea>
-        <input type="text" name="created_by" placeholder="Seu nome" required>
         <button type="submit" class="btn btn-primary">Abrir ticket</button>
       </form>
     </details>

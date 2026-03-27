@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciar Usuários — payt Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+    .navbar { background: #1a1a2e; padding: 0 24px; display: flex; align-items: center; height: 56px; gap: 16px; }
+    .navbar h1 { color: #fff; font-size: 18px; font-weight: 700; }
+    .navbar .nav-links { margin-left: auto; display: flex; gap: 16px; align-items: center; }
+    .navbar a { color: #aaa; font-size: 13px; text-decoration: none; }
+    .navbar a:hover { color: #fff; }
+    .navbar .user-badge { color: #4f46e5; background: rgba(79,70,229,.1); padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .section { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; }
+    .section h2 { font-size: 16px; margin-bottom: 16px; color: #1a1a2e; }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; }
+    .form-group input, .form-group select { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+    .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f8f9fa; padding: 10px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; color: #666; text-align: left; }
+    td { padding: 10px 8px; font-size: 13px; border-top: 1px solid #f0f0f0; }
+    tr:hover td { background: #f8f9fb; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+    .badge-admin { background: #ede9fe; color: #7c3aed; }
+    .badge-suporte { background: #dbeafe; color: #2563eb; }
+    .badge-usuario { background: #f0fdf4; color: #16a34a; }
+    .badge-terceiros { background: #fef3c7; color: #d97706; }
+    .badge-active { background: #dcfce7; color: #16a34a; }
+    .badge-inactive { background: #fee2e2; color: #dc2626; }
+    .badge-pending { background: #fef3c7; color: #d97706; }
+    .invite-link { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px; font-family: monospace; font-size: 12px; word-break: break-all; margin-top: 12px; display: none; }
+    .invite-link .copy-btn { margin-left: 8px; cursor: pointer; color: #4f46e5; font-weight: 600; }
+    .companies-select { min-width: 200px; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <h1>Gerenciar Usuários</h1>
+  <div class="nav-links">
+    <a href="/">Painel</a>
+    <a href="/relatorios/tickets">Tickets</a>
+    <a href="/relatorios/cancelamentos">Cancelamentos</a>
+    <% if (typeof currentUser !== 'undefined') { %>
+    <span class="user-badge"><%= currentUser.name %></span>
+    <a href="/logout" style="color:#f87171">Sair</a>
+    <% } %>
+  </div>
+</nav>
+
+<div class="container">
+  <!-- Convidar novo usuário -->
+  <div class="section">
+    <h2>Convidar Usuário</h2>
+    <form id="invite-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" required placeholder="email@empresa.com" style="width:220px">
+        </div>
+        <div class="form-group">
+          <label>Nome</label>
+          <input type="text" name="name" required placeholder="Nome completo" style="width:180px">
+        </div>
+        <div class="form-group">
+          <label>Papel</label>
+          <select name="role" id="invite-role" onchange="toggleCompanies()">
+            <option value="suporte">Suporte</option>
+            <option value="usuario">Usuário</option>
+            <option value="terceiros">Terceiros</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group" id="companies-group" style="display:none">
+          <label>Empresas</label>
+          <select name="seller_ids" multiple class="companies-select">
+            <% Object.entries(companies).forEach(([sid, name]) => { %>
+            <option value="<%= sid %>"><%= name %></option>
+            <% }) %>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Enviar Convite</button>
+      </div>
+    </form>
+    <div class="invite-link" id="invite-result">
+      Link: <span id="invite-url"></span>
+      <span class="copy-btn" onclick="copyInvite()">Copiar</span>
+    </div>
+  </div>
+
+  <!-- Lista de usuários -->
+  <div class="section">
+    <h2>Usuários (<%= users.length %>)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Email</th>
+          <th>Papel</th>
+          <th>Status</th>
+          <th>Empresas</th>
+          <th>Criado em</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach(u => { %>
+        <tr>
+          <td><%= u.name %></td>
+          <td style="font-size:12px;color:#666"><%= u.email %></td>
+          <td>
+            <select class="inline-role" onchange="changeRole('<%= u.id %>', this.value)" style="padding:2px 6px;font-size:12px;border:1px solid #ddd;border-radius:4px">
+              <option value="admin" <%= u.role==='admin'?'selected':'' %>>Admin</option>
+              <option value="suporte" <%= u.role==='suporte'?'selected':'' %>>Suporte</option>
+              <option value="usuario" <%= u.role==='usuario'?'selected':'' %>>Usuário</option>
+              <option value="terceiros" <%= u.role==='terceiros'?'selected':'' %>>Terceiros</option>
+            </select>
+          </td>
+          <td>
+            <% if (!u.auth_id) { %>
+              <span class="badge badge-pending">Pendente</span>
+            <% } else if (u.active) { %>
+              <span class="badge badge-active">Ativo</span>
+            <% } else { %>
+              <span class="badge badge-inactive">Inativo</span>
+            <% } %>
+          </td>
+          <td style="font-size:11px;color:#888">
+            <% if (accessMap[u.id]) { %>
+              <%= accessMap[u.id].join(', ') %>
+            <% } else { %>
+              —
+            <% } %>
+          </td>
+          <td style="font-size:12px;color:#888">
+            <%= u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—' %>
+          </td>
+          <td>
+            <% if (u.auth_id) { %>
+              <button class="btn btn-sm btn-ghost" onclick="toggleUser('<%= u.id %>', this)">
+                <%= u.active ? 'Desativar' : 'Ativar' %>
+              </button>
+            <% } else if (u.invite_token) { %>
+              <span style="font-size:11px;color:#d97706">Convite enviado</span>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function toggleCompanies() {
+  const role = document.getElementById('invite-role').value;
+  document.getElementById('companies-group').style.display = role === 'terceiros' ? '' : 'none';
+}
+
+document.getElementById('invite-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = new FormData(e.target);
+  const body = {
+    email: form.get('email'),
+    name: form.get('name'),
+    role: form.get('role'),
+    seller_ids: form.getAll('seller_ids'),
+  };
+
+  const res = await fetch('/admin/users/invite', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+
+  if (data.ok) {
+    document.getElementById('invite-url').textContent = data.inviteLink;
+    document.getElementById('invite-result').style.display = 'block';
+    e.target.reset();
+  } else {
+    alert(data.error || 'Erro ao criar convite');
+  }
+});
+
+function copyInvite() {
+  const url = document.getElementById('invite-url').textContent;
+  navigator.clipboard.writeText(url).then(() => alert('Link copiado!'));
+}
+
+async function changeRole(id, role) {
+  await fetch('/admin/users/' + id + '/role', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
+  });
+}
+
+async function toggleUser(id, btn) {
+  const res = await fetch('/admin/users/' + id + '/toggle', { method: 'POST' });
+  const data = await res.json();
+  if (data.ok) {
+    btn.textContent = data.active ? 'Desativar' : 'Ativar';
+    location.reload();
+  }
+}
+</script>
+</body>
+</html>

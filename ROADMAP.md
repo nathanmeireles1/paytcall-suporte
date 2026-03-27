@@ -224,12 +224,12 @@ closed_at        TIMESTAMPTZ (preenchido quando status vira terminal)
 
 ---
 
-## 1 — LOGIN E CONVITES (ÚLTIMA TAREFA)
+## 1 — LOGIN E CONVITES ✅
 
 ### 1.0 — Autenticação
-- [ ] Supabase Auth (email + senha)
-- [ ] Sistema de convite por link (Admin envia convite)
-- [ ] Tela de login
+- [x] Supabase Auth (email + senha)
+- [x] Sistema de convite por link (Admin envia convite)
+- [x] Tela de login
 
 ### 1.1 — Roles
 | Role | Pedidos | Tickets | Relatórios | Config |
@@ -247,9 +247,9 @@ user_company_access (user_id, seller_id) — para Terceiros
 ```
 
 ### 1.3 — Middleware
-- [ ] `requireAuth()` em todas as rotas
-- [ ] `requireRole(['admin','suporte'])` para fechar tickets
-- [ ] Terceiros: filtrar automaticamente por `seller_id`
+- [x] `requireAuth()` em todas as rotas
+- [x] `requireRole(['admin','suporte'])` para fechar tickets
+- [x] Terceiros: filtrar automaticamente por `seller_id`
 
 ---
 

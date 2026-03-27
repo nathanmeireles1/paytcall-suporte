@@ -2,26 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Shipment = require('../models/Shipment');
 
-// Middleware auth (reutiliza do dashboard)
-function requireAuth(req, res, next) {
-  const adminUser = process.env.ADMIN_USER || 'admin';
-  const adminPass = process.env.ADMIN_PASS;
-  if (!adminPass) return next();
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Basic ')) {
-    res.set('WWW-Authenticate', 'Basic realm="payt Tracker"');
-    return res.status(401).send('Autenticação necessária');
-  }
-  const [user, pass] = Buffer.from(auth.slice(6), 'base64').toString().split(':');
-  if (user !== adminUser || pass !== adminPass) {
-    res.set('WWW-Authenticate', 'Basic realm="payt Tracker"');
-    return res.status(401).send('Credenciais inválidas');
-  }
-  next();
-}
-
 // GET /relatorios/tickets — Relatório de todos os tickets
-router.get('/tickets', requireAuth, async (req, res) => {
+router.get('/tickets', async (req, res) => {
   const { tipo, status, assigned_to, priority, search, page = 1 } = req.query;
 
   const result = await Shipment.getAllTickets({
@@ -38,7 +20,7 @@ router.get('/tickets', requireAuth, async (req, res) => {
 });
 
 // GET /relatorios/cancelamentos — Relatório de chargebacks e reembolsos
-router.get('/cancelamentos', requireAuth, async (req, res) => {
+router.get('/cancelamentos', async (req, res) => {
   const { tipo, payment_status, status_atendimento, search, page = 1 } = req.query;
 
   const result = await Shipment.getCancelamentos({
@@ -55,7 +37,7 @@ router.get('/cancelamentos', requireAuth, async (req, res) => {
 });
 
 // POST /relatorios/cancelamentos/:id — Atualiza campos manuais de um cancelamento
-router.post('/cancelamentos/:id', requireAuth, async (req, res) => {
+router.post('/cancelamentos/:id', async (req, res) => {
   try {
     const allowed = [
       'status_atendimento', 'pedido_suspenso', 'motivo', 'observacao',

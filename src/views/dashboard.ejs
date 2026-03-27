@@ -107,6 +107,9 @@
     <a href="/api/tracking/refresh" class="nav-refresh" onclick="refreshAll(event)">↻ Atualizar todos</a>
     <a href="/relatorios/tickets" class="nav-refresh">Tickets</a>
     <a href="/relatorios/cancelamentos" class="nav-refresh">Cancelamentos</a>
+    <% if (typeof currentUser !== 'undefined' && currentUser.role === 'admin') { %>
+    <a href="/admin/users" class="nav-refresh">Usuários</a>
+    <% } %>
     <div style="position:relative">
       <button id="notifBtn" onclick="toggleNotifs()" style="background:transparent;border:1px solid #333;border-radius:6px;padding:4px 10px;cursor:pointer;color:#aaa;font-size:14px;position:relative">
         🔔 <span id="notifBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;border-radius:99px;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 4px">0</span>
@@ -121,6 +124,10 @@
         </div>
       </div>
     </div>
+    <% if (typeof currentUser !== 'undefined') { %>
+    <span style="color:#4f46e5;background:rgba(79,70,229,.1);padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600"><%= currentUser.name %></span>
+    <a href="/logout" style="color:#f87171;font-size:12px;text-decoration:none">Sair</a>
+    <% } %>
   </div>
 </nav>
 
@@ -308,8 +315,7 @@ function refreshAll(e) {
 }
 
 // --- Notificações ---
-const NOTIF_USER = prompt('Seu nome para notificações:') || localStorage.getItem('notif_user') || '';
-if (NOTIF_USER) localStorage.setItem('notif_user', NOTIF_USER);
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
 
 let notifOpen = false;
 function toggleNotifs() {
@@ -321,7 +327,7 @@ function toggleNotifs() {
 async function loadNotifs() {
   if (!NOTIF_USER) return;
   try {
-    const r = await fetch('/api/notifications/' + encodeURIComponent(NOTIF_USER));
+    const r = await fetch('/api/notifications');
     const { notifications, unread } = await r.json();
     const badge = document.getElementById('notifBadge');
     badge.style.display = unread > 0 ? 'block' : 'none';
@@ -344,13 +350,13 @@ async function loadNotifs() {
 
 async function markAllRead() {
   if (!NOTIF_USER) return;
-  await fetch('/api/notifications/' + encodeURIComponent(NOTIF_USER) + '/read', { method: 'POST' });
+  await fetch('/api/notifications/read', { method: 'POST' });
   loadNotifs();
 }
 
 // Check unread on load
 if (NOTIF_USER) {
-  fetch('/api/notifications/' + encodeURIComponent(NOTIF_USER))
+  fetch('/api/notifications')
     .then(r => r.json())
     .then(({ unread }) => {
       const badge = document.getElementById('notifBadge');
