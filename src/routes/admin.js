@@ -222,7 +222,7 @@ router.post('/permissions', requireAuth, requirePermission('admin_permissoes', '
       const { error } = await db.from('role_permissions').upsert(row, {
         onConflict: 'role,module',
       });
-      if (error) console.error('[Permissions] Erro upsert:', role, mod, error.message);
+      if (error) console.error('[Permissions] Erro upsert:', row.role, row.module, error.message);
     }
 
     // Invalida cache
