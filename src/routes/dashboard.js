@@ -23,13 +23,30 @@ function requireAuth(req, res, next) {
   next();
 }
 
+function getNextWindow() {
+  const brt = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const mins = brt.getHours() * 60 + brt.getMinutes();
+  if (mins < 8 * 60)  return 'hoje às 08:00';
+  if (mins < 14 * 60) return 'hoje às 14:00';
+  return 'amanhã às 08:00';
+}
+
 router.get('/', requireAuth, async (req, res) => {
   const { status, search, seller_id, page = 1 } = req.query;
-  const [stats, result, companies] = await Promise.all([
+  const [stats, result, companies, lastQueried] = await Promise.all([
     Shipment.getStats(),
     Shipment.findAll({ status, search, seller_id, page: parseInt(page) }),
     Shipment.getCompanies(),
+    Shipment.getLastQueried(),
   ]);
+
+  const lastQueriedFmt = lastQueried
+    ? new Date(lastQueried).toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit', month: '2-digit',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : null;
 
   res.render('dashboard', {
     shipments: result.rows,
@@ -39,6 +56,8 @@ router.get('/', requireAuth, async (req, res) => {
     pages: result.pages,
     currentPage: parseInt(page),
     filters: { status, search, seller_id },
+    lastQueried: lastQueriedFmt,
+    nextWindow: getNextWindow(),
   });
 });
 

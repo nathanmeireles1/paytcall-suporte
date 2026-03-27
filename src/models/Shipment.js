@@ -236,6 +236,17 @@ const Shipment = {
     return data || [];
   },
 
+  async getLastQueried() {
+    const { data, error } = await db
+      .from('shipments')
+      .select('last_queried_at')
+      .not('last_queried_at', 'is', null)
+      .order('last_queried_at', { ascending: false })
+      .limit(1);
+    if (error || !data?.length) return null;
+    return data[0].last_queried_at;
+  },
+
   async dequeueCustomer(orderId) {
     const { error } = await db
       .from('customer_queue')
