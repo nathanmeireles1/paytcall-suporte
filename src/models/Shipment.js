@@ -522,6 +522,19 @@ const Shipment = {
       }
     }
   },
+
+  async getAnalytics() {
+    const [produtos, transportadoras, ticketsMotivo] = await Promise.all([
+      db.rpc('get_analytics_produtos'),
+      db.rpc('get_analytics_transportadoras'),
+      db.rpc('get_analytics_tickets'),
+    ]);
+    return {
+      produtos: produtos.data || [],
+      transportadoras: transportadoras.data || [],
+      ticketsMotivo: ticketsMotivo.data || [],
+    };
+  },
 };
 
 module.exports = Shipment;

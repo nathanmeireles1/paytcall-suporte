@@ -250,9 +250,9 @@ html.dark .nav-item.active { color: var(--brand); }
   position: sticky; top: 0; z-index: 50;
   transition: background .2s, border-color .2s;
 }
-.topbar-polaris .tp-left  { display: flex; align-items: center; gap: 8px; }
+.topbar-polaris .tp-left  { display: flex; align-items: center; gap: 8px; white-space: nowrap; min-width: 0; overflow: hidden; }
 .topbar-polaris .tp-center { display: flex; justify-content: center; }
-.topbar-polaris .tp-right  { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.topbar-polaris .tp-right  { display: flex; align-items: center; gap: 4px; justify-content: flex-end; white-space: nowrap; }
 
 .topbar-search-wrap { position: relative; width: 100%; max-width: 380px; }
 .topbar-search-wrap .search-icon {

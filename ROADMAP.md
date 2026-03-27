@@ -1,7 +1,99 @@
 # ROADMAP — Portal de Suporte Paytcall
 
 > Atualizado em: 27/03/2026
-> Ordem de execução: Itens 2 → 5 → 7 → 8 → 3 → 4 → 1 (Login por último)
+> Status: Itens 1–8 concluídos. Próximos: 9 (AI Agent), 10 (Analytics avançado), 11 (UX pendências)
+
+---
+
+## STATUS GERAL
+
+| Item | Descrição | Status |
+|---|---|---|
+| 1 | Login & Roles (Admin, Suporte, Usuário, Terceiros) | ✅ Concluído |
+| 2 | Tickets (Retenção/Logística, motivos, SLA, prioridades) | ✅ Concluído |
+| 3 | Relatórios (Tickets + Cancelamentos) | ✅ Concluído |
+| 4 | Notificações | ✅ Concluído |
+| 5 | SLA com timer e semáforo | ✅ Concluído |
+| 7 | Relatório de Tickets | ✅ Concluído |
+| 8 | Rastreio em Atraso (1 dia / 3 dias) | ✅ Concluído |
+| 9 | AI Agent / Chat | 🔲 Pendente |
+| 10 | Analytics/KPIs avançado | 🟡 Em andamento |
+| 11 | UX/UI — refinamentos visuais | 🟡 Em andamento |
+| 12 | Seleção múltipla + ações em lote (rastreios) | ✅ Concluído |
+| 13 | Subdomínio suporte.paytcall.com.br | 🔲 Pendente |
+
+---
+
+## 9 — AI AGENT / CHAT (PRÓXIMO)
+
+### Objetivo
+Implementar um assistente de IA dentro do portal que tenha acesso à base de conhecimento completa: pedidos, tickets, cancelamentos e analytics.
+
+### Funcionalidades
+- [ ] Chat flutuante acessível em qualquer página
+- [ ] Acesso aos dados: shipments, tickets, cancelamentos, stats
+- [ ] Responder perguntas como "quais pedidos estão em atraso?" ou "qual o SLA médio do mês?"
+- [ ] Sugerir ações (ex: abrir ticket para pedido X)
+- [ ] Histórico de conversa por sessão
+
+### Tecnologia
+- **Gemini** (Google) — usuário já possui acesso via outro portal
+  - Modelo: `gemini-1.5-flash` (gratuito) ou `gemini-1.5-pro` (maior contexto)
+  - Alternativa: Claude API (`claude-haiku-4-5`) — mais barato para chat simples
+- Contexto injetado via system prompt com dados reais do banco
+- Rota backend: `POST /api/ai/chat`
+- Frontend: componente de chat fixo (bottom-right)
+
+---
+
+## 10 — ANALYTICS / KPIs AVANÇADOS
+
+### Status: Página base criada em `/analytics`
+- [x] KPIs de taxa de entrega, pendência, devolução
+- [x] Distribuição de status (donut)
+- [x] Comparativo por transportadora
+- [x] Produtos com mais pendências
+- [x] Motivos de ticket mais frequentes
+
+### Próximas métricas a adicionar
+- [ ] **Mapa de estados** — quais UFs têm mais atrasos (requer campo address_state)
+- [ ] **Evolução mensal** — curva de entregas por mês (últimos 6 meses)
+- [ ] **Tempo médio de entrega** — dias entre paid_at e delivered
+- [ ] **SLA de tickets** — tempo médio de resolução por tipo
+- [ ] **Taxa de chargeback** — % de pedidos que viraram chargeback
+- [ ] **Filtros temporais** — último 7 dias, 30 dias, 90 dias
+
+---
+
+## 11 — UX/UI PENDÊNCIAS
+
+### Identidade visual
+- [ ] Aplicar logo oficial da Payt (SVG fornecido) na sidebar e login
+- [ ] Revisar cores no dark mode (alguns elementos ainda com baixo contraste)
+- [ ] Adicionar favicon
+
+### Funcionalidades UX
+- [x] Botão copiar código de rastreio (inline na tabela)
+- [x] Seleção múltipla na tabela de rastreios com bulk actions
+- [ ] Busca global (Cmd+K) — busca por código, cliente, CPF, pedido
+- [ ] Paginação infinita / scroll em vez de páginas numeradas
+- [ ] Exportar tabela como CSV (rastreios, tickets, cancelamentos)
+- [ ] Filtros salvos / favoritos
+
+### Páginas pendentes de redesign com novo visual
+- [x] Login
+- [x] Dashboard principal
+- [x] Rastreios
+- [x] Analytics
+- [ ] Detalhe do pedido (shipment.ejs) — refatorar para novo design
+- [ ] Admin usuários / permissões
+
+---
+
+## 12 — MUDANÇA DE DOMÍNIO
+- [ ] Alterar de `rastreios.paytcall.com.br` para `suporte.paytcall.com.br`
+- [ ] Atualizar referências hardcoded no código
+- [ ] Rota `/rastreios` já criada para não quebrar links existentes
 
 ---
 

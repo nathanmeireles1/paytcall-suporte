@@ -39,8 +39,8 @@ router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req,
   }
 });
 
-// GET / — Rastreios (lista de envios)
-router.get('/', requirePermission('dashboard', 'can_view'), async (req, res) => {
+// Handler de rastreios — compartilhado entre / e /rastreios
+async function handleRastreios(req, res) {
   try {
     const { status, search, seller_id, carrier, product, paid_at_from, paid_at_to, page = 1 } = req.query;
 
@@ -86,7 +86,11 @@ router.get('/', requirePermission('dashboard', 'can_view'), async (req, res) => 
     console.error('[Dashboard] Erro:', err.message);
     res.status(500).render('error', { message: 'Erro ao carregar painel: ' + err.message });
   }
-});
+}
+
+// GET / e /rastreios — Rastreios (lista de envios)
+router.get('/', requirePermission('dashboard', 'can_view'), handleRastreios);
+router.get('/rastreios', requirePermission('dashboard', 'can_view'), handleRastreios);
 
 router.get('/shipment/:code', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {
@@ -164,6 +168,20 @@ router.post('/api/notifications/read', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /analytics — página de KPIs e gráficos analíticos
+router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req, res) => {
+  try {
+    const [stats, analytics] = await Promise.all([
+      Shipment.getStats(),
+      Shipment.getAnalytics(),
+    ]);
+    res.render('analytics', { stats, analytics });
+  } catch (err) {
+    console.error('[Analytics] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao carregar analytics: ' + err.message });
   }
 });
 

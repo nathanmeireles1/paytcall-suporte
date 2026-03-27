@@ -16,7 +16,7 @@
       pageTitle: 'Rastreios',
       breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Rastreios' }],
       polarisTopbar: true,
-      searchAction: '/',
+      searchAction: '/rastreios',
       searchValue: filters.search || ''
     }) %>
 
@@ -171,10 +171,33 @@
           no_tracking:'Sem Rastreio', tracking_delayed:'Rastreio em Atraso',
         };
         %>
+        <!-- Bulk action bar -->
+        <div id="bulkBar" style="display:none;padding:10px 16px;background:var(--brand-dim);border-bottom:1px solid var(--brand-border);display:none;align-items:center;gap:10px;flex-wrap:wrap">
+          <span id="bulkCount" style="font-size:13px;font-weight:600;color:var(--brand-dark)">0 selecionados</span>
+          <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+            <button onclick="bulkAction('update')" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Atualizar selecionados
+            </button>
+            <button onclick="bulkAction('ticket')" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+              Abrir Ticket
+            </button>
+            <button onclick="bulkAction('copy')" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copiar códigos
+            </button>
+            <button onclick="clearSelection()" class="btn btn-ghost btn-sm">Cancelar</button>
+          </div>
+        </div>
+
         <div class="p-index-table-wrap">
-          <table class="p-index-table">
+          <table class="p-index-table" id="rastreiosTable">
             <thead>
               <tr>
+                <th style="width:36px;padding:9px 10px 9px 16px">
+                  <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer">
+                </th>
                 <th>Código</th>
                 <th>Empresa</th>
                 <th>Pedido / Produto</th>
@@ -186,11 +209,19 @@
             </thead>
             <tbody>
               <% shipments.forEach(s => { %>
-              <tr onclick="window.location='/shipment/<%= s.tracking_code %>'">
+              <tr data-code="<%= s.tracking_code %>" onclick="handleRowClick(event, '<%= s.tracking_code %>')">
+                <td style="padding:11px 10px 11px 16px" onclick="event.stopPropagation()">
+                  <input type="checkbox" class="row-check" value="<%= s.tracking_code %>" onchange="updateBulkBar()" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer">
+                </td>
                 <td>
-                  <div style="display:flex;flex-direction:column;gap:2px">
-                    <span class="code"><%= s.tracking_code %></span>
-                    <span style="font-size:11px;color:var(--gray-400);font-weight:500"><%= s.carrier || '—' %></span>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <div style="display:flex;flex-direction:column;gap:2px">
+                      <span class="code"><%= s.tracking_code %></span>
+                      <span style="font-size:11px;color:var(--text-4);font-weight:500"><%= s.carrier || '—' %></span>
+                    </div>
+                    <button onclick="copyCode(event,'<%= s.tracking_code %>')" title="Copiar código" style="padding:3px;border-radius:4px;color:var(--text-4);transition:color .1s,background .1s;flex-shrink:0;background:none;border:none;cursor:pointer;display:flex;align-items:center" onmouseover="this.style.color='var(--brand)';this.style.background='var(--brand-dim)'" onmouseout="this.style.color='var(--text-4)';this.style.background='none'">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    </button>
                   </div>
                 </td>
                 <td>
@@ -230,6 +261,82 @@
           </table>
         </div>
         <% } %>
+
+        <script>
+        // Cópia de código individual
+        function copyCode(e, code) {
+          e.stopPropagation();
+          navigator.clipboard.writeText(code).then(() => {
+            const btn = e.currentTarget;
+            btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+            setTimeout(() => { btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>'; }, 1200);
+          });
+        }
+
+        // Navegação na linha (apenas quando não clicar em checkbox)
+        function handleRowClick(e, code) {
+          if (e.target.type === 'checkbox') return;
+          window.location = '/shipment/' + code;
+        }
+
+        // Bulk selection
+        function toggleSelectAll(cb) {
+          document.querySelectorAll('.row-check').forEach(c => c.checked = cb.checked);
+          updateBulkBar();
+        }
+
+        function updateBulkBar() {
+          const checked = document.querySelectorAll('.row-check:checked');
+          const bar = document.getElementById('bulkBar');
+          const countEl = document.getElementById('bulkCount');
+          const selectAll = document.getElementById('selectAll');
+          const all = document.querySelectorAll('.row-check');
+
+          if (checked.length > 0) {
+            bar.style.display = 'flex';
+            countEl.textContent = checked.length + (checked.length === 1 ? ' selecionado' : ' selecionados');
+          } else {
+            bar.style.display = 'none';
+          }
+          selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+          selectAll.checked = all.length > 0 && checked.length === all.length;
+        }
+
+        function clearSelection() {
+          document.querySelectorAll('.row-check').forEach(c => c.checked = false);
+          document.getElementById('selectAll').checked = false;
+          document.getElementById('selectAll').indeterminate = false;
+          updateBulkBar();
+        }
+
+        function getSelectedCodes() {
+          return Array.from(document.querySelectorAll('.row-check:checked')).map(c => c.value);
+        }
+
+        function bulkAction(action) {
+          const codes = getSelectedCodes();
+          if (!codes.length) return;
+
+          if (action === 'copy') {
+            navigator.clipboard.writeText(codes.join('\n')).then(() => {
+              alert(codes.length + ' código(s) copiado(s) para a área de transferência.');
+            });
+          } else if (action === 'update') {
+            if (!confirm('Atualizar rastreio de ' + codes.length + ' pedido(s) agora?')) return;
+            fetch('/api/tracking/refresh-batch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ codes })
+            }).then(r => r.json()).then(data => {
+              alert('Atualização solicitada para ' + codes.length + ' pedido(s).');
+              clearSelection();
+            }).catch(() => alert('Erro ao solicitar atualização.'));
+          } else if (action === 'ticket') {
+            const codesParam = encodeURIComponent(codes.join(','));
+            window.location = '/shipment/' + codes[0] + '?bulk=' + codesParam;
+          }
+        }
+        </script>
 
         <!-- Paginação -->
         <% if (pages > 1) { %>
