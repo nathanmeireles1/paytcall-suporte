@@ -212,7 +212,7 @@
             <% if (s.last_event) { %><%= s.last_event %><% } else { %><span class="text-muted">—</span><% } %>
             <% if (s.last_event_date) { %><br><span class="text-muted"><%= s.last_event_date %></span><% } %>
           </td>
-          <td><span class="text-muted"><%= s.updated_at ? s.updated_at.substring(0, 16).replace('T', ' ') : '—' %></span></td>
+          <td><span class="text-muted"><%= s.updated_at ? new Date(s.updated_at).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—' %></span></td>
         </tr>
         <% }) %>
       </tbody>

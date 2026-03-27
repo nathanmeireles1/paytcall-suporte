@@ -147,19 +147,13 @@ const Shipment = {
   },
 
   async getStats() {
-    const { data: rows, error } = await db.from('shipments').select('status');
-    if (error) throw error;
-    const count = (s) => (rows || []).filter(r => r.status === s).length;
-    const countIn = (...ss) => (rows || []).filter(r => ss.includes(r.status)).length;
-    return {
-      total: (rows || []).length,
-      delivered: count('delivered'),
-      in_transit: countIn('forwarded', 'posted_object'),
-      out_for_delivery: count('delivering'),
-      delivery_attempt: count('recipient_not_found'),
-      returned: countIn('returned', 'returning'),
-      waiting_client: count('waiting_client'),
-    };
+    const { data, error } = await db.rpc('get_shipment_stats');
+    if (error) {
+      // fallback manual se a função não existir ainda
+      const { count } = await db.from('shipments').select('*', { count: 'exact', head: true });
+      return { total: count || 0, delivered: 0, in_transit: 0, out_for_delivery: 0, delivery_attempt: 0, returned: 0, waiting_client: 0 };
+    }
+    return data?.[0] || {};
   },
 
   async getCompanies() {

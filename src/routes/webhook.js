@@ -25,7 +25,8 @@ router.post('/', async (req, res) => {
 
   // Ignora webhooks históricos — só processa a partir de 26/03/2026
   const WEBHOOK_START_DATE = new Date('2026-03-26T00:00:00Z');
-  const webhookDate = body.dates?.created_at ? new Date(body.dates.created_at) : null;
+  const rawDate = body.started_at || body.transaction?.created_at || body.updated_at;
+  const webhookDate = rawDate ? new Date(rawDate) : null;
   if (webhookDate && webhookDate < WEBHOOK_START_DATE) {
     return res.json({ message: 'Ignorado: webhook histórico' });
   }

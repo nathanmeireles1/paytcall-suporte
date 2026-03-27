@@ -112,11 +112,11 @@ const statusLabel = {
       <% } %>
       <div class="info-item">
         <div class="label">Última consulta Correios</div>
-        <div class="val"><%= shipment.last_queried_at ? shipment.last_queried_at.substring(0, 16).replace('T', ' ') : 'Nunca' %></div>
+        <div class="val"><%= shipment.last_queried_at ? new Date(shipment.last_queried_at).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : 'Nunca' %></div>
       </div>
       <div class="info-item">
         <div class="label">Cadastrado em</div>
-        <div class="val"><%= shipment.created_at ? shipment.created_at.substring(0, 16).replace('T', ' ') : '—' %></div>
+        <div class="val"><%= shipment.created_at ? new Date(shipment.created_at).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—' %></div>
       </div>
     </div>
 
