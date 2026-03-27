@@ -81,7 +81,15 @@ const statusLabel = {
   returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
   no_tracking: 'Sem Rastreio',
 };
-const fmtDate = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
+const fmtDate = (iso) => {
+  if (!iso) return '—';
+  try {
+    const d = new Date(String(iso).replace(' ', 'T'));
+    return d.toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+  } catch(e) { return String(iso); }
+};
+const fmtCep = (cep) => cep ? String(cep).replace(/^(\d{5})(\d{3})$/, '$1-$2') : '';
+const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() === ',') ? '' : loc;
 %>
 
 <div class="container">
@@ -103,7 +111,7 @@ const fmtDate = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', {timeZone:'
     <div class="last-event-box">
       <div class="ev-label">Último evento</div>
       <div class="ev-text"><%= shipment.last_event %></div>
-      <% if (shipment.last_event_date) { %><div class="ev-date"><%= shipment.last_event_date %></div><% } %>
+      <% if (shipment.last_event_date) { %><div class="ev-date"><%= fmtDate(shipment.last_event_date) %></div><% } %>
     </div>
     <% } %>
 
@@ -209,11 +217,24 @@ const fmtDate = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', {timeZone:'
   <% const addr = typeof shipment.shipping_address === 'string' ? JSON.parse(shipment.shipping_address) : shipment.shipping_address; %>
   <div class="card">
     <h2>Endereço de Entrega</h2>
-    <div class="info-item">
-      <div class="val">
-        <%= addr.street %><% if (addr.street_number) { %>, <%= addr.street_number %><% } %>
-        <% if (addr.complement) { %> — <%= addr.complement %><% } %><br>
-        <%= addr.district %> · <%= addr.city %>/<%= addr.state %> · CEP <%= addr.zipcode %>
+    <div class="info-grid">
+      <div class="info-item" style="grid-column:1/-1">
+        <div class="label">Logradouro</div>
+        <div class="val"><%= addr.street %><% if (addr.street_number) { %>, <%= addr.street_number %><% } %><% if (addr.complement) { %> — <%= addr.complement %><% } %></div>
+      </div>
+      <% if (addr.district) { %>
+      <div class="info-item">
+        <div class="label">Bairro</div>
+        <div class="val"><%= addr.district %></div>
+      </div>
+      <% } %>
+      <div class="info-item">
+        <div class="label">Cidade / UF</div>
+        <div class="val"><%= addr.city %> / <%= addr.state %></div>
+      </div>
+      <div class="info-item">
+        <div class="label">CEP</div>
+        <div class="val"><%= fmtCep(addr.zipcode) %></div>
       </div>
     </div>
   </div>
@@ -228,8 +249,8 @@ const fmtDate = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', {timeZone:'
       <div class="event">
         <div class="desc"><%= ev.description %></div>
         <div class="meta">
-          <%= ev.event_date ? ev.event_date.substring(0, 16).replace('T', ' ') : '' %>
-          <% if (ev.location) { %> · <%= ev.location %><% } %>
+          <%= ev.event_date ? fmtDate(ev.event_date) : '' %>
+          <% const loc = cleanLocation(ev.location); if (loc) { %> · <%= loc %><% } %>
         </div>
       </div>
       <% }) %>
