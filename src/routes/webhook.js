@@ -4,8 +4,8 @@ const Shipment = require('../models/Shipment');
 
 /**
  * POST /webhook
- * Recebe notificações da payt.com.br
- * Salva dados do pedido — NÃO consulta Correios aqui (feito pelo scheduler)
+ * Recebe notificações da payt.com.br (payment status)
+ * Rastreio 100% via H7 (scheduler 09h e 15h BRT)
  */
 
 // GET /webhook — responde para testes de disponibilidade
@@ -16,16 +16,23 @@ router.get('/', (req, res) => {
 router.post('/', async (req, res) => {
   const body = req.body;
 
-  console.log(`[Webhook] Recebido: status=${body.status} test=${body.test} tracking=${body.shipping?.tracking_code || 'nenhum'}`);
+  console.log(`[Webhook] Recebido: status=${body.status} test=${body.test} order=${body.transaction_id || '-'}`);
 
   // Responde ao teste da payt com sucesso imediatamente
   if (body.test === true) {
     return res.json({ success: true, message: 'Webhook recebido com sucesso' });
   }
 
-  // Aceita apenas: pedidos pagos/enviados, chargebacks e reembolsos
-  // Nota: 'chargeback' e 'refunded' são termos prováveis — confirmar com Payt se necessário
-  const ACCEPTED_STATUSES = ['paid', 'shipped', 'chargeback', 'refunded', 'refund'];
+  // Aceita apenas: pago, chargebacks e reembolsos (conforme docs Payt)
+  const ACCEPTED_STATUSES = [
+    'paid',                           // Pagamento Aprovado
+    'chargeback_presented',           // Chargeback Apresentado
+    'chargeback',                     // Chargeback
+    'one_click_buy_refunded',         // Upsell Estornado
+    'refunded',                       // Pagamento Estornado
+    'one_click_buy_refunded_partial', // Upsell Reembolsado Parcial
+    'refunded_partial',               // Pagamento Reembolsado Parcial
+  ];
   if (body.status && !ACCEPTED_STATUSES.includes(body.status)) {
     return res.json({ message: `Ignorado: status '${body.status}' não processado` });
   }
@@ -38,50 +45,64 @@ router.post('/', async (req, res) => {
     return res.json({ message: 'Ignorado: webhook histórico' });
   }
 
-  const trackingCode = body.shipping?.tracking_code;
-
-  // Sem código de rastreio — confirma recebimento mas não processa
-  if (!trackingCode) {
-    return res.json({ message: 'Recebido, sem tracking_code para processar' });
-  }
-
-  const code = trackingCode.trim().toUpperCase();
-  const carrier = /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(code) ? 'Correios' : 'Loggi';
   const customer = body.customer || {};
   const commissions = Array.isArray(body.commission) ? body.commission : [];
   const producer = commissions.find(c => c.type === 'producer');
   const transaction = body.transaction || {};
   const product = body.product || {};
+  const trackingCode = body.shipping?.tracking_code;
   const shippingAddress = body.shipping?.address || null;
   const trackingUrl = body.shipping?.tracking_url || null;
+  const orderId = body.transaction_id || null;
+
+  const orderData = {
+    order_id: orderId,
+    seller_id: body.seller_id || null,
+    company_name: producer?.name || null,
+    customer_name: customer.name || null,
+    customer_email: customer.email || null,
+    customer_phone: customer.phone || null,
+    customer_doc: customer.doc || null,
+    product_name: product.name || null,
+    product_price: product.price || null,
+    product_quantity: product.quantity || null,
+    payment_method: transaction.payment_method || null,
+    payment_status: body.status || transaction.payment_status || null,
+    total_price: transaction.total_price || null,
+    shipping_address: shippingAddress,
+    tracking_url: trackingUrl,
+  };
 
   // Responde imediatamente para a payt não fazer retry
-  res.json({ message: 'Recebido', tracking_code: code });
+  res.json({ message: 'Recebido', order_id: orderId });
 
-  // Salva dados do pedido sem sobrescrever status dos Correios
   try {
-    await Shipment.upsertFromPaytcall({
-      tracking_code: code,
-      carrier,
-      order_id: body.transaction_id || null,
-      seller_id: body.seller_id || null,
-      company_name: producer?.name || null,
-      customer_name: customer.name || null,
-      customer_email: customer.email || null,
-      customer_phone: customer.phone || null,
-      customer_doc: customer.doc || null,
-      product_name: product.name || null,
-      product_price: product.price || null,
-      product_quantity: product.quantity || null,
-      payment_method: transaction.payment_method || null,
-      payment_status: transaction.payment_status || null,
-      total_price: transaction.total_price || null,
-      shipping_address: shippingAddress,
-      tracking_url: trackingUrl,
-    });
-    console.log(`[Webhook] Salvo: ${code}`);
+    const isChargeback = ['chargeback_presented', 'chargeback'].includes(body.status);
+    const isRefund = ['one_click_buy_refunded', 'refunded', 'one_click_buy_refunded_partial', 'refunded_partial'].includes(body.status);
+
+    if (isChargeback || isRefund) {
+      // Atualiza payment_status no pedido existente pelo order_id
+      await Shipment.updatePaymentStatus(orderId, body.status);
+      console.log(`[Webhook] payment_status atualizado: order=${orderId} → ${body.status}`);
+      return;
+    }
+
+    // status = 'paid'
+    if (trackingCode) {
+      // Já tem código de rastreio — salva direto na tabela principal
+      const code = trackingCode.trim().toUpperCase();
+      const carrier = /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(code) ? 'Correios' : 'Loggi';
+      await Shipment.upsertFromPaytcall({ tracking_code: code, carrier, ...orderData });
+      console.log(`[Webhook] Salvo com tracking: ${code}`);
+    } else if (customer.doc) {
+      // Sem código de rastreio ainda — guarda na fila para o scheduler H7 encontrar
+      await Shipment.enqueueCustomer(orderData);
+      console.log(`[Webhook] CPF enfileirado para H7: order=${orderId}`);
+    } else {
+      console.log(`[Webhook] Ignorado: paid sem tracking_code e sem CPF — order=${orderId}`);
+    }
   } catch (err) {
-    console.error(`[Webhook] Erro ao salvar ${code}:`, err.message);
+    console.error(`[Webhook] Erro ao processar order=${orderId}:`, err.message);
   }
 });
 

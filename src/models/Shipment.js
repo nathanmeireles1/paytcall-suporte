@@ -190,6 +190,57 @@ const Shipment = {
     if (error) throw error;
     return data || [];
   },
+
+  async updatePaymentStatus(orderId, paymentStatus) {
+    if (!orderId) return;
+    const { error } = await db
+      .from('shipments')
+      .update({ payment_status: paymentStatus, updated_at: new Date().toISOString() })
+      .eq('order_id', orderId);
+    if (error) throw error;
+  },
+
+  // --- customer_queue: pedidos paid sem tracking_code ainda ---
+
+  async enqueueCustomer(data) {
+    const { error } = await db.from('customer_queue').upsert(
+      {
+        order_id: data.order_id,
+        seller_id: data.seller_id || null,
+        company_name: data.company_name || null,
+        customer_name: data.customer_name || null,
+        customer_email: data.customer_email || null,
+        customer_phone: data.customer_phone || null,
+        customer_doc: data.customer_doc,
+        product_name: data.product_name || null,
+        product_price: data.product_price || null,
+        product_quantity: data.product_quantity || null,
+        payment_method: data.payment_method || null,
+        payment_status: data.payment_status || null,
+        total_price: data.total_price || null,
+        shipping_address: data.shipping_address || null,
+      },
+      { onConflict: 'order_id', ignoreDuplicates: false }
+    );
+    if (error) throw error;
+  },
+
+  async getCustomerQueue() {
+    const { data, error } = await db
+      .from('customer_queue')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async dequeueCustomer(orderId) {
+    const { error } = await db
+      .from('customer_queue')
+      .delete()
+      .eq('order_id', orderId);
+    if (error) throw error;
+  },
 };
 
 module.exports = Shipment;
