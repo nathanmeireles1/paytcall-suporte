@@ -48,6 +48,7 @@ const Shipment = {
       carrier:          data.carrier          || null,
       order_id:         data.order_id         || null,
       seller_id:        data.seller_id        || null,
+      seller_email:     data.seller_email     || null,
       company_name:     data.company_name     || null,
       customer_name:    data.customer_name    || null,
       customer_email:   data.customer_email   || null,
@@ -90,6 +91,7 @@ const Shipment = {
       tracking_code:    data.tracking_code,
       order_id:         data.order_id      || null,
       seller_id:        data.seller_id     || null,
+      seller_email:     data.seller_email  || null,
       company_name:     data.company_name  || null,
       customer_name:    data.customer_name || null,
       customer_email:   data.customer_email || null,
@@ -220,6 +222,7 @@ const Shipment = {
       {
         order_id:         data.order_id,
         seller_id:        data.seller_id        || null,
+        seller_email:     data.seller_email     || null,
         company_name:     data.company_name     || null,
         customer_name:    data.customer_name    || null,
         customer_email:   data.customer_email   || null,

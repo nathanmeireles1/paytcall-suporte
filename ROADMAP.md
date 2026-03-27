@@ -154,8 +154,8 @@ closed_at        TIMESTAMPTZ (preenchido quando status vira terminal)
 |-------|--------|--------|
 | Controle | Data da solicitação | Manual / ticket |
 | Controle | Data do reembolso | Manual |
-| Controle | Status de atendimento | Dropdown: Reembolsado, Pendente, Retido desc., Retido - Refez Pagto, Retido troca, Devolução, Reemb./Suspenso, Em contato, Reemb. Parcial, Ag. Retorno |
-| Controle | Status de entrega | Dropdown: Trânsito, Entregue, Retornou, Ag. retirada, Sem envio, Em devolução, Aguardando postagem, Envio suspenso, Etiqueta emitida, Etiqueta expirada, Postado, Tentativa de entrega |
+| Controle | Status de atendimento | Dropdown: Sem contato, Sem retorno, Concluído, Aguardando retorno, Em contato, A contatar — **preenchido pelo responsável, sem impacto em SLA/prioridade** |
+| Controle | Status de entrega | Auto (shipments.status mapeado) |
 | Controle | Rastreio | Auto (shipments.tracking_code) |
 | Controle | Pedido suspenso? | Dropdown: Sim, Não, Produto digital |
 | Compra | Data da compra | Auto (Payt webhook) |
@@ -185,7 +185,7 @@ closed_at        TIMESTAMPTZ (preenchido quando status vira terminal)
 | Grupo | Coluna | Origem |
 |-------|--------|--------|
 | Controle | Data atual | Auto (created_at) |
-| Controle | Status de atendimento | Dropdown: Contestação env, Retido > Refez o pg, Retido desc, Ag. resposta, Sem retorno, Dados inválidos, Devolução, Respondido, Chargeback Apresentado, Pendente, Em Contato, Não retido, Sem contato, Pen. reembolso, Reembolsado |
+| Controle | Status de atendimento | Dropdown: Sem contato, Sem retorno, Concluído, Aguardando retorno, Em contato, A contatar — **preenchido pelo responsável** |
 | Controle | Contestar até | Data limite |
 | Controle | Status de entrega | Dropdown (mesmo do reembolsos) |
 | Controle | Rastreio | Auto (tracking_code) |
@@ -199,7 +199,7 @@ closed_at        TIMESTAMPTZ (preenchido quando status vira terminal)
 | Compra | Produto | Auto |
 | Compra | Qtd | Auto |
 | Compra | Valor | Auto |
-| Compra | SRC | Manual |
+| Compra | SRC (vendedora) | Auto (seller_email do webhook Payt) |
 | Compra | Motivo do chargeback | Dropdown: Não autorizou o upsell, Compra duplicada, Desistência, Sem motivo, Não sentiu efeito, Alergia, Valor, Falta de estoque, Fraude (Cliente), Inf do rótulo, Qtd incorreta, Sem retorno, Insegurança, Demora no recebimento, Dados inválidos, Orientação Médica, Não autorizou Order Bump, Não reconhece |
 | Compra | Obs | Texto livre |
 | Logística | Data | Manual |

@@ -62,6 +62,7 @@ router.post('/', async (req, res) => {
   const orderData = {
     order_id:         orderId,
     seller_id:        body.seller_id || null,
+    seller_email:     body.seller_email || null,
     company_name:     producer?.name || null,
     customer_name:    customer.name || null,
     customer_email:   customer.email || null,
