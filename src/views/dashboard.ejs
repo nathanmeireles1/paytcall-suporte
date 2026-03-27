@@ -5,17 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rastreios — payt Suporte</title>
   <link rel="stylesheet" href="/css/global.css">
-  <style>
-    col.col-code    { width: 130px; }
-    col.col-carrier { width: 75px; }
-    col.col-company { width: 140px; }
-    col.col-order   { width: 90px; }
-    col.col-product { width: 160px; }
-    col.col-client  { width: 180px; }
-    col.col-status  { width: 120px; }
-    col.col-event   { width: 160px; }
-    col.col-date    { width: 110px; }
-  </style>
 </head>
 <body>
 <div class="app">
@@ -23,173 +12,259 @@
   <%- include('partials/sidebar', { activePage: 'rastreios' }) %>
 
   <div class="main">
-    <%- include('partials/topbar', { pageTitle: 'Rastreios', breadcrumb: [{ label: 'Suporte', href: '/dashboard' }, { label: 'Rastreios' }] }) %>
+    <%- include('partials/topbar', {
+      pageTitle: 'Rastreios',
+      breadcrumb: [{ label: 'payt Suporte' }, { label: 'Rastreios' }],
+      polarisTopbar: true,
+      searchAction: '/',
+      searchValue: filters.search || ''
+    }) %>
 
-    <div class="page">
+    <div class="p-page">
 
-      <!-- Info bar -->
-      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="text-muted">Última consulta:</span>
-          <span class="fw-600 text-sm"><%= lastLog ? lastLog.ran_at_fmt : '—' %></span>
-          <% if (lastLog) { %>
+      <!-- Page Header -->
+      <div class="p-page-header">
+        <div class="p-page-header-left">
+          <h1>Rastreios</h1>
+          <p class="p-subtitle">
+            <%= stats.total.toLocaleString('pt-BR') %> envios
+            <% if (lastLog) { %> · Atualizado <%= lastLog.ran_at_fmt %><% } %>
+            · Próxima consulta: <strong><%= nextWindow %></strong>
+          </p>
+        </div>
+        <div class="p-page-header-right">
+          <span class="badge badge-neutral"><%= pendingCount.toLocaleString('pt-BR') %> pendentes</span>
+          <% if (lastLog && lastLog.updated > 0) { %>
           <span class="badge badge-success"><%= lastLog.updated %> atualizados</span>
-          <% if (lastLog.promoted > 0) { %><span class="badge badge-purple"><%= lastLog.promoted %> promovidos</span><% } %>
-          <% if (lastLog.errors > 0) { %><span class="badge badge-danger"><%= lastLog.errors %> erros</span><% } %>
           <% } %>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
-          <span class="text-muted">Próxima: <strong style="color:var(--gray-700)"><%= nextWindow %></strong></span>
-          <span class="badge badge-info"><%= pendingCount.toLocaleString('pt-BR') %> pendentes</span>
-        </div>
-      </div>
-
-      <!-- Stats -->
-      <div class="stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:20px">
-        <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value" style="color:var(--gray-900);font-size:24px"><%= stats.total %></div></div>
-        <div class="stat-card"><div class="stat-label">Entregues</div><div class="stat-value" style="color:var(--success);font-size:24px"><%= stats.delivered %></div></div>
-        <div class="stat-card"><div class="stat-label">Em trânsito</div><div class="stat-value" style="color:var(--info);font-size:24px"><%= stats.in_transit %></div></div>
-        <div class="stat-card"><div class="stat-label">Saiu p/ entrega</div><div class="stat-value" style="color:var(--purple);font-size:24px"><%= stats.out_for_delivery %></div></div>
-        <div class="stat-card"><div class="stat-label">Tentativa</div><div class="stat-value" style="color:var(--warning);font-size:24px"><%= stats.delivery_attempt %></div></div>
-        <div class="stat-card"><div class="stat-label">Devolvidos</div><div class="stat-value" style="color:var(--danger);font-size:24px"><%= stats.returned %></div></div>
-        <div class="stat-card"><div class="stat-label">Ag. Retirada</div><div class="stat-value" style="color:#854d0e;font-size:24px"><%= stats.waiting_client %></div></div>
-        <div class="stat-card"><div class="stat-label">Em Atraso</div><div class="stat-value" style="color:var(--danger);font-size:24px"><%= stats.tracking_delayed || 0 %></div></div>
-      </div>
-
-      <!-- Filtros -->
-      <form method="GET" action="/" class="toolbar" style="background:#fff;padding:14px 16px;border-radius:var(--radius-lg);border:1px solid var(--gray-200)">
-        <input type="text" name="search" placeholder="Buscar código, pedido ou cliente..." value="<%= filters.search || '' %>" class="form-input search-input">
-        <select name="seller_id" class="form-select">
-          <option value="">Todas as empresas</option>
-          <% companies.forEach(c => { %>
-            <option value="<%= c.seller_id %>" <%= filters.seller_id === c.seller_id ? 'selected' : '' %>><%= c.company_name || c.seller_id %> (<%= c.total %>)</option>
-          <% }) %>
-        </select>
-        <select name="status" class="form-select">
-          <option value="">Todos os status</option>
-          <option value="pending" <%= filters.status === 'pending' ? 'selected' : '' %>>Pendente</option>
-          <option value="posted_object" <%= filters.status === 'posted_object' ? 'selected' : '' %>>Objeto Postado</option>
-          <option value="forwarded" <%= filters.status === 'forwarded' ? 'selected' : '' %>>Encaminhado</option>
-          <option value="delivering" <%= filters.status === 'delivering' ? 'selected' : '' %>>Saiu para entrega</option>
-          <option value="recipient_not_found" <%= filters.status === 'recipient_not_found' ? 'selected' : '' %>>Dest. não encontrado</option>
-          <option value="delivery_problem" <%= filters.status === 'delivery_problem' ? 'selected' : '' %>>Problema na entrega</option>
-          <option value="wrong_address" <%= filters.status === 'wrong_address' ? 'selected' : '' %>>Endereço errado</option>
-          <option value="waiting_client" <%= filters.status === 'waiting_client' ? 'selected' : '' %>>Ag. retirada</option>
-          <option value="delivered" <%= filters.status === 'delivered' ? 'selected' : '' %>>Entregue</option>
-          <option value="returning" <%= filters.status === 'returning' ? 'selected' : '' %>>Devolvendo</option>
-          <option value="returned" <%= filters.status === 'returned' ? 'selected' : '' %>>Devolvido</option>
-          <option value="no_tracking" <%= filters.status === 'no_tracking' ? 'selected' : '' %>>Sem rastreio gerado</option>
-          <option value="tracking_delayed" <%= filters.status === 'tracking_delayed' ? 'selected' : '' %>>Rastreio em Atraso</option>
-        </select>
-        <select name="carrier" class="form-select">
-          <option value="">Transportadora</option>
-          <option value="Loggi" <%= filters.carrier === 'Loggi' ? 'selected' : '' %>>Loggi</option>
-          <option value="Correios" <%= filters.carrier === 'Correios' ? 'selected' : '' %>>Correios</option>
-        </select>
-        <input type="text" name="product" placeholder="Produto..." value="<%= filters.product || '' %>" class="form-input" style="min-width:130px">
-        <input type="date" name="paid_at_from" value="<%= filters.paid_at_from || '' %>" class="form-input" title="Pago a partir de">
-        <input type="date" name="paid_at_to" value="<%= filters.paid_at_to || '' %>" class="form-input" title="Pago até">
-        <button type="submit" class="btn btn-primary">Filtrar</button>
-        <% if (filters.status || filters.search || filters.seller_id || filters.carrier || filters.product || filters.paid_at_from || filters.paid_at_to) { %>
-          <a href="/" class="btn btn-secondary">Limpar</a>
-        <% } %>
-      </form>
-
-      <!-- Tabela -->
-      <div class="card" style="margin-top:16px">
-        <div class="card-body no-pad">
-          <% if (shipments.length === 0) { %>
-            <div class="empty-state">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/></svg>
-              <p>Nenhum envio encontrado</p>
-            </div>
-          <% } else { %>
-          <div class="table-wrap">
-            <table>
-              <colgroup>
-                <col class="col-code"><col class="col-carrier"><col class="col-company">
-                <col class="col-order"><col class="col-product"><col class="col-client">
-                <col class="col-status"><col class="col-event"><col class="col-date">
-              </colgroup>
-              <thead>
-                <tr>
-                  <th>Código</th><th>Transp.</th><th>Empresa</th>
-                  <th>Pedido</th><th>Produto</th><th>Cliente</th>
-                  <th>Status</th><th>Último evento</th><th>Atualizado</th>
-                </tr>
-              </thead>
-              <tbody>
-                <%
-                const sLabel = {
-                  pending: 'Pendente', posted_object: 'Obj. Postado', forwarded: 'Em Trânsito',
-                  delivering: 'Saiu p/ Entrega', recipient_not_found: 'Dest. não encontrado',
-                  delivery_problem: 'Prob. Entrega', wrong_address: 'End. Incorreto',
-                  waiting_client: 'Ag. Retirada', delivered: 'Entregue',
-                  returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
-                  no_tracking: 'Sem Rastreio', tracking_delayed: 'Rastreio em Atraso',
-                };
-                %>
-                <% shipments.forEach(s => { %>
-                <tr class="clickable" onclick="window.location='/shipment/<%= s.tracking_code %>'">
-                  <td><span class="code"><%= s.tracking_code %></span></td>
-                  <td><span class="text-muted"><%= s.carrier || '—' %></span></td>
-                  <td>
-                    <% if (s.company_name) { %>
-                      <span class="fw-600" style="color:var(--gray-900)"><%= s.company_name %></span><br>
-                      <span class="text-muted"><%= s.seller_id %></span>
-                    <% } else { %>
-                      <span class="text-muted"><%= s.seller_id || '—' %></span>
-                    <% } %>
-                  </td>
-                  <td><%= s.order_id || '' %><% if (!s.order_id) { %><span class="text-muted">—</span><% } %></td>
-                  <td>
-                    <% if (s.product_name) { %>
-                      <%= s.product_name %>
-                      <% if (s.product_quantity > 1) { %><br><span class="text-muted">Qtd: <%= s.product_quantity %></span><% } %>
-                    <% } else { %><span class="text-muted">—</span><% } %>
-                  </td>
-                  <td>
-                    <% if (s.customer_name) { %><%= s.customer_name %><% } else { %><span class="text-muted">—</span><% } %>
-                    <% if (s.customer_email) { %><br><span class="text-muted"><%= s.customer_email %></span><% } %>
-                  </td>
-                  <td><span class="badge badge-<%= s.status %>"><%= sLabel[s.status] || s.status %></span></td>
-                  <td>
-                    <% if (s.last_event) { %><%= s.last_event %><% } else { %><span class="text-muted">—</span><% } %>
-                    <% if (s.last_event_date) { %><br><span class="text-muted"><%= s.last_event_date %></span><% } %>
-                  </td>
-                  <td><span class="text-muted"><%= s.updated_at ? new Date(s.updated_at).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—' %></span></td>
-                </tr>
-                <% }) %>
-              </tbody>
-            </table>
-          </div>
+          <% if (lastLog && lastLog.errors > 0) { %>
+          <span class="badge badge-danger"><%= lastLog.errors %> erros</span>
           <% } %>
         </div>
       </div>
 
-      <!-- Paginação -->
-      <% if (pages > 1) { %>
+      <!-- Summary bar (Polaris style — stat row dentro do card) -->
       <%
-        const qs = (filters.status ? '&status=' + filters.status : '') + (filters.search ? '&search=' + encodeURIComponent(filters.search) : '') + (filters.seller_id ? '&seller_id=' + filters.seller_id : '') + (filters.carrier ? '&carrier=' + filters.carrier : '') + (filters.product ? '&product=' + encodeURIComponent(filters.product) : '') + (filters.paid_at_from ? '&paid_at_from=' + filters.paid_at_from : '') + (filters.paid_at_to ? '&paid_at_to=' + filters.paid_at_to : '');
-        const pUrl = (p) => '?page=' + p + qs;
-        const showPage = (p) => p === 1 || p === pages || (p >= currentPage - 2 && p <= currentPage + 2);
+      const summaries = [
+        { label: 'Total',         value: stats.total,              key: '' },
+        { label: 'Entregues',     value: stats.delivered,          key: 'delivered' },
+        { label: 'Em trânsito',   value: stats.in_transit,         key: 'forwarded' },
+        { label: 'Saiu p/ entrega', value: stats.out_for_delivery, key: 'delivering' },
+        { label: 'Tentativa',     value: stats.delivery_attempt,   key: 'recipient_not_found' },
+        { label: 'Devolvidos',    value: stats.returned,           key: 'returned' },
+        { label: 'Ag. retirada',  value: stats.waiting_client,     key: 'waiting_client' },
+        { label: 'Em atraso',     value: stats.tracking_delayed || 0, key: 'tracking_delayed' },
+      ];
       %>
-      <div class="pagination">
-        <% if (currentPage > 1) { %><a href="<%= pUrl(currentPage - 1) %>">‹</a><% } %>
-        <% let lastShown = 0; for (let i = 1; i <= pages; i++) { %>
-          <% if (showPage(i)) { %>
-            <% if (lastShown && i - lastShown > 1) { %><span class="ellipsis">…</span><% } %>
-            <a href="<%= pUrl(i) %>" class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
-            <% lastShown = i; %>
-          <% } %>
-        <% } %>
-        <% if (currentPage < pages) { %><a href="<%= pUrl(currentPage + 1) %>">›</a><% } %>
+      <div class="p-summary">
+        <% summaries.forEach(s => { %>
+        <a href="/?status=<%= s.key %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-summary-item <%= filters.status === s.key ? 'active' : '' %>" style="text-decoration:none">
+          <div class="p-summary-label"><%= s.label %></div>
+          <div class="p-summary-value"><%= (s.value || 0).toLocaleString('pt-BR') %></div>
+        </a>
+        <% }) %>
       </div>
-      <% } %>
 
-    </div>
-  </div>
-</div>
+      <!-- Card com filtros + tabela -->
+      <div class="p-card">
+
+        <!-- Tabs por transportadora -->
+        <div class="p-tabs">
+          <a href="/?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.seller_id ? 'seller_id=' + filters.seller_id + '&' : '' %>" class="p-tab <%= !filters.carrier ? 'active' : '' %>">Todas</a>
+          <a href="/?carrier=Loggi<%= filters.status ? '&status=' + filters.status : '' %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-tab <%= filters.carrier === 'Loggi' ? 'active' : '' %>">Loggi</a>
+          <a href="/?carrier=Correios<%= filters.status ? '&status=' + filters.status : '' %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-tab <%= filters.carrier === 'Correios' ? 'active' : '' %>">Correios</a>
+        </div>
+
+        <!-- Filtros -->
+        <div class="p-filters">
+          <form method="GET" action="/" style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap">
+            <% if (filters.search) { %><input type="hidden" name="search" value="<%= filters.search %>"><% } %>
+            <% if (filters.carrier) { %><input type="hidden" name="carrier" value="<%= filters.carrier %>"><% } %>
+
+            <select name="seller_id" class="form-select" style="font-size:13px;padding:6px 10px;box-shadow:none" onchange="this.form.submit()">
+              <option value="">Todas as empresas</option>
+              <% companies.forEach(c => { %>
+                <option value="<%= c.seller_id %>" <%= filters.seller_id === c.seller_id ? 'selected' : '' %>><%= c.company_name || c.seller_id %> (<%= c.total %>)</option>
+              <% }) %>
+            </select>
+
+            <select name="status" class="form-select" style="font-size:13px;padding:6px 10px;box-shadow:none" onchange="this.form.submit()">
+              <option value="">Todos os status</option>
+              <option value="pending"             <%= filters.status==='pending' ? 'selected':'' %>>Pendente</option>
+              <option value="posted_object"       <%= filters.status==='posted_object' ? 'selected':'' %>>Obj. Postado</option>
+              <option value="forwarded"           <%= filters.status==='forwarded' ? 'selected':'' %>>Em Trânsito</option>
+              <option value="delivering"          <%= filters.status==='delivering' ? 'selected':'' %>>Saiu p/ entrega</option>
+              <option value="recipient_not_found" <%= filters.status==='recipient_not_found' ? 'selected':'' %>>Dest. não encontrado</option>
+              <option value="delivery_problem"    <%= filters.status==='delivery_problem' ? 'selected':'' %>>Prob. entrega</option>
+              <option value="wrong_address"       <%= filters.status==='wrong_address' ? 'selected':'' %>>End. incorreto</option>
+              <option value="waiting_client"      <%= filters.status==='waiting_client' ? 'selected':'' %>>Ag. retirada</option>
+              <option value="delivered"           <%= filters.status==='delivered' ? 'selected':'' %>>Entregue</option>
+              <option value="returning"           <%= filters.status==='returning' ? 'selected':'' %>>Devolvendo</option>
+              <option value="returned"            <%= filters.status==='returned' ? 'selected':'' %>>Devolvido</option>
+              <option value="no_tracking"         <%= filters.status==='no_tracking' ? 'selected':'' %>>Sem rastreio</option>
+              <option value="tracking_delayed"    <%= filters.status==='tracking_delayed' ? 'selected':'' %>>Rastreio em atraso</option>
+            </select>
+
+            <input type="text" name="product" placeholder="Produto..." value="<%= filters.product || '' %>" class="form-input" style="font-size:13px;padding:6px 10px;min-width:120px;box-shadow:none">
+
+            <div style="display:flex;gap:4px;margin-left:auto">
+              <% if (filters.status || filters.seller_id || filters.product || filters.paid_at_from || filters.paid_at_to) { %>
+              <a href="/<%= filters.carrier ? '?carrier=' + filters.carrier : '' %>" class="btn btn-ghost btn-sm">Limpar filtros</a>
+              <% } %>
+            </div>
+          </form>
+        </div>
+
+        <!-- Filter chips (filtros ativos) -->
+        <% const hasActiveFilters = filters.status || filters.seller_id || filters.product || filters.carrier; %>
+        <% if (hasActiveFilters) { %>
+        <div class="p-filter-chips">
+          <span style="font-size:12px;color:var(--gray-400);font-weight:500;margin-right:2px">Filtros:</span>
+          <% if (filters.status) { %>
+          <span class="p-filter-chip">
+            Status: <%= filters.status %>
+            <a href="/?<%= filters.seller_id ? 'seller_id=' + filters.seller_id + '&' : '' %><%= filters.carrier ? 'carrier=' + filters.carrier : '' %>">
+              <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </a>
+          </span>
+          <% } %>
+          <% if (filters.seller_id) { %>
+          <span class="p-filter-chip">
+            Empresa: <%= filters.seller_id %>
+            <a href="/?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.carrier ? 'carrier=' + filters.carrier : '' %>">
+              <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </a>
+          </span>
+          <% } %>
+          <% if (filters.carrier) { %>
+          <span class="p-filter-chip">
+            Transp.: <%= filters.carrier %>
+            <a href="/?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.seller_id ? 'seller_id=' + filters.seller_id : '' %>">
+              <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </a>
+          </span>
+          <% } %>
+        </div>
+        <% } %>
+
+        <!-- Table meta -->
+        <div class="p-table-meta">
+          <strong><%= total.toLocaleString('pt-BR') %></strong> envios encontrados
+          <% if (pages > 1) { %> · Página <%= currentPage %> de <%= pages %><% } %>
+        </div>
+
+        <!-- IndexTable -->
+        <% if (shipments.length === 0) { %>
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/></svg>
+            <p>Nenhum envio encontrado</p>
+            <div class="empty-sub">Tente ajustar os filtros ou buscar por outro termo</div>
+          </div>
+        <% } else { %>
+        <%
+        const sLabel = {
+          pending:'Pendente', posted_object:'Obj. Postado', forwarded:'Em Trânsito',
+          delivering:'Saiu p/ Entrega', recipient_not_found:'Dest. não encontrado',
+          delivery_problem:'Prob. Entrega', wrong_address:'End. Incorreto',
+          waiting_client:'Ag. Retirada', delivered:'Entregue',
+          returning:'Devolvendo', returned:'Devolvido', overdue:'Em Atraso',
+          no_tracking:'Sem Rastreio', tracking_delayed:'Rastreio em Atraso',
+        };
+        %>
+        <div class="p-index-table-wrap">
+          <table class="p-index-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Empresa</th>
+                <th>Pedido / Produto</th>
+                <th>Cliente</th>
+                <th>Status</th>
+                <th>Último evento</th>
+                <th>Atualizado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% shipments.forEach(s => { %>
+              <tr onclick="window.location='/shipment/<%= s.tracking_code %>'">
+                <td>
+                  <div style="display:flex;flex-direction:column;gap:2px">
+                    <span class="code"><%= s.tracking_code %></span>
+                    <span style="font-size:11px;color:var(--gray-400);font-weight:500"><%= s.carrier || '—' %></span>
+                  </div>
+                </td>
+                <td>
+                  <% if (s.company_name) { %>
+                    <div style="font-weight:600;font-size:13px;color:var(--gray-800)"><%= s.company_name %></div>
+                    <div style="font-size:11px;color:var(--gray-400)"><%= s.seller_id %></div>
+                  <% } else { %>
+                    <span style="color:var(--gray-400)"><%= s.seller_id || '—' %></span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (s.order_id) { %><div style="font-weight:500;color:var(--gray-700)">#<%= s.order_id %></div><% } %>
+                  <% if (s.product_name) { %>
+                    <div style="font-size:12px;color:var(--gray-500)"><%= s.product_name %><% if (s.product_quantity > 1) { %> ×<%= s.product_quantity %><% } %></div>
+                  <% } %>
+                  <% if (!s.order_id && !s.product_name) { %><span style="color:var(--gray-300)">—</span><% } %>
+                </td>
+                <td>
+                  <% if (s.customer_name) { %>
+                    <div style="font-weight:500;color:var(--gray-800)"><%= s.customer_name %></div>
+                    <% if (s.customer_email) { %><div style="font-size:11px;color:var(--gray-400)"><%= s.customer_email %></div><% } %>
+                  <% } else { %><span style="color:var(--gray-300)">—</span><% } %>
+                </td>
+                <td><span class="badge badge-<%= s.status %>"><%= sLabel[s.status] || s.status %></span></td>
+                <td>
+                  <% if (s.last_event) { %>
+                    <div style="font-size:12.5px;color:var(--gray-700)"><%= s.last_event %></div>
+                    <% if (s.last_event_date) { %><div style="font-size:11px;color:var(--gray-400)"><%= s.last_event_date %></div><% } %>
+                  <% } else { %><span style="color:var(--gray-300)">—</span><% } %>
+                </td>
+                <td style="white-space:nowrap">
+                  <span style="font-size:12px;color:var(--gray-400)"><%= s.updated_at ? new Date(s.updated_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—' %></span>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+
+        <!-- Paginação -->
+        <% if (pages > 1) { %>
+        <%
+          const qs = (filters.status ? '&status=' + filters.status : '')
+            + (filters.seller_id ? '&seller_id=' + filters.seller_id : '')
+            + (filters.carrier ? '&carrier=' + filters.carrier : '')
+            + (filters.product ? '&product=' + encodeURIComponent(filters.product) : '')
+            + (filters.search ? '&search=' + encodeURIComponent(filters.search) : '');
+          const pUrl = (p) => '?page=' + p + qs;
+          const showPage = (p) => p === 1 || p === pages || (p >= currentPage - 2 && p <= currentPage + 2);
+        %>
+        <div style="padding:14px 20px;border-top:1px solid var(--gray-100);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12.5px;color:var(--gray-400)">
+            Mostrando <%= ((currentPage-1)*50)+1 %>–<%= Math.min(currentPage*50, total) %> de <%= total.toLocaleString('pt-BR') %>
+          </span>
+          <div class="pagination" style="margin:0">
+            <% if (currentPage > 1) { %><a href="<%= pUrl(currentPage - 1) %>">‹</a><% } %>
+            <% let lastShown = 0; for (let i = 1; i <= pages; i++) { %>
+              <% if (showPage(i)) { %>
+                <% if (lastShown && i - lastShown > 1) { %><span class="ellipsis">…</span><% } %>
+                <a href="<%= pUrl(i) %>" class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
+                <% lastShown = i; %>
+              <% } %>
+            <% } %>
+            <% if (currentPage < pages) { %><a href="<%= pUrl(currentPage + 1) %>">›</a><% } %>
+          </div>
+        </div>
+        <% } %>
+
+      </div><!-- /p-card -->
+
+    </div><!-- /p-page -->
+  </div><!-- /main -->
+</div><!-- /app -->
 
 <script>
 const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
@@ -199,7 +274,6 @@ function toggleNotifs() {
   dd.classList.toggle('open');
   if (dd.classList.contains('open') && NOTIF_USER) loadNotifs();
 }
-
 async function loadNotifs() {
   if (!NOTIF_USER) return;
   try {
@@ -216,25 +290,22 @@ async function loadNotifs() {
     }).join('');
   } catch(e) { console.error(e); }
 }
-
 async function markAllRead() {
   if (!NOTIF_USER) return;
   await fetch('/api/notifications/read', { method: 'POST' });
   loadNotifs();
 }
-
 if (NOTIF_USER) {
   fetch('/api/notifications').then(r => r.json()).then(({ unread }) => {
-    const badge = document.getElementById('notifBadge');
-    badge.style.display = unread > 0 ? 'block' : 'none';
-    badge.textContent = unread;
+    const b = document.getElementById('notifBadge');
+    b.style.display = unread > 0 ? 'block' : 'none';
+    b.textContent = unread;
   }).catch(() => {});
 }
-
 document.addEventListener('click', (e) => {
   const dd = document.getElementById('notifDropdown');
   const btn = document.getElementById('notifBtn');
-  if (!dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
+  if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
 });
 </script>
 </body>

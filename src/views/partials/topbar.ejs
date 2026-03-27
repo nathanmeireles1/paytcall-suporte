@@ -1,8 +1,70 @@
 <%
   const _title = typeof pageTitle !== 'undefined' ? pageTitle : 'Painel';
   const _breadcrumb = typeof breadcrumb !== 'undefined' ? breadcrumb : [];
+  const _searchAction = typeof searchAction !== 'undefined' ? searchAction : null;
+  const _searchValue = typeof searchValue !== 'undefined' ? searchValue : '';
+  const _polaris = typeof polarisTopbar !== 'undefined' ? polarisTopbar : false;
 %>
 
+<% if (_polaris) { %>
+<!-- Topbar Polaris (busca centralizada) -->
+<header class="topbar-polaris">
+  <div class="tp-left">
+    <% if (_breadcrumb.length > 0) { %>
+    <div class="topbar-breadcrumb" style="font-size:12px;color:var(--gray-400);display:flex;align-items:center;gap:4px">
+      <% _breadcrumb.forEach((b, i) => { %>
+        <% if (i > 0) { %><span style="color:var(--gray-300)">›</span><% } %>
+        <% if (b.href) { %><a href="<%= b.href %>" style="color:var(--gray-500)"><%= b.label %></a><% } else { %><span style="color:var(--gray-700);font-weight:500"><%= b.label %></span><% } %>
+      <% }) %>
+    </div>
+    <% } else { %>
+    <span style="font-size:14px;font-weight:600;color:var(--gray-800)"><%= _title %></span>
+    <% } %>
+  </div>
+
+  <div class="tp-center">
+    <% if (_searchAction) { %>
+    <form method="GET" action="<%= _searchAction %>" class="topbar-search-wrap">
+      <span class="search-icon">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      </span>
+      <input type="text" name="search" placeholder="Buscar pedido, código ou cliente..." value="<%= _searchValue %>" autocomplete="off">
+    </form>
+    <% } else { %>
+    <div class="topbar-search-wrap">
+      <span class="search-icon">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      </span>
+      <input type="text" placeholder="Buscar no portal..." autocomplete="off">
+    </div>
+    <% } %>
+  </div>
+
+  <div class="tp-right">
+    <!-- Notificações -->
+    <div style="position:relative">
+      <button id="notifBtn" onclick="toggleNotifs()" class="btn-icon" style="position:relative">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--gray-500)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 01-3.46 0"/>
+        </svg>
+        <span id="notifBadge" style="display:none;position:absolute;top:-1px;right:-1px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;border-radius:99px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 3px;border:1.5px solid #fff">0</span>
+      </button>
+      <div id="notifDropdown" class="notif-dropdown">
+        <div class="notif-header">
+          <span style="font-size:13px;font-weight:600;color:var(--gray-800)">Notificações</span>
+          <button onclick="markAllRead()" class="btn btn-ghost btn-xs">Marcar lidas</button>
+        </div>
+        <div id="notifList">
+          <div style="text-align:center;color:var(--gray-400);padding:28px;font-size:13px">Carregando...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<% } else { %>
+<!-- Topbar padrão -->
 <header class="topbar">
   <div class="topbar-left">
     <% if (_breadcrumb.length > 0) { %>
@@ -17,7 +79,6 @@
   </div>
 
   <div class="topbar-actions">
-    <!-- Notificações -->
     <div style="position:relative">
       <button id="notifBtn" onclick="toggleNotifs()" class="btn-icon" style="position:relative">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--gray-500)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
@@ -26,7 +87,6 @@
         </svg>
         <span id="notifBadge" style="display:none;position:absolute;top:-1px;right:-1px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;border-radius:99px;min-width:15px;height:15px;line-height:15px;text-align:center;padding:0 3px;border:1.5px solid #fff">0</span>
       </button>
-
       <div id="notifDropdown" class="notif-dropdown">
         <div class="notif-header">
           <span style="font-size:13px;font-weight:600;color:var(--gray-800)">Notificações</span>
@@ -39,3 +99,4 @@
     </div>
   </div>
 </header>
+<% } %>

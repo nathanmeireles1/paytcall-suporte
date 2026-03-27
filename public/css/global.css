@@ -538,3 +538,259 @@ tbody tr.clickable:hover td { background: var(--brand-50); }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .page { padding: 16px; }
 }
+
+/* =============================================
+   POLARIS COMPONENTS — Shopify Admin Structure
+   ============================================= */
+
+/* Topbar Polaris (busca centralizada) */
+.topbar-polaris {
+  height: var(--topbar-h);
+  background: #fff;
+  border-bottom: 1px solid var(--gray-200);
+  box-shadow: 0 1px 0 var(--gray-200);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.topbar-polaris .tp-left  { display: flex; align-items: center; gap: 8px; }
+.topbar-polaris .tp-center { display: flex; justify-content: center; }
+.topbar-polaris .tp-right  { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+
+.topbar-search-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+}
+.topbar-search-wrap .search-icon {
+  position: absolute;
+  left: 10px; top: 50%;
+  transform: translateY(-50%);
+  width: 16px; height: 16px;
+  color: var(--gray-400);
+  pointer-events: none;
+}
+.topbar-search-wrap .search-icon svg {
+  width: 16px; height: 16px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
+}
+.topbar-search-wrap input {
+  width: 100%;
+  padding: 7px 12px 7px 34px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-family: var(--font);
+  background: var(--gray-50);
+  color: var(--gray-800);
+  outline: none;
+  transition: border-color .12s, box-shadow .12s, background .12s;
+}
+.topbar-search-wrap input:focus {
+  background: #fff;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(249,115,22,.12);
+}
+.topbar-search-wrap input::placeholder { color: var(--gray-400); }
+
+/* Polaris Page layout */
+.p-page {
+  padding: 20px 24px;
+  max-width: 1400px;
+}
+
+.p-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.p-page-header-left h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gray-900);
+  letter-spacing: -.4px;
+  line-height: 1.25;
+}
+.p-page-header-left .p-subtitle {
+  font-size: 12.5px;
+  color: var(--gray-500);
+  margin-top: 3px;
+}
+.p-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 3px;
+}
+
+/* Polaris Card */
+.p-card {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 1px rgba(63,63,68,.05), 0 1px 3px 0 rgba(63,63,68,.15);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.p-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--gray-100);
+}
+.p-card-header h2 {
+  font-size: 14px; font-weight: 600;
+  color: var(--gray-800); letter-spacing: -.1px;
+}
+.p-card-section { padding: 16px 20px; }
+.p-card-section + .p-card-section { border-top: 1px solid var(--gray-100); }
+.p-card-section.no-pad { padding: 0; }
+
+/* Polaris Stats row */
+.p-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 1px rgba(63,63,68,.05), 0 1px 3px 0 rgba(63,63,68,.15);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.p-summary-item {
+  padding: 16px 20px;
+  border-right: 1px solid var(--gray-100);
+  cursor: default;
+  transition: background .1s;
+}
+.p-summary-item:last-child { border-right: none; }
+.p-summary-item:hover { background: var(--gray-50); }
+.p-summary-item.active { background: var(--brand-50); }
+.p-summary-item.active .p-summary-value { color: var(--brand-700); }
+.p-summary-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--gray-500); text-transform: uppercase;
+  letter-spacing: .5px; margin-bottom: 5px;
+}
+.p-summary-value {
+  font-size: 24px; font-weight: 700;
+  letter-spacing: -.4px; line-height: 1;
+  color: var(--gray-900);
+}
+
+/* Polaris Filter bar */
+.p-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--gray-100);
+  background: #fff;
+}
+.p-filter-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 500;
+  color: var(--gray-700);
+  background: #fff;
+  cursor: pointer;
+  transition: all .12s;
+}
+.p-filter-btn:hover { border-color: var(--gray-400); background: var(--gray-50); }
+.p-filter-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.p-filter-chips {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 8px 16px;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-100);
+}
+.p-filter-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: #fff;
+  border: 1px solid var(--gray-300);
+  font-size: 12px; font-weight: 500;
+  color: var(--gray-700);
+}
+.p-filter-chip button {
+  display: flex; align-items: center;
+  color: var(--gray-400); padding: 0 2px;
+}
+.p-filter-chip button:hover { color: var(--gray-600); }
+.p-filter-chip button svg { width: 12px; height: 12px; }
+
+/* Polaris IndexTable */
+.p-index-table-wrap { overflow-x: auto; }
+.p-index-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.p-index-table thead th {
+  padding: 10px 16px;
+  text-align: left;
+  font-weight: 500;
+  color: var(--gray-500);
+  font-size: 12.5px;
+  background: #fff;
+  border-bottom: 1px solid var(--gray-200);
+  white-space: nowrap;
+}
+.p-index-table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--gray-100);
+  vertical-align: middle;
+  color: var(--gray-800);
+}
+.p-index-table tbody tr:last-child td { border-bottom: none; }
+.p-index-table tbody tr { transition: background .1s; cursor: pointer; }
+.p-index-table tbody tr:hover td { background: var(--brand-50); }
+
+/* Polaris row-actions */
+.p-row-actions {
+  display: flex; align-items: center; gap: 4px;
+  opacity: 0; transition: opacity .1s;
+}
+.p-index-table tbody tr:hover .p-row-actions { opacity: 1; }
+
+/* Polaris Page Tabs */
+.p-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--gray-200);
+  background: #fff;
+  padding: 0 20px;
+}
+.p-tab {
+  padding: 11px 14px;
+  font-size: 13px; font-weight: 500;
+  color: var(--gray-500);
+  border-bottom: 2px solid transparent;
+  transition: all .12s;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.p-tab:hover { color: var(--gray-800); }
+.p-tab.active { color: var(--brand-700); border-bottom-color: var(--brand); font-weight: 600; }
+
+/* Polaris inline stat bar (acima da tabela) */
+.p-table-meta {
+  display: flex; align-items: center;
+  padding: 10px 16px;
+  font-size: 12.5px; color: var(--gray-500);
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-100);
+  gap: 12px;
+}
+.p-table-meta strong { color: var(--gray-800); font-weight: 600; }
