@@ -315,6 +315,45 @@ const Shipment = {
     return { rows: data || [], total: count || 0, page, pages: Math.ceil((count || 0) / limit) };
   },
 
+  // --- Notificações ---
+
+  async createNotification({ user_name, ticket_id, tracking_code, message }) {
+    const { error } = await db.from('notifications').insert({
+      user_name, ticket_id, tracking_code, message,
+    });
+    if (error) console.error('[Notif] Erro:', error.message);
+  },
+
+  async getNotifications(userName, limit = 20) {
+    const { data, error } = await db
+      .from('notifications')
+      .select('*')
+      .eq('user_name', userName)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) return [];
+    return data || [];
+  },
+
+  async getUnreadCount(userName) {
+    const { count, error } = await db
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_name', userName)
+      .eq('is_read', false);
+    if (error) return 0;
+    return count || 0;
+  },
+
+  async markNotificationsRead(userName) {
+    const { error } = await db
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_name', userName)
+      .eq('is_read', false);
+    if (error) console.error('[Notif] Erro ao marcar lidas:', error.message);
+  },
+
   // --- Scheduler logs ---
 
   async saveSchedulerLog({ total_cpfs, updated, promoted, errors, pending_after }) {
@@ -415,12 +454,22 @@ const Shipment = {
 
     const { data, error } = await db.from('tickets').insert(payload).select().single();
     if (error) throw error;
+
+    // Notifica o responsável
+    const tipoLabel = tipo === 'RETENCAO' ? 'Retenção' : 'Logística';
+    await this.createNotification({
+      user_name: assigned_to,
+      ticket_id: data.id,
+      tracking_code,
+      message: `Novo ticket de ${tipoLabel}: ${motivo} (por ${payload.created_by})`,
+    });
+
     return data;
   },
 
   async updateTicketStatus(id, newStatus) {
     const { data: ticket, error: fetchErr } = await db
-      .from('tickets').select('tipo').eq('id', id).single();
+      .from('tickets').select('*').eq('id', id).single();
     if (fetchErr) throw fetchErr;
 
     const config = TICKET_CONFIG[ticket.tipo];
@@ -435,6 +484,18 @@ const Shipment = {
 
     const { error } = await db.from('tickets').update(update).eq('id', id);
     if (error) throw error;
+
+    // Notifica criador e responsável
+    const tipoLabel = ticket.tipo === 'RETENCAO' ? 'Retenção' : 'Logística';
+    const msg = `Ticket ${tipoLabel} alterado: ${ticket.status} → ${newStatus}`;
+    const notify = new Set([ticket.created_by, ticket.assigned_to]);
+    for (const user of notify) {
+      if (user && user !== 'Sistema') {
+        await this.createNotification({
+          user_name: user, ticket_id: id, tracking_code: ticket.tracking_code, message: msg,
+        });
+      }
+    }
   },
 };
 

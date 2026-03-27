@@ -101,4 +101,20 @@ router.post('/ticket/:id/status', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/notifications/:user — busca notificações de um usuário
+router.get('/api/notifications/:user', requireAuth, async (req, res) => {
+  const user = decodeURIComponent(req.params.user);
+  const [notifications, unread] = await Promise.all([
+    Shipment.getNotifications(user),
+    Shipment.getUnreadCount(user),
+  ]);
+  res.json({ notifications, unread });
+});
+
+// POST /api/notifications/:user/read — marca todas como lidas
+router.post('/api/notifications/:user/read', requireAuth, async (req, res) => {
+  await Shipment.markNotificationsRead(decodeURIComponent(req.params.user));
+  res.json({ ok: true });
+});
+
 module.exports = router;

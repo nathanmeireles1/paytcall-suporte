@@ -107,6 +107,20 @@
     <a href="/api/tracking/refresh" class="nav-refresh" onclick="refreshAll(event)">↻ Atualizar todos</a>
     <a href="/relatorios/tickets" class="nav-refresh">Tickets</a>
     <a href="/relatorios/cancelamentos" class="nav-refresh">Cancelamentos</a>
+    <div style="position:relative">
+      <button id="notifBtn" onclick="toggleNotifs()" style="background:transparent;border:1px solid #333;border-radius:6px;padding:4px 10px;cursor:pointer;color:#aaa;font-size:14px;position:relative">
+        🔔 <span id="notifBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;border-radius:99px;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 4px">0</span>
+      </button>
+      <div id="notifDropdown" style="display:none;position:absolute;right:0;top:40px;width:340px;max-height:400px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:999">
+        <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
+          <strong style="font-size:14px;color:#333">Notificações</strong>
+          <button onclick="markAllRead()" style="background:transparent;border:none;color:#4f46e5;font-size:12px;cursor:pointer">Marcar todas lidas</button>
+        </div>
+        <div id="notifList" style="padding:8px 0">
+          <div style="text-align:center;color:#999;padding:20px;font-size:13px">Carregando...</div>
+        </div>
+      </div>
+    </div>
   </div>
 </nav>
 
@@ -291,6 +305,58 @@ function refreshAll(e) {
     method: 'POST',
     headers: { 'x-admin-secret': '' }
   }).then(() => alert('Atualização iniciada! Aguarde alguns instantes.')).catch(() => alert('Erro ao iniciar atualização.'));
+}
+
+// --- Notificações ---
+const NOTIF_USER = prompt('Seu nome para notificações:') || localStorage.getItem('notif_user') || '';
+if (NOTIF_USER) localStorage.setItem('notif_user', NOTIF_USER);
+
+let notifOpen = false;
+function toggleNotifs() {
+  notifOpen = !notifOpen;
+  document.getElementById('notifDropdown').style.display = notifOpen ? 'block' : 'none';
+  if (notifOpen && NOTIF_USER) loadNotifs();
+}
+
+async function loadNotifs() {
+  if (!NOTIF_USER) return;
+  try {
+    const r = await fetch('/api/notifications/' + encodeURIComponent(NOTIF_USER));
+    const { notifications, unread } = await r.json();
+    const badge = document.getElementById('notifBadge');
+    badge.style.display = unread > 0 ? 'block' : 'none';
+    badge.textContent = unread;
+
+    const list = document.getElementById('notifList');
+    if (!notifications.length) {
+      list.innerHTML = '<div style="text-align:center;color:#999;padding:20px;font-size:13px">Nenhuma notificação</div>';
+      return;
+    }
+    list.innerHTML = notifications.map(n => {
+      const date = new Date(n.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const bg = n.is_read ? '#fff' : '#f0f4ff';
+      return '<a href="/shipment/' + (n.tracking_code||'') + '" style="display:block;padding:10px 16px;text-decoration:none;color:#333;background:'+bg+';border-bottom:1px solid #f5f5f5">'
+        + '<div style="font-size:13px">' + n.message + '</div>'
+        + '<div style="font-size:11px;color:#999;margin-top:2px">' + date + '</div></a>';
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function markAllRead() {
+  if (!NOTIF_USER) return;
+  await fetch('/api/notifications/' + encodeURIComponent(NOTIF_USER) + '/read', { method: 'POST' });
+  loadNotifs();
+}
+
+// Check unread on load
+if (NOTIF_USER) {
+  fetch('/api/notifications/' + encodeURIComponent(NOTIF_USER))
+    .then(r => r.json())
+    .then(({ unread }) => {
+      const badge = document.getElementById('notifBadge');
+      badge.style.display = unread > 0 ? 'block' : 'none';
+      badge.textContent = unread;
+    }).catch(() => {});
 }
 </script>
 </body>
