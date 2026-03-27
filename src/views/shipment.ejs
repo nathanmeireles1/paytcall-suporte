@@ -268,19 +268,55 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
     <h2>Tickets de Suporte (<%= tickets.length %>)</h2>
 
     <% if (tickets.length > 0) { %>
-    <% tickets.forEach(t => { %>
-    <div class="ticket <%= t.status %>">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div>
-          <span class="ticket-title"><%= t.title %></span>
-          <span style="margin-left:8px;font-size:11px;font-weight:600" class="priority-<%= t.priority %>">[<%= {high:'URGENTE',normal:'Normal',low:'Baixa'}[t.priority]||t.priority %>]</span>
+    <% tickets.forEach(t => {
+      const cfg = TICKET_CONFIG[t.tipo] || {};
+      const isTerminal = (cfg.terminalStatuses || []).includes(t.status);
+      const hoursOpen = Math.floor((Date.now() - new Date(t.created_at).getTime()) / 3600000);
+      const prioLabel = {1:'ALTA',2:'MÉDIA',3:'BAIXA'}[t.priority] || t.priority;
+      const prioColor = {1:'#dc2626',2:'#d97706',3:'#6b7280'}[t.priority] || '#6b7280';
+      const tipoLabel = t.tipo === 'RETENCAO' ? 'Retenção' : 'Logística';
+      const tipoBg = t.tipo === 'RETENCAO' ? '#fef3c7' : '#dbeafe';
+      const tipoColor = t.tipo === 'RETENCAO' ? '#92400e' : '#1e40af';
+    %>
+    <div class="ticket" style="border-left:3px solid <%= isTerminal ? '#d1d5db' : '#4f46e5' %>;<%= isTerminal ? 'opacity:.7;' : '' %>">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:<%= tipoBg %>;color:<%= tipoColor %>"><%= tipoLabel %></span>
+          <span class="ticket-title"><%= t.motivo %></span>
+          <% if (t.motivo_cancelamento) { %><span style="font-size:12px;color:#666">— <%= t.motivo_cancelamento %></span><% } %>
+          <span style="font-size:11px;font-weight:700;color:<%= prioColor %>">[<%= prioLabel %>]</span>
         </div>
-        <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:<%= t.status==='open'?'#ede9fe':'#f3f4f6' %>;color:<%= t.status==='open'?'#7c3aed':'#9ca3af' %>"><%= t.status==='open'?'Aberto':'Fechado' %></span>
+        <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:<%= isTerminal ? '#f3f4f6' : '#ede9fe' %>;color:<%= isTerminal ? '#9ca3af' : '#7c3aed' %>"><%= t.status %></span>
       </div>
-      <div class="ticket-meta"><%= t.created_by || 'Suporte' %> · <%= new Date(t.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) %></div>
-      <% if (t.description) { %><div class="ticket-desc"><%= t.description %></div><% } %>
-      <% if (t.status === 'open') { %>
-      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="closeTicket('<%= t.id %>', this)">Fechar ticket</button>
+
+      <div class="ticket-meta" style="margin-top:6px">
+        <strong><%= t.assigned_to %></strong> · Criado por <%= t.created_by %> · <%= fmtDate(t.created_at) %>
+      </div>
+
+      <div style="margin-top:6px;font-size:12px">
+        <% if (isTerminal && t.closed_at) { %>
+          <span style="color:#16a34a">Encerrado em <%= fmtDate(t.closed_at) %></span>
+          <% const hoursClosed = Math.floor((new Date(t.closed_at).getTime() - new Date(t.created_at).getTime()) / 3600000); %>
+          <span style="color:#666"> — <%= hoursClosed %>h para resolução</span>
+        <% } else { %>
+          <span>Aberto há <strong><%= hoursOpen %>h</strong></span>
+          <% if (hoursOpen >= 72) { %><span style="color:#dc2626;font-weight:700"> (SLA estourado)</span>
+          <% } else if (hoursOpen >= 48) { %><span style="color:#d97706;font-weight:600"> (atenção: próximo do SLA)</span>
+          <% } %>
+        <% } %>
+      </div>
+
+      <% if (t.observacao) { %><div class="ticket-desc" style="margin-top:8px"><%= t.observacao %></div><% } %>
+
+      <% if (!isTerminal) { %>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <select onchange="updateTicketStatus('<%= t.id %>', this)" style="padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">
+          <option value="">Alterar status...</option>
+          <% (cfg.statuses || []).filter(s => s !== t.status).forEach(s => { %>
+          <option value="<%= s %>"><%= s %></option>
+          <% }) %>
+        </select>
+      </div>
       <% } %>
     </div>
     <% }) %>
@@ -289,16 +325,27 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
     <details style="margin-top:16px">
       <summary style="cursor:pointer;font-size:14px;font-weight:600;color:#4f46e5">+ Abrir novo ticket</summary>
       <form class="ticket-form" method="POST" action="/shipment/<%= shipment.tracking_code %>/ticket" style="margin-top:14px">
-        <input type="text" name="title" placeholder="Título do ticket" required>
-        <textarea name="description" placeholder="Descreva o problema ou ocorrência..."></textarea>
-        <div style="display:flex;gap:10px">
-          <input type="text" name="created_by" placeholder="Seu nome" style="flex:1">
-          <select name="priority" style="flex:0 0 140px">
-            <option value="normal">Normal</option>
-            <option value="high">Urgente</option>
-            <option value="low">Baixa</option>
+        <select name="tipo" id="ticketTipo" required>
+          <option value="">Selecione o tipo</option>
+          <option value="RETENCAO">Retenção</option>
+          <option value="LOGISTICA">Logística</option>
+        </select>
+
+        <select name="motivo" id="ticketMotivo" required disabled>
+          <option value="">Selecione o motivo</option>
+        </select>
+
+        <div id="motivoCancelamentoWrap" style="display:none">
+          <select name="motivo_cancelamento" id="ticketMotivoCancelamento">
+            <option value="">Motivo do cancelamento (opcional)</option>
+            <% MOTIVOS_CANCELAMENTO.forEach(m => { %>
+            <option value="<%= m %>"><%= m %></option>
+            <% }) %>
           </select>
         </div>
+
+        <textarea name="observacao" placeholder="Observações (opcional)"></textarea>
+        <input type="text" name="created_by" placeholder="Seu nome" required>
         <button type="submit" class="btn btn-primary">Abrir ticket</button>
       </form>
     </details>
@@ -323,12 +370,42 @@ function refreshTracking(e) {
       alert('Erro ao consultar H7. Tente novamente.');
     });
 }
-function closeTicket(id, btn) {
-  if (!confirm('Fechar este ticket?')) return;
-  btn.disabled = true;
-  fetch('/ticket/' + id + '/close', { method: 'POST' })
-    .then(() => location.reload())
-    .catch(() => { btn.disabled = false; alert('Erro ao fechar ticket.'); });
+// --- Ticket form logic ---
+const TCFG = <%- JSON.stringify(TICKET_CONFIG) %>;
+const tipoSel = document.getElementById('ticketTipo');
+const motivoSel = document.getElementById('ticketMotivo');
+const cancelWrap = document.getElementById('motivoCancelamentoWrap');
+
+if (tipoSel) {
+  tipoSel.addEventListener('change', function() {
+    const tipo = this.value;
+    motivoSel.innerHTML = '<option value="">Selecione o motivo</option>';
+    motivoSel.disabled = !tipo;
+    cancelWrap.style.display = 'none';
+    if (tipo && TCFG[tipo]) {
+      TCFG[tipo].motivos.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m; opt.textContent = m;
+        motivoSel.appendChild(opt);
+      });
+    }
+  });
+  motivoSel.addEventListener('change', function() {
+    cancelWrap.style.display = (tipoSel.value === 'RETENCAO' && this.value === 'Cancelamento') ? 'block' : 'none';
+  });
+}
+
+function updateTicketStatus(id, selectEl) {
+  const newStatus = selectEl.value;
+  if (!newStatus || !confirm('Alterar status para "' + newStatus + '"?')) { selectEl.value = ''; return; }
+  fetch('/ticket/' + id + '/status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: newStatus }),
+  })
+  .then(r => r.json())
+  .then(d => { if (d.ok) location.reload(); else alert(d.error || 'Erro'); })
+  .catch(() => { selectEl.value = ''; alert('Erro ao alterar status.'); });
 }
 </script>
 </body>

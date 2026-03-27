@@ -4,6 +4,32 @@ const { db } = require('../config/database');
 // 'overdue' NÃO é terminal: etiqueta expirada pode ser atualizada pela H7
 const TERMINAL_STATUSES = ['delivered', 'returned'];
 
+// --- Configuração de Tickets ---
+const TICKET_CONFIG = {
+  RETENCAO: {
+    motivos: ['Cancelamento', 'Desconto', 'Devolução'],
+    statuses: ['Aberto', 'Em andamento', 'Cancelado', 'Retido'],
+    terminalStatuses: ['Cancelado', 'Retido'],
+    assignedTo: 'Flaviany',
+    priorities: { 'Cancelamento': 1, 'Desconto': 2, 'Devolução': 3 },
+  },
+  LOGISTICA: {
+    motivos: ['Reenvio', 'Alteração de pedido', 'Nota fiscal', 'Envio'],
+    statuses: ['Aberto', 'Em andamento', 'Aguardando estoque', 'Concluído'],
+    terminalStatuses: ['Concluído'],
+    assignedTo: 'Shelida',
+    priorities: { 'Alteração de pedido': 1, 'Envio': 1, 'Reenvio': 2, 'Nota fiscal': 3 },
+  },
+};
+
+const MOTIVOS_CANCELAMENTO = [
+  'Compra duplicada', 'Não autorizou upsell/order bump',
+  'Forma de pagamento incorreta', 'Não sentiu efeito', 'Alergia',
+  'Valor', 'Demora no envio', 'Fraude', 'Informação do rótulo',
+  'Quantidade incorreta enviada', 'Produto incorreto enviado',
+  'Orientação médica', 'Desistência', 'Sem motivo', 'Outros',
+];
+
 const Shipment = {
   async findByCode(trackingCode) {
     const { data, error } = await db
@@ -268,24 +294,56 @@ const Shipment = {
     return data || [];
   },
 
-  async createTicket({ tracking_code, order_id, title, description, created_by, priority }) {
-    const { data, error } = await db.from('tickets').insert({
-      tracking_code, order_id, title, description,
+  async createTicket({ tracking_code, order_id, tipo, motivo, motivo_cancelamento, observacao, created_by }) {
+    const config = TICKET_CONFIG[tipo];
+    if (!config) throw new Error('Tipo inválido');
+    if (!config.motivos.includes(motivo)) throw new Error('Motivo inválido para este tipo');
+
+    const priority = config.priorities[motivo] || 2;
+    const assigned_to = config.assignedTo;
+
+    const payload = {
+      tracking_code,
+      order_id,
+      tipo,
+      motivo,
+      observacao: observacao || null,
+      status: 'Aberto',
+      priority,
+      assigned_to,
       created_by: created_by || 'Suporte',
-      priority: priority || 'normal',
-      status: 'open',
-    }).select().single();
+      sla_hours: 72,
+    };
+
+    if (tipo === 'RETENCAO' && motivo === 'Cancelamento' && motivo_cancelamento) {
+      payload.motivo_cancelamento = motivo_cancelamento;
+    }
+
+    const { data, error } = await db.from('tickets').insert(payload).select().single();
     if (error) throw error;
     return data;
   },
 
-  async closeTicket(id) {
-    const { error } = await db
-      .from('tickets')
-      .update({ status: 'closed', updated_at: new Date().toISOString() })
-      .eq('id', id);
+  async updateTicketStatus(id, newStatus) {
+    const { data: ticket, error: fetchErr } = await db
+      .from('tickets').select('tipo').eq('id', id).single();
+    if (fetchErr) throw fetchErr;
+
+    const config = TICKET_CONFIG[ticket.tipo];
+    if (!config.statuses.includes(newStatus)) throw new Error('Status inválido para este tipo de ticket');
+
+    const update = { status: newStatus, updated_at: new Date().toISOString() };
+    if (config.terminalStatuses.includes(newStatus)) {
+      update.closed_at = new Date().toISOString();
+    } else {
+      update.closed_at = null;
+    }
+
+    const { error } = await db.from('tickets').update(update).eq('id', id);
     if (error) throw error;
   },
 };
 
 module.exports = Shipment;
+module.exports.TICKET_CONFIG = TICKET_CONFIG;
+module.exports.MOTIVOS_CANCELAMENTO = MOTIVOS_CANCELAMENTO;

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Shipment = require('../models/Shipment');
+const { TICKET_CONFIG, MOTIVOS_CANCELAMENTO } = require('../models/Shipment');
 
 function requireAuth(req, res, next) {
   const adminUser = process.env.ADMIN_USER || 'admin';
@@ -68,28 +69,36 @@ router.get('/shipment/:code', requireAuth, async (req, res) => {
     return res.status(404).render('error', { message: 'Envio não encontrado' });
   }
 
-  res.render('shipment', { shipment, events, tickets });
+  res.render('shipment', { shipment, events, tickets, TICKET_CONFIG, MOTIVOS_CANCELAMENTO });
 });
 
 // POST /shipment/:code/ticket — abre ticket de suporte
 router.post('/shipment/:code/ticket', requireAuth, async (req, res) => {
   const code = req.params.code.trim().toUpperCase();
-  const { title, description, created_by, priority } = req.body;
+  const { tipo, motivo, motivo_cancelamento, observacao, created_by } = req.body;
   const shipment = await Shipment.findByCode(code);
   if (!shipment) return res.status(404).json({ error: 'Pedido não encontrado' });
 
-  await Shipment.createTicket({
-    tracking_code: code,
-    order_id: shipment.order_id,
-    title, description, created_by, priority,
-  });
+  try {
+    await Shipment.createTicket({
+      tracking_code: code,
+      order_id: shipment.order_id,
+      tipo, motivo, motivo_cancelamento, observacao, created_by,
+    });
+  } catch (err) {
+    console.error('[Ticket] Erro ao criar:', err.message);
+  }
   res.redirect(`/shipment/${code}`);
 });
 
-// POST /ticket/:id/close
-router.post('/ticket/:id/close', requireAuth, async (req, res) => {
-  await Shipment.closeTicket(req.params.id);
-  res.json({ ok: true });
+// POST /ticket/:id/status — altera status do ticket
+router.post('/ticket/:id/status', requireAuth, async (req, res) => {
+  try {
+    await Shipment.updateTicketStatus(req.params.id, req.body.status);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 module.exports = router;
