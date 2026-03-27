@@ -35,7 +35,10 @@
 <nav class="navbar">
   <h1>Relatório de Tickets</h1>
   <div style="margin-left:auto;display:flex;gap:16px;align-items:center">
+    <% const perms = (typeof currentUser !== 'undefined' && currentUser.permissions) || {}; %>
+    <% if (perms.relatorio_cancelamentos && perms.relatorio_cancelamentos.can_view) { %>
     <a href="/relatorios/cancelamentos">Cancelamentos</a>
+    <% } %>
     <a href="/">← Painel</a>
     <% if (typeof currentUser !== 'undefined') { %>
     <span style="color:#4f46e5;background:rgba(79,70,229,.1);padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600"><%= currentUser.name %></span>

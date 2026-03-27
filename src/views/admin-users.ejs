@@ -47,9 +47,17 @@
 <nav class="navbar">
   <h1>Gerenciar Usuários</h1>
   <div class="nav-links">
+    <% const perms = (typeof currentUser !== 'undefined' && currentUser.permissions) || {}; %>
     <a href="/">Painel</a>
+    <% if (perms.relatorio_tickets && perms.relatorio_tickets.can_view) { %>
     <a href="/relatorios/tickets">Tickets</a>
+    <% } %>
+    <% if (perms.relatorio_cancelamentos && perms.relatorio_cancelamentos.can_view) { %>
     <a href="/relatorios/cancelamentos">Cancelamentos</a>
+    <% } %>
+    <% if (perms.admin_permissoes && perms.admin_permissoes.can_view) { %>
+    <a href="/admin/permissions" style="color:#4f46e5;font-weight:600">Permissões</a>
+    <% } %>
     <% if (typeof currentUser !== 'undefined') { %>
     <span class="user-badge"><%= currentUser.name %></span>
     <a href="/logout" style="color:#f87171">Sair</a>

@@ -104,11 +104,21 @@
     <span>Última consulta: <strong>—</strong></span>
     <% } %>
     <span>Próxima janela: <strong><%= nextWindow %></strong> · <strong style="color:#93c5fd"><%= pendingCount.toLocaleString('pt-BR') %> pendentes</strong></span>
+    <% const perms = (typeof currentUser !== 'undefined' && currentUser.permissions) || {}; %>
+    <% if (perms.tracking && perms.tracking.can_edit) { %>
     <a href="/api/tracking/refresh" class="nav-refresh" onclick="refreshAll(event)">↻ Atualizar todos</a>
+    <% } %>
+    <% if (perms.relatorio_tickets && perms.relatorio_tickets.can_view) { %>
     <a href="/relatorios/tickets" class="nav-refresh">Tickets</a>
+    <% } %>
+    <% if (perms.relatorio_cancelamentos && perms.relatorio_cancelamentos.can_view) { %>
     <a href="/relatorios/cancelamentos" class="nav-refresh">Cancelamentos</a>
-    <% if (typeof currentUser !== 'undefined' && currentUser.role === 'admin') { %>
+    <% } %>
+    <% if (perms.admin_usuarios && perms.admin_usuarios.can_view) { %>
     <a href="/admin/users" class="nav-refresh">Usuários</a>
+    <% } %>
+    <% if (perms.admin_permissoes && perms.admin_permissoes.can_view) { %>
+    <a href="/admin/permissions" class="nav-refresh">Permissões</a>
     <% } %>
     <div style="position:relative">
       <button id="notifBtn" onclick="toggleNotifs()" style="background:transparent;border:1px solid #333;border-radius:6px;padding:4px 10px;cursor:pointer;color:#aaa;font-size:14px;position:relative">

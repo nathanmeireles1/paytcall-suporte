@@ -1,5 +1,39 @@
 const { db } = require('../config/database');
 
+// Cache de permissões (recarrega a cada 5 minutos)
+let permissionsCache = {};
+let permissionsCacheAt = 0;
+const CACHE_TTL = 5 * 60 * 1000;
+
+async function loadPermissions() {
+  if (Date.now() - permissionsCacheAt < CACHE_TTL && Object.keys(permissionsCache).length > 0) {
+    return permissionsCache;
+  }
+  const { data, error } = await db.from('role_permissions').select('*');
+  if (error) {
+    console.error('[Permissions] Erro ao carregar:', error.message);
+    return permissionsCache; // retorna cache antigo em caso de erro
+  }
+  const map = {};
+  for (const p of (data || [])) {
+    if (!map[p.role]) map[p.role] = {};
+    map[p.role][p.module] = {
+      can_view: p.can_view,
+      can_create: p.can_create,
+      can_edit: p.can_edit,
+      can_delete: p.can_delete,
+    };
+  }
+  permissionsCache = map;
+  permissionsCacheAt = Date.now();
+  return map;
+}
+
+// Força recarga do cache (chamado após admin alterar permissões)
+function invalidatePermissionsCache() {
+  permissionsCacheAt = 0;
+}
+
 // Verifica se o cookie contém um JWT válido do Supabase Auth
 async function requireAuth(req, res, next) {
   const token = req.cookies?.auth_token;
@@ -26,6 +60,9 @@ async function requireAuth(req, res, next) {
 
     if (!profile || !profile.active) return deny('Conta desativada');
 
+    // Carrega permissões da role
+    const perms = await loadPermissions();
+
     // Disponibiliza no request
     req.user = {
       id: profile.id,
@@ -33,6 +70,7 @@ async function requireAuth(req, res, next) {
       email: user.email,
       name: profile.name,
       role: profile.role,
+      permissions: perms[profile.role] || {},
     };
 
     // Para terceiros, busca seller_ids permitidos
@@ -54,7 +92,7 @@ async function requireAuth(req, res, next) {
   }
 }
 
-// Verifica se o usuário tem uma das roles permitidas
+// Verifica se o usuário tem uma das roles permitidas (legacy — usar requirePermission)
 function requireRole(roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
@@ -62,6 +100,21 @@ function requireRole(roles) {
         return res.status(403).json({ error: 'Sem permissão' });
       }
       return res.status(403).render('error', { message: 'Acesso negado — permissão insuficiente' });
+    }
+    next();
+  };
+}
+
+// Verifica permissão por módulo e ação
+// Uso: requirePermission('tickets', 'can_view')
+function requirePermission(module, action = 'can_view') {
+  return (req, res, next) => {
+    const perms = req.user?.permissions?.[module];
+    if (!perms || !perms[action]) {
+      if (req.path.startsWith('/api') || req.headers.accept?.includes('json')) {
+        return res.status(403).json({ error: 'Sem permissão para esta ação' });
+      }
+      return res.status(403).render('error', { message: 'Acesso negado — você não tem permissão para acessar este módulo' });
     }
     next();
   };
@@ -86,4 +139,4 @@ async function requireApiAuth(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireRole, requireApiAuth };
+module.exports = { requireAuth, requireRole, requirePermission, requireApiAuth, loadPermissions, invalidatePermissionsCache };
