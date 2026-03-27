@@ -291,6 +291,31 @@ const Shipment = {
     if (error) throw error;
   },
 
+  // --- Stats de Tickets (para dashboard) ---
+  async getTicketStats() {
+    try {
+      const { data, error } = await db.from('tickets').select('tipo, status, created_at');
+      if (error) throw error;
+      const tickets = data || [];
+      const now = Date.now();
+      const SLA_MS = 72 * 3600000;
+      let open = 0, in_progress = 0, sla_expired = 0, retencao = 0, logistica = 0;
+      for (const t of tickets) {
+        const isTerminal = ['Cancelado', 'Retido', 'Concluído'].includes(t.status);
+        if (isTerminal) continue;
+        if (t.status === 'Aberto') open++;
+        if (t.status === 'Em andamento' || t.status === 'Aguardando estoque') in_progress++;
+        if (now - new Date(t.created_at).getTime() > SLA_MS) sla_expired++;
+        if (t.tipo === 'RETENCAO') retencao++;
+        if (t.tipo === 'LOGISTICA') logistica++;
+      }
+      return { open, in_progress, sla_expired, retencao, logistica };
+    } catch (err) {
+      console.error('[Shipment] Erro getTicketStats:', err.message);
+      return { open: 0, in_progress: 0, sla_expired: 0, retencao: 0, logistica: 0 };
+    }
+  },
+
   // --- Relatório de Tickets ---
 
   async getAllTickets({ tipo, status, assigned_to, priority, search, page = 1, limit = 50 } = {}) {

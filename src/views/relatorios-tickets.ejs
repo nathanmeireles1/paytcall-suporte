@@ -3,142 +3,137 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Relatório de Tickets — payt Tracker</title>
+  <title>Tickets — payt Suporte</title>
+  <link rel="stylesheet" href="/css/global.css">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
-    .navbar { background: #1a1a2e; padding: 0 24px; display: flex; align-items: center; height: 56px; gap: 16px; }
-    .navbar h1 { color: #fff; font-size: 18px; font-weight: 700; }
-    .navbar a { color: #aaa; font-size: 13px; text-decoration: none; margin-left: auto; }
-    .navbar a:hover { color: #fff; }
-    .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
-    .filters { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-    .filters select, .filters input { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
-    .filters input[type=text] { min-width: 200px; }
-    .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; }
-    .btn-primary { background: #4f46e5; color: #fff; }
-    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); table-layout: fixed; }
-    th { background: #f8f9fa; padding: 10px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #666; text-align: left; white-space: nowrap; }
-    td { padding: 10px 8px; font-size: 13px; border-top: 1px solid #f0f0f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    tr:hover td { background: #f8f9fb; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
-    .prio-1 { color: #dc2626; } .prio-2 { color: #d97706; } .prio-3 { color: #6b7280; }
-    .sla-ok { color: #16a34a; } .sla-warn { color: #d97706; } .sla-expired { color: #dc2626; font-weight: 700; }
-    .pagination { display: flex; gap: 6px; margin-top: 16px; justify-content: center; }
-    .pagination a { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; text-decoration: none; font-size: 13px; color: #555; }
-    .pagination a.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
-    .total-info { font-size: 13px; color: #666; margin-bottom: 12px; }
+    .prio-1 { color: var(--danger); font-weight: 700; }
+    .prio-2 { color: var(--warning); font-weight: 600; }
+    .prio-3 { color: var(--gray-500); }
+    .sla-ok { color: var(--success); }
+    .sla-warn { color: var(--warning); }
+    .sla-expired { color: var(--danger); font-weight: 700; }
   </style>
 </head>
 <body>
-<nav class="navbar">
-  <h1>Relatório de Tickets</h1>
-  <div style="margin-left:auto;display:flex;gap:16px;align-items:center">
-    <% const perms = (typeof currentUser !== 'undefined' && currentUser.permissions) || {}; %>
-    <% if (perms.relatorio_cancelamentos && perms.relatorio_cancelamentos.can_view) { %>
-    <a href="/relatorios/cancelamentos">Cancelamentos</a>
-    <% } %>
-    <a href="/">← Painel</a>
-    <% if (typeof currentUser !== 'undefined') { %>
-    <span style="color:#4f46e5;background:rgba(79,70,229,.1);padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600"><%= currentUser.name %></span>
-    <a href="/logout" style="color:#f87171">Sair</a>
-    <% } %>
-  </div>
-</nav>
+<div class="app">
 
-<%
-const fmtDate = (iso) => {
-  if (!iso) return '—';
-  try { return new Date(String(iso).replace(' ','T')).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch(e) { return iso; }
-};
-const prioLabel = {1:'ALTA',2:'MÉDIA',3:'BAIXA'};
-%>
+  <%- include('partials/sidebar', { activePage: 'tickets' }) %>
 
-<div class="container">
-  <form class="filters" method="GET">
-    <select name="tipo">
-      <option value="">Tipo</option>
-      <option value="RETENCAO" <%= filters.tipo==='RETENCAO'?'selected':'' %>>Retenção</option>
-      <option value="LOGISTICA" <%= filters.tipo==='LOGISTICA'?'selected':'' %>>Logística</option>
-    </select>
-    <select name="status">
-      <option value="">Status</option>
-      <option value="Aberto" <%= filters.status==='Aberto'?'selected':'' %>>Aberto</option>
-      <option value="Em andamento" <%= filters.status==='Em andamento'?'selected':'' %>>Em andamento</option>
-      <option value="Aguardando estoque" <%= filters.status==='Aguardando estoque'?'selected':'' %>>Ag. estoque</option>
-      <option value="Cancelado" <%= filters.status==='Cancelado'?'selected':'' %>>Cancelado</option>
-      <option value="Retido" <%= filters.status==='Retido'?'selected':'' %>>Retido</option>
-      <option value="Concluído" <%= filters.status==='Concluído'?'selected':'' %>>Concluído</option>
-    </select>
-    <select name="assigned_to">
-      <option value="">Responsável</option>
-      <option value="Flaviany" <%= filters.assigned_to==='Flaviany'?'selected':'' %>>Flaviany</option>
-      <option value="Shelida" <%= filters.assigned_to==='Shelida'?'selected':'' %>>Shelida</option>
-      <option value="Sistema" <%= filters.assigned_to==='Sistema'?'selected':'' %>>Sistema</option>
-    </select>
-    <select name="priority">
-      <option value="">Prioridade</option>
-      <option value="1" <%= filters.priority==='1'?'selected':'' %>>Alta</option>
-      <option value="2" <%= filters.priority==='2'?'selected':'' %>>Média</option>
-      <option value="3" <%= filters.priority==='3'?'selected':'' %>>Baixa</option>
-    </select>
-    <input type="text" name="search" placeholder="Buscar..." value="<%= filters.search || '' %>">
-    <button type="submit" class="btn btn-primary">Filtrar</button>
-    <a href="/relatorios/tickets" class="btn btn-ghost">Limpar</a>
-  </form>
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Tickets', breadcrumb: [{ label: 'Suporte', href: '/dashboard' }, { label: 'Tickets' }] }) %>
 
-  <div class="total-info"><strong><%= total %></strong> tickets encontrados</div>
+    <div class="page">
 
-  <table>
-    <colgroup>
-      <col style="width:100px"><col style="width:80px"><col style="width:140px">
-      <col style="width:130px"><col style="width:90px"><col style="width:100px">
-      <col style="width:90px"><col style="width:70px"><col style="width:120px">
-    </colgroup>
-    <thead>
-      <tr>
-        <th>ID Payt</th><th>Tipo</th><th>Cliente</th><th>CPF</th>
-        <th>Status</th><th>Motivo</th><th>Responsável</th><th>Prio</th><th>Tempo</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% if (tickets.length === 0) { %>
-      <tr><td colspan="9" style="text-align:center;color:#999;padding:40px">Nenhum ticket encontrado</td></tr>
-      <% } %>
-      <% tickets.forEach(t => {
-        const s = t.shipments || {};
-        const isTerminal = ['Cancelado','Retido','Concluído'].includes(t.status);
-        const hoursOpen = isTerminal && t.closed_at
-          ? Math.floor((new Date(t.closed_at).getTime() - new Date(t.created_at).getTime()) / 3600000)
-          : Math.floor((Date.now() - new Date(t.created_at).getTime()) / 3600000);
-        const slaClass = isTerminal ? 'sla-ok' : (hoursOpen >= 72 ? 'sla-expired' : hoursOpen >= 48 ? 'sla-warn' : 'sla-ok');
-        const tipoBg = t.tipo === 'RETENCAO' ? '#fef3c7' : '#dbeafe';
-        const tipoColor = t.tipo === 'RETENCAO' ? '#92400e' : '#1e40af';
-        const tipoLabel = t.tipo === 'RETENCAO' ? 'Ret.' : 'Log.';
+      <%
+      const fmtDate = (iso) => {
+        if (!iso) return '—';
+        try { return new Date(String(iso).replace(' ','T')).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch(e) { return iso; }
+      };
+      const prioLabel = {1:'ALTA',2:'MÉDIA',3:'BAIXA'};
       %>
-      <tr style="cursor:pointer" onclick="window.location='/shipment/<%= t.tracking_code %>'">
-        <td style="font-family:monospace;font-size:12px"><%= s.order_id || t.order_id || '—' %></td>
-        <td><span class="badge" style="background:<%= tipoBg %>;color:<%= tipoColor %>"><%= tipoLabel %></span></td>
-        <td><%= s.customer_name || '—' %></td>
-        <td style="font-size:12px"><%= s.customer_doc ? s.customer_doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—' %></td>
-        <td><%= t.status %></td>
-        <td title="<%= t.motivo_cancelamento || '' %>"><%= t.motivo %></td>
-        <td><%= t.assigned_to %></td>
-        <td class="prio-<%= t.priority %>"><%= prioLabel[t.priority] || t.priority %></td>
-        <td class="<%= slaClass %>"><%= hoursOpen %>h<%= isTerminal ? '' : (hoursOpen >= 72 ? ' SLA!' : '') %></td>
-      </tr>
-      <% }) %>
-    </tbody>
-  </table>
 
-  <% if (pages > 1) { %>
-  <div class="pagination">
-    <% for (let p = 1; p <= pages; p++) { %>
-    <a href="?<%= Object.entries({...filters, page: p}).filter(([,v])=>v).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&') %>" class="<%= p === currentPage ? 'active' : '' %>"><%= p %></a>
-    <% } %>
+      <!-- Filtros -->
+      <form method="GET" class="toolbar" style="background:#fff;padding:14px 16px;border-radius:var(--radius-lg);border:1px solid var(--gray-200)">
+        <select name="tipo" class="form-select">
+          <option value="">Tipo</option>
+          <option value="RETENCAO" <%= filters.tipo==='RETENCAO'?'selected':'' %>>Retenção</option>
+          <option value="LOGISTICA" <%= filters.tipo==='LOGISTICA'?'selected':'' %>>Logística</option>
+        </select>
+        <select name="status" class="form-select">
+          <option value="">Status</option>
+          <option value="Aberto" <%= filters.status==='Aberto'?'selected':'' %>>Aberto</option>
+          <option value="Em andamento" <%= filters.status==='Em andamento'?'selected':'' %>>Em andamento</option>
+          <option value="Aguardando estoque" <%= filters.status==='Aguardando estoque'?'selected':'' %>>Ag. estoque</option>
+          <option value="Cancelado" <%= filters.status==='Cancelado'?'selected':'' %>>Cancelado</option>
+          <option value="Retido" <%= filters.status==='Retido'?'selected':'' %>>Retido</option>
+          <option value="Concluído" <%= filters.status==='Concluído'?'selected':'' %>>Concluído</option>
+        </select>
+        <select name="assigned_to" class="form-select">
+          <option value="">Responsável</option>
+          <option value="Flaviany" <%= filters.assigned_to==='Flaviany'?'selected':'' %>>Flaviany</option>
+          <option value="Shelida" <%= filters.assigned_to==='Shelida'?'selected':'' %>>Shelida</option>
+          <option value="Sistema" <%= filters.assigned_to==='Sistema'?'selected':'' %>>Sistema</option>
+        </select>
+        <select name="priority" class="form-select">
+          <option value="">Prioridade</option>
+          <option value="1" <%= filters.priority==='1'?'selected':'' %>>Alta</option>
+          <option value="2" <%= filters.priority==='2'?'selected':'' %>>Média</option>
+          <option value="3" <%= filters.priority==='3'?'selected':'' %>>Baixa</option>
+        </select>
+        <input type="text" name="search" placeholder="Buscar..." value="<%= filters.search || '' %>" class="form-input search-input">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="/relatorios/tickets" class="btn btn-secondary">Limpar</a>
+      </form>
+
+      <div style="margin:12px 0;font-size:13px;color:var(--gray-500)"><strong><%= total %></strong> tickets encontrados</div>
+
+      <!-- Tabela -->
+      <div class="card">
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table>
+              <colgroup>
+                <col style="width:100px"><col style="width:80px"><col style="width:140px">
+                <col style="width:130px"><col style="width:100px"><col style="width:100px">
+                <col style="width:90px"><col style="width:70px"><col style="width:100px">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>ID Payt</th><th>Tipo</th><th>Cliente</th><th>CPF</th>
+                  <th>Status</th><th>Motivo</th><th>Responsável</th><th>Prio</th><th>Tempo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (tickets.length === 0) { %>
+                <tr><td colspan="9" class="empty-state" style="padding:40px">Nenhum ticket encontrado</td></tr>
+                <% } %>
+                <% tickets.forEach(t => {
+                  const s = t.shipments || {};
+                  const isTerminal = ['Cancelado','Retido','Concluído'].includes(t.status);
+                  const hoursOpen = isTerminal && t.closed_at
+                    ? Math.floor((new Date(t.closed_at).getTime() - new Date(t.created_at).getTime()) / 3600000)
+                    : Math.floor((Date.now() - new Date(t.created_at).getTime()) / 3600000);
+                  const slaClass = isTerminal ? 'sla-ok' : (hoursOpen >= 72 ? 'sla-expired' : hoursOpen >= 48 ? 'sla-warn' : 'sla-ok');
+                  const tipoBg = t.tipo === 'RETENCAO' ? 'badge-warning' : 'badge-info';
+                  const tipoLabel = t.tipo === 'RETENCAO' ? 'Retenção' : 'Logística';
+                %>
+                <tr class="clickable" onclick="window.location='/shipment/<%= t.tracking_code %>'">
+                  <td><span class="code"><%= s.order_id || t.order_id || '—' %></span></td>
+                  <td><span class="badge <%= tipoBg %>"><%= tipoLabel %></span></td>
+                  <td><%= s.customer_name || '—' %></td>
+                  <td class="text-sm"><%= s.customer_doc ? s.customer_doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—' %></td>
+                  <td><span class="badge badge-neutral"><%= t.status %></span></td>
+                  <td title="<%= t.motivo_cancelamento || '' %>"><%= t.motivo %></td>
+                  <td><%= t.assigned_to %></td>
+                  <td class="prio-<%= t.priority %>"><%= prioLabel[t.priority] || t.priority %></td>
+                  <td class="<%= slaClass %>"><%= hoursOpen %>h<%= isTerminal ? '' : (hoursOpen >= 72 ? ' SLA!' : '') %></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <% if (pages > 1) { %>
+      <div class="pagination">
+        <% for (let p = 1; p <= pages; p++) { %>
+        <a href="?<%= Object.entries({...filters, page: p}).filter(([,v])=>v).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&') %>" class="<%= p === currentPage ? 'active' : '' %>"><%= p %></a>
+        <% } %>
+      </div>
+      <% } %>
+
+    </div>
   </div>
-  <% } %>
 </div>
+
+<script>
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() { document.getElementById('notifDropdown').classList.toggle('open'); if (document.getElementById('notifDropdown').classList.contains('open') && NOTIF_USER) loadNotifs(); }
+async function loadNotifs() { if (!NOTIF_USER) return; try { const r = await fetch('/api/notifications'); const { notifications, unread } = await r.json(); document.getElementById('notifBadge').style.display = unread > 0 ? 'block' : 'none'; document.getElementById('notifBadge').textContent = unread; const list = document.getElementById('notifList'); if (!notifications.length) { list.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:24px;font-size:13px">Nenhuma notificação</div>'; return; } list.innerHTML = notifications.map(n => '<a href="/shipment/' + (n.tracking_code||'') + '" class="notif-item' + (n.is_read ? '' : ' unread') + '"><div style="font-size:13px;color:var(--gray-700)">' + n.message + '</div><div style="font-size:11px;color:var(--gray-400);margin-top:2px">' + new Date(n.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) + '</div></a>').join(''); } catch(e) {} }
+async function markAllRead() { if (!NOTIF_USER) return; await fetch('/api/notifications/read', { method: 'POST' }); loadNotifs(); }
+if (NOTIF_USER) { fetch('/api/notifications').then(r=>r.json()).then(({unread})=>{const b=document.getElementById('notifBadge');b.style.display=unread>0?'block':'none';b.textContent=unread}).catch(()=>{}); }
+document.addEventListener('click', e => { const dd=document.getElementById('notifDropdown'),btn=document.getElementById('notifBtn'); if(!dd.contains(e.target)&&!btn.contains(e.target)) dd.classList.remove('open'); });
+</script>
 </body>
 </html>

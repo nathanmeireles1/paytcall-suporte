@@ -3,335 +3,201 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>payt Tracker — Dashboard</title>
+  <title>Rastreios — payt Suporte</title>
+  <link rel="stylesheet" href="/css/global.css">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
-
-    .navbar { background: #1a1a2e; padding: 0 24px; display: flex; align-items: center; height: 56px; gap: 16px; }
-    .navbar h1 { color: #fff; font-size: 18px; font-weight: 700; white-space: nowrap; }
-    .navbar .nav-info { display: flex; gap: 20px; margin-left: auto; align-items: center; }
-    .navbar .nav-info span { color: #888; font-size: 12px; white-space: nowrap; }
-    .navbar .nav-info span strong { color: #ccc; font-weight: 500; }
-    .navbar a.nav-refresh { color: #aaa; font-size: 13px; text-decoration: none; white-space: nowrap; border: 1px solid #333; border-radius: 6px; padding: 4px 10px; }
-    .navbar a.nav-refresh:hover { color: #fff; border-color: #555; }
-
-    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .stat-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-    .stat-card .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
-    .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
-    .stat-card.total .value { color: #1a1a2e; }
-    .stat-card.delivered .value { color: #16a34a; }
-    .stat-card.transit .value { color: #2563eb; }
-    .stat-card.attempt .value { color: #d97706; }
-    .stat-card.returned .value { color: #dc2626; }
-    .stat-card.out .value { color: #7c3aed; }
-
-    .toolbar { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-    .toolbar form { display: flex; gap: 12px; flex-wrap: wrap; width: 100%; }
-    .toolbar input, .toolbar select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; }
-    .toolbar input:focus, .toolbar select:focus { border-color: #4f46e5; }
-    .toolbar input[name="search"] { flex: 1; min-width: 200px; }
-    .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; }
-    .btn-primary { background: #4f46e5; color: #fff; }
-    .btn-primary:hover { background: #4338ca; }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
-    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
-    .btn-ghost:hover { background: #f5f5f5; }
-
-    .table-wrap { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-    thead tr { background: #f8f8f8; }
-    th { padding: 10px 12px; text-align: left; font-weight: 600; color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; overflow: hidden; }
-    td { padding: 10px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
-    tr:hover td { background: #fafafa; }
-    tr.clickable { cursor: pointer; }
-    tr.clickable:hover td { background: #f0f0ff; }
-    col.col-code { width: 140px; }
-    col.col-carrier { width: 80px; }
+    col.col-code    { width: 130px; }
+    col.col-carrier { width: 75px; }
     col.col-company { width: 140px; }
-    col.col-order { width: 90px; }
+    col.col-order   { width: 90px; }
     col.col-product { width: 160px; }
-    col.col-client { width: 180px; }
-    col.col-status { width: 110px; }
-    col.col-event { width: 160px; }
-    col.col-date { width: 110px; }
-
-    .badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
-    .badge-delivered { background: #dcfce7; color: #16a34a; }
-    .badge-forwarded { background: #dbeafe; color: #2563eb; }
-    .badge-posted_object { background: #e0f2fe; color: #0369a1; }
-    .badge-delivering { background: #ede9fe; color: #7c3aed; }
-    .badge-recipient_not_found { background: #fef3c7; color: #d97706; }
-    .badge-returned { background: #fee2e2; color: #dc2626; }
-    .badge-returning { background: #fce7f3; color: #9d174d; }
-    .badge-waiting_client { background: #fef9c3; color: #854d0e; }
-    .badge-overdue { background: #ffedd5; color: #c2410c; }
-    .badge-wrong_address { background: #fee2e2; color: #991b1b; }
-    .badge-delivery_problem { background: #fef3c7; color: #92400e; }
-    .badge-pending { background: #f3f4f6; color: #6b7280; }
-    .badge-no_tracking { background: #f1f5f9; color: #94a3b8; }
-    .badge-tracking_delayed { background: #fee2e2; color: #dc2626; }
-
-    .code { font-family: monospace; font-size: 13px; font-weight: 600; color: #1a1a2e; }
-    .text-muted { color: #999; font-size: 12px; }
-
-    .pagination { display: flex; gap: 8px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
-    .pagination a { padding: 6px 12px; border-radius: 6px; border: 1px solid #ddd; font-size: 13px; text-decoration: none; color: #555; }
-    .pagination a:hover { background: #f0f0f0; }
-    .pagination a.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
-
-    .empty { text-align: center; padding: 60px 20px; color: #999; }
-    .empty svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: .3; }
-
-    .refresh-btn { margin-left: auto; }
+    col.col-client  { width: 180px; }
+    col.col-status  { width: 120px; }
+    col.col-event   { width: 160px; }
+    col.col-date    { width: 110px; }
   </style>
 </head>
 <body>
+<div class="app">
 
-<nav class="navbar">
-  <h1>payt Tracker</h1>
-  <div class="nav-info">
-    <% if (lastLog) { %>
-    <span>Última consulta: <strong><%= lastLog.ran_at_fmt %></strong>
-      · <strong style="color:#86efac"><%= lastLog.updated %> atualizados</strong>
-      <% if (lastLog.promoted > 0) { %> · <strong style="color:#c4b5fd"><%= lastLog.promoted %> promovidos</strong><% } %>
-      <% if (lastLog.errors > 0) { %> · <strong style="color:#fca5a5"><%= lastLog.errors %> erros</strong><% } %>
-    </span>
-    <% } else { %>
-    <span>Última consulta: <strong>—</strong></span>
-    <% } %>
-    <span>Próxima janela: <strong><%= nextWindow %></strong> · <strong style="color:#93c5fd"><%= pendingCount.toLocaleString('pt-BR') %> pendentes</strong></span>
-    <% const perms = (typeof currentUser !== 'undefined' && currentUser.permissions) || {}; %>
-    <% if (perms.tracking && perms.tracking.can_edit) { %>
-    <a href="/api/tracking/refresh" class="nav-refresh" onclick="refreshAll(event)">↻ Atualizar todos</a>
-    <% } %>
-    <% if (perms.relatorio_tickets && perms.relatorio_tickets.can_view) { %>
-    <a href="/relatorios/tickets" class="nav-refresh">Tickets</a>
-    <% } %>
-    <% if (perms.relatorio_cancelamentos && perms.relatorio_cancelamentos.can_view) { %>
-    <a href="/relatorios/cancelamentos" class="nav-refresh">Cancelamentos</a>
-    <% } %>
-    <% if (perms.admin_usuarios && perms.admin_usuarios.can_view) { %>
-    <a href="/admin/users" class="nav-refresh">Usuários</a>
-    <% } %>
-    <% if (perms.admin_permissoes && perms.admin_permissoes.can_view) { %>
-    <a href="/admin/permissions" class="nav-refresh">Permissões</a>
-    <% } %>
-    <div style="position:relative">
-      <button id="notifBtn" onclick="toggleNotifs()" style="background:transparent;border:1px solid #333;border-radius:6px;padding:4px 10px;cursor:pointer;color:#aaa;font-size:14px;position:relative">
-        🔔 <span id="notifBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;border-radius:99px;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 4px">0</span>
-      </button>
-      <div id="notifDropdown" style="display:none;position:absolute;right:0;top:40px;width:340px;max-height:400px;overflow-y:auto;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:999">
-        <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
-          <strong style="font-size:14px;color:#333">Notificações</strong>
-          <button onclick="markAllRead()" style="background:transparent;border:none;color:#4f46e5;font-size:12px;cursor:pointer">Marcar todas lidas</button>
+  <%- include('partials/sidebar', { activePage: 'rastreios' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Rastreios', breadcrumb: [{ label: 'Suporte', href: '/dashboard' }, { label: 'Rastreios' }] }) %>
+
+    <div class="page">
+
+      <!-- Info bar -->
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="text-muted">Última consulta:</span>
+          <span class="fw-600 text-sm"><%= lastLog ? lastLog.ran_at_fmt : '—' %></span>
+          <% if (lastLog) { %>
+          <span class="badge badge-success"><%= lastLog.updated %> atualizados</span>
+          <% if (lastLog.promoted > 0) { %><span class="badge badge-purple"><%= lastLog.promoted %> promovidos</span><% } %>
+          <% if (lastLog.errors > 0) { %><span class="badge badge-danger"><%= lastLog.errors %> erros</span><% } %>
+          <% } %>
         </div>
-        <div id="notifList" style="padding:8px 0">
-          <div style="text-align:center;color:#999;padding:20px;font-size:13px">Carregando...</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+          <span class="text-muted">Próxima: <strong style="color:var(--gray-700)"><%= nextWindow %></strong></span>
+          <span class="badge badge-info"><%= pendingCount.toLocaleString('pt-BR') %> pendentes</span>
         </div>
       </div>
-    </div>
-    <% if (typeof currentUser !== 'undefined') { %>
-    <span style="color:#4f46e5;background:rgba(79,70,229,.1);padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600"><%= currentUser.name %></span>
-    <a href="/logout" style="color:#f87171;font-size:12px;text-decoration:none">Sair</a>
-    <% } %>
-  </div>
-</nav>
 
-<div class="container">
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:20px">
+        <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value" style="color:var(--gray-900);font-size:24px"><%= stats.total %></div></div>
+        <div class="stat-card"><div class="stat-label">Entregues</div><div class="stat-value" style="color:var(--success);font-size:24px"><%= stats.delivered %></div></div>
+        <div class="stat-card"><div class="stat-label">Em trânsito</div><div class="stat-value" style="color:var(--info);font-size:24px"><%= stats.in_transit %></div></div>
+        <div class="stat-card"><div class="stat-label">Saiu p/ entrega</div><div class="stat-value" style="color:var(--purple);font-size:24px"><%= stats.out_for_delivery %></div></div>
+        <div class="stat-card"><div class="stat-label">Tentativa</div><div class="stat-value" style="color:var(--warning);font-size:24px"><%= stats.delivery_attempt %></div></div>
+        <div class="stat-card"><div class="stat-label">Devolvidos</div><div class="stat-value" style="color:var(--danger);font-size:24px"><%= stats.returned %></div></div>
+        <div class="stat-card"><div class="stat-label">Ag. Retirada</div><div class="stat-value" style="color:#854d0e;font-size:24px"><%= stats.waiting_client %></div></div>
+        <div class="stat-card"><div class="stat-label">Em Atraso</div><div class="stat-value" style="color:var(--danger);font-size:24px"><%= stats.tracking_delayed || 0 %></div></div>
+      </div>
 
-  <!-- Stats -->
-  <div class="stats">
-    <div class="stat-card total">
-      <div class="label">Total</div>
-      <div class="value"><%= stats.total %></div>
-    </div>
-    <div class="stat-card delivered">
-      <div class="label">Entregues</div>
-      <div class="value"><%= stats.delivered %></div>
-    </div>
-    <div class="stat-card transit">
-      <div class="label">Em trânsito</div>
-      <div class="value"><%= stats.in_transit %></div>
-    </div>
-    <div class="stat-card out">
-      <div class="label">Saiu p/ entrega</div>
-      <div class="value"><%= stats.out_for_delivery %></div>
-    </div>
-    <div class="stat-card attempt">
-      <div class="label">Tentativa</div>
-      <div class="value"><%= stats.delivery_attempt %></div>
-    </div>
-    <div class="stat-card returned">
-      <div class="label">Devolvidos</div>
-      <div class="value"><%= stats.returned %></div>
-    </div>
-    <div class="stat-card attempt">
-      <div class="label">Ag. Retirada</div>
-      <div class="value" style="color:#854d0e"><%= stats.waiting_client %></div>
-    </div>
-    <div class="stat-card">
-      <div class="label">Rastreio em Atraso</div>
-      <div class="value" style="color:#dc2626"><%= stats.tracking_delayed || 0 %></div>
-    </div>
-  </div>
-
-  <!-- Filtros -->
-  <div class="toolbar">
-    <form method="GET" action="/">
-      <input type="text" name="search" placeholder="Buscar código, pedido ou cliente..." value="<%= filters.search || '' %>">
-      <select name="seller_id">
-        <option value="">Todas as empresas</option>
-        <% companies.forEach(c => { %>
-          <option value="<%= c.seller_id %>" <%= filters.seller_id === c.seller_id ? 'selected' : '' %>>
-            <%= c.company_name || c.seller_id %> (<%= c.total %>)
-          </option>
-        <% }) %>
-      </select>
-      <select name="status">
-        <option value="">Todos os status</option>
-        <option value="pending" <%= filters.status === 'pending' ? 'selected' : '' %>>Pendente</option>
-        <option value="posted_object" <%= filters.status === 'posted_object' ? 'selected' : '' %>>Objeto Postado</option>
-        <option value="forwarded" <%= filters.status === 'forwarded' ? 'selected' : '' %>>Encaminhado</option>
-        <option value="delivering" <%= filters.status === 'delivering' ? 'selected' : '' %>>Saiu para entrega</option>
-        <option value="recipient_not_found" <%= filters.status === 'recipient_not_found' ? 'selected' : '' %>>Tentativa / Dest. não encontrado</option>
-        <option value="delivery_problem" <%= filters.status === 'delivery_problem' ? 'selected' : '' %>>Problema na entrega</option>
-        <option value="wrong_address" <%= filters.status === 'wrong_address' ? 'selected' : '' %>>Endereço errado</option>
-        <option value="waiting_client" <%= filters.status === 'waiting_client' ? 'selected' : '' %>>Aguardando retirada</option>
-        <option value="delivered" <%= filters.status === 'delivered' ? 'selected' : '' %>>Entregue</option>
-        <option value="returning" <%= filters.status === 'returning' ? 'selected' : '' %>>Devolvendo</option>
-        <option value="returned" <%= filters.status === 'returned' ? 'selected' : '' %>>Devolvido</option>
-        <option value="overdue" <%= filters.status === 'overdue' ? 'selected' : '' %>>Em atraso</option>
+      <!-- Filtros -->
+      <form method="GET" action="/" class="toolbar" style="background:#fff;padding:14px 16px;border-radius:var(--radius-lg);border:1px solid var(--gray-200)">
+        <input type="text" name="search" placeholder="Buscar código, pedido ou cliente..." value="<%= filters.search || '' %>" class="form-input search-input">
+        <select name="seller_id" class="form-select">
+          <option value="">Todas as empresas</option>
+          <% companies.forEach(c => { %>
+            <option value="<%= c.seller_id %>" <%= filters.seller_id === c.seller_id ? 'selected' : '' %>><%= c.company_name || c.seller_id %> (<%= c.total %>)</option>
+          <% }) %>
+        </select>
+        <select name="status" class="form-select">
+          <option value="">Todos os status</option>
+          <option value="pending" <%= filters.status === 'pending' ? 'selected' : '' %>>Pendente</option>
+          <option value="posted_object" <%= filters.status === 'posted_object' ? 'selected' : '' %>>Objeto Postado</option>
+          <option value="forwarded" <%= filters.status === 'forwarded' ? 'selected' : '' %>>Encaminhado</option>
+          <option value="delivering" <%= filters.status === 'delivering' ? 'selected' : '' %>>Saiu para entrega</option>
+          <option value="recipient_not_found" <%= filters.status === 'recipient_not_found' ? 'selected' : '' %>>Dest. não encontrado</option>
+          <option value="delivery_problem" <%= filters.status === 'delivery_problem' ? 'selected' : '' %>>Problema na entrega</option>
+          <option value="wrong_address" <%= filters.status === 'wrong_address' ? 'selected' : '' %>>Endereço errado</option>
+          <option value="waiting_client" <%= filters.status === 'waiting_client' ? 'selected' : '' %>>Ag. retirada</option>
+          <option value="delivered" <%= filters.status === 'delivered' ? 'selected' : '' %>>Entregue</option>
+          <option value="returning" <%= filters.status === 'returning' ? 'selected' : '' %>>Devolvendo</option>
+          <option value="returned" <%= filters.status === 'returned' ? 'selected' : '' %>>Devolvido</option>
           <option value="no_tracking" <%= filters.status === 'no_tracking' ? 'selected' : '' %>>Sem rastreio gerado</option>
           <option value="tracking_delayed" <%= filters.status === 'tracking_delayed' ? 'selected' : '' %>>Rastreio em Atraso</option>
-      </select>
-      <select name="carrier">
-        <option value="">Todas as transportadoras</option>
-        <option value="Loggi"    <%= filters.carrier === 'Loggi'    ? 'selected' : '' %>>Loggi</option>
-        <option value="Correios" <%= filters.carrier === 'Correios' ? 'selected' : '' %>>Correios</option>
-      </select>
-      <input type="text" name="product" placeholder="Filtrar por produto..." value="<%= filters.product || '' %>" style="min-width:160px">
-      <input type="date" name="paid_at_from" value="<%= filters.paid_at_from || '' %>" title="Pago a partir de">
-      <input type="date" name="paid_at_to"   value="<%= filters.paid_at_to   || '' %>" title="Pago até">
-      <button type="submit" class="btn btn-primary">Filtrar</button>
-      <% if (filters.status || filters.search || filters.seller_id || filters.carrier || filters.product || filters.paid_at_from || filters.paid_at_to) { %>
-        <a href="/" class="btn btn-ghost">Limpar</a>
-      <% } %>
-    </form>
-  </div>
+        </select>
+        <select name="carrier" class="form-select">
+          <option value="">Transportadora</option>
+          <option value="Loggi" <%= filters.carrier === 'Loggi' ? 'selected' : '' %>>Loggi</option>
+          <option value="Correios" <%= filters.carrier === 'Correios' ? 'selected' : '' %>>Correios</option>
+        </select>
+        <input type="text" name="product" placeholder="Produto..." value="<%= filters.product || '' %>" class="form-input" style="min-width:130px">
+        <input type="date" name="paid_at_from" value="<%= filters.paid_at_from || '' %>" class="form-input" title="Pago a partir de">
+        <input type="date" name="paid_at_to" value="<%= filters.paid_at_to || '' %>" class="form-input" title="Pago até">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <% if (filters.status || filters.search || filters.seller_id || filters.carrier || filters.product || filters.paid_at_from || filters.paid_at_to) { %>
+          <a href="/" class="btn btn-secondary">Limpar</a>
+        <% } %>
+      </form>
 
-  <!-- Tabela -->
-  <div class="table-wrap">
-    <% if (shipments.length === 0) { %>
-      <div class="empty">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/></svg>
-        <p>Nenhum envio encontrado</p>
+      <!-- Tabela -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-body no-pad">
+          <% if (shipments.length === 0) { %>
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/></svg>
+              <p>Nenhum envio encontrado</p>
+            </div>
+          <% } else { %>
+          <div class="table-wrap">
+            <table>
+              <colgroup>
+                <col class="col-code"><col class="col-carrier"><col class="col-company">
+                <col class="col-order"><col class="col-product"><col class="col-client">
+                <col class="col-status"><col class="col-event"><col class="col-date">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Código</th><th>Transp.</th><th>Empresa</th>
+                  <th>Pedido</th><th>Produto</th><th>Cliente</th>
+                  <th>Status</th><th>Último evento</th><th>Atualizado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%
+                const sLabel = {
+                  pending: 'Pendente', posted_object: 'Obj. Postado', forwarded: 'Em Trânsito',
+                  delivering: 'Saiu p/ Entrega', recipient_not_found: 'Dest. não encontrado',
+                  delivery_problem: 'Prob. Entrega', wrong_address: 'End. Incorreto',
+                  waiting_client: 'Ag. Retirada', delivered: 'Entregue',
+                  returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
+                  no_tracking: 'Sem Rastreio', tracking_delayed: 'Rastreio em Atraso',
+                };
+                %>
+                <% shipments.forEach(s => { %>
+                <tr class="clickable" onclick="window.location='/shipment/<%= s.tracking_code %>'">
+                  <td><span class="code"><%= s.tracking_code %></span></td>
+                  <td><span class="text-muted"><%= s.carrier || '—' %></span></td>
+                  <td>
+                    <% if (s.company_name) { %>
+                      <span class="fw-600" style="color:var(--gray-900)"><%= s.company_name %></span><br>
+                      <span class="text-muted"><%= s.seller_id %></span>
+                    <% } else { %>
+                      <span class="text-muted"><%= s.seller_id || '—' %></span>
+                    <% } %>
+                  </td>
+                  <td><%= s.order_id || '' %><% if (!s.order_id) { %><span class="text-muted">—</span><% } %></td>
+                  <td>
+                    <% if (s.product_name) { %>
+                      <%= s.product_name %>
+                      <% if (s.product_quantity > 1) { %><br><span class="text-muted">Qtd: <%= s.product_quantity %></span><% } %>
+                    <% } else { %><span class="text-muted">—</span><% } %>
+                  </td>
+                  <td>
+                    <% if (s.customer_name) { %><%= s.customer_name %><% } else { %><span class="text-muted">—</span><% } %>
+                    <% if (s.customer_email) { %><br><span class="text-muted"><%= s.customer_email %></span><% } %>
+                  </td>
+                  <td><span class="badge badge-<%= s.status %>"><%= sLabel[s.status] || s.status %></span></td>
+                  <td>
+                    <% if (s.last_event) { %><%= s.last_event %><% } else { %><span class="text-muted">—</span><% } %>
+                    <% if (s.last_event_date) { %><br><span class="text-muted"><%= s.last_event_date %></span><% } %>
+                  </td>
+                  <td><span class="text-muted"><%= s.updated_at ? new Date(s.updated_at).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—' %></span></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div>
       </div>
-    <% } else { %>
-    <table>
-      <colgroup>
-        <col class="col-code"><col class="col-carrier"><col class="col-company">
-        <col class="col-order"><col class="col-product"><col class="col-client">
-        <col class="col-status"><col class="col-event"><col class="col-date">
-      </colgroup>
-      <thead>
-        <tr>
-          <th>Código</th><th>Transp.</th><th>Empresa</th>
-          <th>Pedido</th><th>Produto</th><th>Cliente</th>
-          <th>Status</th><th>Último evento</th><th>Atualizado</th>
-        </tr>
-      </thead>
-      <tbody>
-        <%
-        const sLabel = {
-          pending: 'Pendente', posted_object: 'Obj. Postado', forwarded: 'Em Trânsito',
-          delivering: 'Saiu p/ Entrega', recipient_not_found: 'Dest. não encontrado',
-          delivery_problem: 'Prob. Entrega', wrong_address: 'End. Incorreto',
-          waiting_client: 'Ag. Retirada', delivered: 'Entregue',
-          returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
-          no_tracking: 'Sem Rastreio',
-          tracking_delayed: 'Rastreio em Atraso',
-        };
-        %>
-        <% shipments.forEach(s => { %>
-        <tr class="clickable" onclick="window.location='/shipment/<%= s.tracking_code %>'">
-          <td><span class="code"><%= s.tracking_code %></span></td>
-          <td><span class="text-muted"><%= s.carrier || '—' %></span></td>
-          <td>
-            <% if (s.company_name) { %>
-              <span style="font-weight:600;color:#1a1a2e"><%= s.company_name %></span><br>
-              <span class="text-muted"><%= s.seller_id %></span>
-            <% } else { %>
-              <span class="text-muted"><%= s.seller_id || '—' %></span>
-            <% } %>
-          </td>
-          <td><% if (s.order_id) { %><%= s.order_id %><% } else { %><span class="text-muted">—</span><% } %></td>
-          <td>
-            <% if (s.product_name) { %>
-              <%= s.product_name %>
-              <% if (s.product_quantity > 1) { %><br><span class="text-muted">Qtd: <%= s.product_quantity %></span><% } %>
-            <% } else { %><span class="text-muted">—</span><% } %>
-          </td>
-          <td>
-            <% if (s.customer_name) { %><%= s.customer_name %><% } else { %><span class="text-muted">—</span><% } %>
-            <% if (s.customer_email) { %><br><span class="text-muted"><%= s.customer_email %></span><% } %>
-          </td>
-          <td><span class="badge badge-<%= s.status %>"><%= sLabel[s.status] || s.status %></span></td>
-          <td>
-            <% if (s.last_event) { %><%= s.last_event %><% } else { %><span class="text-muted">—</span><% } %>
-            <% if (s.last_event_date) { %><br><span class="text-muted"><%= s.last_event_date %></span><% } %>
-          </td>
-          <td><span class="text-muted"><%= s.updated_at ? new Date(s.updated_at).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—' %></span></td>
-        </tr>
-        <% }) %>
-      </tbody>
-    </table>
-    <% } %>
-  </div>
 
-  <!-- Paginação -->
-  <% if (pages > 1) { %>
-  <%
-    const qs = (filters.status ? '&status=' + filters.status : '') + (filters.search ? '&search=' + filters.search : '') + (filters.seller_id ? '&seller_id=' + filters.seller_id : '');
-    const pUrl = (p) => '?page=' + p + qs;
-    const showPage = (p) => p === 1 || p === pages || (p >= currentPage - 2 && p <= currentPage + 2);
-  %>
-  <div class="pagination">
-    <% if (currentPage > 1) { %><a href="<%= pUrl(currentPage - 1) %>">‹ Anterior</a><% } %>
-    <% let lastShown = 0; for (let i = 1; i <= pages; i++) { %>
-      <% if (showPage(i)) { %>
-        <% if (lastShown && i - lastShown > 1) { %><span style="padding:6px 4px;color:#999">…</span><% } %>
-        <a href="<%= pUrl(i) %>" class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
-        <% lastShown = i; %>
+      <!-- Paginação -->
+      <% if (pages > 1) { %>
+      <%
+        const qs = (filters.status ? '&status=' + filters.status : '') + (filters.search ? '&search=' + encodeURIComponent(filters.search) : '') + (filters.seller_id ? '&seller_id=' + filters.seller_id : '') + (filters.carrier ? '&carrier=' + filters.carrier : '') + (filters.product ? '&product=' + encodeURIComponent(filters.product) : '') + (filters.paid_at_from ? '&paid_at_from=' + filters.paid_at_from : '') + (filters.paid_at_to ? '&paid_at_to=' + filters.paid_at_to : '');
+        const pUrl = (p) => '?page=' + p + qs;
+        const showPage = (p) => p === 1 || p === pages || (p >= currentPage - 2 && p <= currentPage + 2);
+      %>
+      <div class="pagination">
+        <% if (currentPage > 1) { %><a href="<%= pUrl(currentPage - 1) %>">‹</a><% } %>
+        <% let lastShown = 0; for (let i = 1; i <= pages; i++) { %>
+          <% if (showPage(i)) { %>
+            <% if (lastShown && i - lastShown > 1) { %><span class="ellipsis">…</span><% } %>
+            <a href="<%= pUrl(i) %>" class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
+            <% lastShown = i; %>
+          <% } %>
+        <% } %>
+        <% if (currentPage < pages) { %><a href="<%= pUrl(currentPage + 1) %>">›</a><% } %>
+      </div>
       <% } %>
-    <% } %>
-    <% if (currentPage < pages) { %><a href="<%= pUrl(currentPage + 1) %>">Próxima ›</a><% } %>
-  </div>
-  <% } %>
 
+    </div>
+  </div>
 </div>
 
 <script>
-function refreshAll(e) {
-  e.preventDefault();
-  if (!confirm('Atualizar todos os envios ativos via H7?')) return;
-  fetch('/api/tracking/refresh', {
-    method: 'POST',
-    headers: { 'x-admin-secret': '' }
-  }).then(() => alert('Atualização iniciada! Aguarde alguns instantes.')).catch(() => alert('Erro ao iniciar atualização.'));
-}
-
-// --- Notificações ---
 const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
 
-let notifOpen = false;
 function toggleNotifs() {
-  notifOpen = !notifOpen;
-  document.getElementById('notifDropdown').style.display = notifOpen ? 'block' : 'none';
-  if (notifOpen && NOTIF_USER) loadNotifs();
+  const dd = document.getElementById('notifDropdown');
+  dd.classList.toggle('open');
+  if (dd.classList.contains('open') && NOTIF_USER) loadNotifs();
 }
 
 async function loadNotifs() {
@@ -342,18 +208,11 @@ async function loadNotifs() {
     const badge = document.getElementById('notifBadge');
     badge.style.display = unread > 0 ? 'block' : 'none';
     badge.textContent = unread;
-
     const list = document.getElementById('notifList');
-    if (!notifications.length) {
-      list.innerHTML = '<div style="text-align:center;color:#999;padding:20px;font-size:13px">Nenhuma notificação</div>';
-      return;
-    }
+    if (!notifications.length) { list.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:24px;font-size:13px">Nenhuma notificação</div>'; return; }
     list.innerHTML = notifications.map(n => {
       const date = new Date(n.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-      const bg = n.is_read ? '#fff' : '#f0f4ff';
-      return '<a href="/shipment/' + (n.tracking_code||'') + '" style="display:block;padding:10px 16px;text-decoration:none;color:#333;background:'+bg+';border-bottom:1px solid #f5f5f5">'
-        + '<div style="font-size:13px">' + n.message + '</div>'
-        + '<div style="font-size:11px;color:#999;margin-top:2px">' + date + '</div></a>';
+      return '<a href="/shipment/' + (n.tracking_code||'') + '" class="notif-item' + (n.is_read ? '' : ' unread') + '"><div style="font-size:13px;color:var(--gray-700)">' + n.message + '</div><div style="font-size:11px;color:var(--gray-400);margin-top:2px">' + date + '</div></a>';
     }).join('');
   } catch(e) { console.error(e); }
 }
@@ -364,16 +223,19 @@ async function markAllRead() {
   loadNotifs();
 }
 
-// Check unread on load
 if (NOTIF_USER) {
-  fetch('/api/notifications')
-    .then(r => r.json())
-    .then(({ unread }) => {
-      const badge = document.getElementById('notifBadge');
-      badge.style.display = unread > 0 ? 'block' : 'none';
-      badge.textContent = unread;
-    }).catch(() => {});
+  fetch('/api/notifications').then(r => r.json()).then(({ unread }) => {
+    const badge = document.getElementById('notifBadge');
+    badge.style.display = unread > 0 ? 'block' : 'none';
+    badge.textContent = unread;
+  }).catch(() => {});
 }
+
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('notifDropdown');
+  const btn = document.getElementById('notifBtn');
+  if (!dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
+});
 </script>
 </body>
 </html>

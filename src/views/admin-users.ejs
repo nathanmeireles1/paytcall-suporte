@@ -3,224 +3,163 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gerenciar Usuários — payt Tracker</title>
+  <title>Usuários — payt Suporte</title>
+  <link rel="stylesheet" href="/css/global.css">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
-    .navbar { background: #1a1a2e; padding: 0 24px; display: flex; align-items: center; height: 56px; gap: 16px; }
-    .navbar h1 { color: #fff; font-size: 18px; font-weight: 700; }
-    .navbar .nav-links { margin-left: auto; display: flex; gap: 16px; align-items: center; }
-    .navbar a { color: #aaa; font-size: 13px; text-decoration: none; }
-    .navbar a:hover { color: #fff; }
-    .navbar .user-badge { color: #4f46e5; background: rgba(79,70,229,.1); padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
-    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
-    .section { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; }
-    .section h2 { font-size: 16px; margin-bottom: 16px; color: #1a1a2e; }
-    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
-    .form-group { display: flex; flex-direction: column; gap: 4px; }
-    .form-group label { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; }
-    .form-group input, .form-group select { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
-    .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; }
-    .btn-primary { background: #4f46e5; color: #fff; }
-    .btn-primary:hover { background: #4338ca; }
-    .btn-sm { padding: 4px 10px; font-size: 11px; }
-    .btn-danger { background: #dc2626; color: #fff; }
-    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: #f8f9fa; padding: 10px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; color: #666; text-align: left; }
-    td { padding: 10px 8px; font-size: 13px; border-top: 1px solid #f0f0f0; }
-    tr:hover td { background: #f8f9fb; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
-    .badge-admin { background: #ede9fe; color: #7c3aed; }
-    .badge-suporte { background: #dbeafe; color: #2563eb; }
-    .badge-usuario { background: #f0fdf4; color: #16a34a; }
-    .badge-terceiros { background: #fef3c7; color: #d97706; }
-    .badge-active { background: #dcfce7; color: #16a34a; }
-    .badge-inactive { background: #fee2e2; color: #dc2626; }
-    .badge-pending { background: #fef3c7; color: #d97706; }
-    .invite-link { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px; font-family: monospace; font-size: 12px; word-break: break-all; margin-top: 12px; display: none; }
-    .invite-link .copy-btn { margin-left: 8px; cursor: pointer; color: #4f46e5; font-weight: 600; }
-    .companies-select { min-width: 200px; }
+    .badge-admin { background: var(--purple-bg); color: var(--purple); }
+    .badge-suporte { background: var(--info-bg); color: var(--info); }
+    .badge-usuario { background: var(--success-bg); color: var(--success); }
+    .badge-terceiros { background: var(--warning-bg); color: var(--warning); }
+    .badge-active { background: var(--success-bg); color: var(--success); }
+    .badge-inactive { background: var(--danger-bg); color: var(--danger); }
+    .badge-pending { background: var(--warning-bg); color: var(--warning); }
+    .invite-link { background: var(--success-bg); border: 1px solid #bbf7d0; padding: 12px 16px; border-radius: var(--radius); font-family: monospace; font-size: 12px; word-break: break-all; margin-top: 12px; display: none; }
   </style>
 </head>
 <body>
-<nav class="navbar">
-  <h1>Gerenciar Usuários</h1>
-  <div class="nav-links">
-    <% const perms = (typeof currentUser !== 'undefined' && currentUser.permissions) || {}; %>
-    <a href="/">Painel</a>
-    <% if (perms.relatorio_tickets && perms.relatorio_tickets.can_view) { %>
-    <a href="/relatorios/tickets">Tickets</a>
-    <% } %>
-    <% if (perms.relatorio_cancelamentos && perms.relatorio_cancelamentos.can_view) { %>
-    <a href="/relatorios/cancelamentos">Cancelamentos</a>
-    <% } %>
-    <% if (perms.admin_permissoes && perms.admin_permissoes.can_view) { %>
-    <a href="/admin/permissions" style="color:#4f46e5;font-weight:600">Permissões</a>
-    <% } %>
-    <% if (typeof currentUser !== 'undefined') { %>
-    <span class="user-badge"><%= currentUser.name %></span>
-    <a href="/logout" style="color:#f87171">Sair</a>
-    <% } %>
-  </div>
-</nav>
+<div class="app">
 
-<div class="container">
-  <!-- Convidar novo usuário -->
-  <div class="section">
-    <h2>Convidar Usuário</h2>
-    <form id="invite-form">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Email</label>
-          <input type="email" name="email" required placeholder="email@empresa.com" style="width:220px">
+  <%- include('partials/sidebar', { activePage: 'admin-users' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Gerenciar Usuários', breadcrumb: [{ label: 'Admin', href: '/admin/users' }, { label: 'Usuários' }] }) %>
+
+    <div class="page">
+
+      <!-- Convidar -->
+      <div class="card mb-6">
+        <div class="card-header">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          <h3>Convidar Usuário</h3>
         </div>
-        <div class="form-group">
-          <label>Nome</label>
-          <input type="text" name="name" required placeholder="Nome completo" style="width:180px">
+        <div class="card-body">
+          <form id="invite-form" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" required placeholder="email@empresa.com" class="form-input" style="width:220px">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nome</label>
+              <input type="text" name="name" required placeholder="Nome completo" class="form-input" style="width:180px">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Papel</label>
+              <select name="role" id="invite-role" onchange="toggleCompanies()" class="form-select">
+                <option value="suporte">Suporte</option>
+                <option value="usuario">Usuário</option>
+                <option value="terceiros">Terceiros</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div class="form-group" id="companies-group" style="display:none">
+              <label class="form-label">Empresas</label>
+              <select name="seller_ids" multiple class="form-select" style="min-width:200px">
+                <% Object.entries(companies).forEach(([sid, name]) => { %>
+                <option value="<%= sid %>"><%= name %></option>
+                <% }) %>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Enviar Convite</button>
+          </form>
+          <div class="invite-link" id="invite-result">
+            Link: <span id="invite-url"></span>
+            <span style="margin-left:8px;cursor:pointer;color:var(--brand);font-weight:600" onclick="copyInvite()">Copiar</span>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Papel</label>
-          <select name="role" id="invite-role" onchange="toggleCompanies()">
-            <option value="suporte">Suporte</option>
-            <option value="usuario">Usuário</option>
-            <option value="terceiros">Terceiros</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <div class="form-group" id="companies-group" style="display:none">
-          <label>Empresas</label>
-          <select name="seller_ids" multiple class="companies-select">
-            <% Object.entries(companies).forEach(([sid, name]) => { %>
-            <option value="<%= sid %>"><%= name %></option>
-            <% }) %>
-          </select>
-        </div>
-        <button type="submit" class="btn btn-primary">Enviar Convite</button>
       </div>
-    </form>
-    <div class="invite-link" id="invite-result">
-      Link: <span id="invite-url"></span>
-      <span class="copy-btn" onclick="copyInvite()">Copiar</span>
-    </div>
-  </div>
 
-  <!-- Lista de usuários -->
-  <div class="section">
-    <h2>Usuários (<%= users.length %>)</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Email</th>
-          <th>Papel</th>
-          <th>Status</th>
-          <th>Empresas</th>
-          <th>Criado em</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% users.forEach(u => { %>
-        <tr>
-          <td><%= u.name %></td>
-          <td style="font-size:12px;color:#666"><%= u.email %></td>
-          <td>
-            <select class="inline-role" onchange="changeRole('<%= u.id %>', this.value)" style="padding:2px 6px;font-size:12px;border:1px solid #ddd;border-radius:4px">
-              <option value="admin" <%= u.role==='admin'?'selected':'' %>>Admin</option>
-              <option value="suporte" <%= u.role==='suporte'?'selected':'' %>>Suporte</option>
-              <option value="usuario" <%= u.role==='usuario'?'selected':'' %>>Usuário</option>
-              <option value="terceiros" <%= u.role==='terceiros'?'selected':'' %>>Terceiros</option>
-            </select>
-          </td>
-          <td>
-            <% if (!u.auth_id) { %>
-              <span class="badge badge-pending">Pendente</span>
-            <% } else if (u.active) { %>
-              <span class="badge badge-active">Ativo</span>
-            <% } else { %>
-              <span class="badge badge-inactive">Inativo</span>
-            <% } %>
-          </td>
-          <td style="font-size:11px;color:#888">
-            <% if (accessMap[u.id]) { %>
-              <%= accessMap[u.id].join(', ') %>
-            <% } else { %>
-              —
-            <% } %>
-          </td>
-          <td style="font-size:12px;color:#888">
-            <%= u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—' %>
-          </td>
-          <td>
-            <% if (u.auth_id) { %>
-              <button class="btn btn-sm btn-ghost" onclick="toggleUser('<%= u.id %>', this)">
-                <%= u.active ? 'Desativar' : 'Ativar' %>
-              </button>
-            <% } else if (u.invite_token) { %>
-              <span style="font-size:11px;color:#d97706">Convite enviado</span>
-            <% } %>
-          </td>
-        </tr>
-        <% }) %>
-      </tbody>
-    </table>
+      <!-- Tabela de usuários -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Usuários (<%= users.length %>)</h3>
+        </div>
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th><th>Email</th><th>Papel</th><th>Status</th>
+                  <th>Empresas</th><th>Criado em</th><th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% users.forEach(u => { %>
+                <tr>
+                  <td class="fw-600"><%= u.name %></td>
+                  <td class="text-muted"><%= u.email %></td>
+                  <td>
+                    <select onchange="changeRole('<%= u.id %>', this.value)" class="form-select" style="padding:3px 6px;font-size:12px;width:auto">
+                      <option value="admin" <%= u.role==='admin'?'selected':'' %>>Admin</option>
+                      <option value="suporte" <%= u.role==='suporte'?'selected':'' %>>Suporte</option>
+                      <option value="usuario" <%= u.role==='usuario'?'selected':'' %>>Usuário</option>
+                      <option value="terceiros" <%= u.role==='terceiros'?'selected':'' %>>Terceiros</option>
+                    </select>
+                  </td>
+                  <td>
+                    <% if (!u.auth_id) { %>
+                      <span class="badge badge-pending">Pendente</span>
+                    <% } else if (u.active) { %>
+                      <span class="badge badge-active">Ativo</span>
+                    <% } else { %>
+                      <span class="badge badge-inactive">Inativo</span>
+                    <% } %>
+                  </td>
+                  <td class="text-muted text-sm">
+                    <%= accessMap[u.id] ? accessMap[u.id].join(', ') : '—' %>
+                  </td>
+                  <td class="text-muted text-sm">
+                    <%= u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—' %>
+                  </td>
+                  <td>
+                    <% if (u.auth_id) { %>
+                      <button class="btn btn-sm btn-secondary" onclick="toggleUser('<%= u.id %>', this)">
+                        <%= u.active ? 'Desativar' : 'Ativar' %>
+                      </button>
+                    <% } else if (u.invite_token) { %>
+                      <span class="badge badge-warning">Convite enviado</span>
+                    <% } %>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
 
 <script>
 function toggleCompanies() {
-  const role = document.getElementById('invite-role').value;
-  document.getElementById('companies-group').style.display = role === 'terceiros' ? '' : 'none';
+  document.getElementById('companies-group').style.display = document.getElementById('invite-role').value === 'terceiros' ? '' : 'none';
 }
 
 document.getElementById('invite-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = new FormData(e.target);
-  const body = {
-    email: form.get('email'),
-    name: form.get('name'),
-    role: form.get('role'),
-    seller_ids: form.getAll('seller_ids'),
-  };
-
-  const res = await fetch('/admin/users/invite', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const body = { email: form.get('email'), name: form.get('name'), role: form.get('role'), seller_ids: form.getAll('seller_ids') };
+  const res = await fetch('/admin/users/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const data = await res.json();
-
   if (data.ok) {
     document.getElementById('invite-url').textContent = data.inviteLink;
     document.getElementById('invite-result').style.display = 'block';
     e.target.reset();
-  } else {
-    alert(data.error || 'Erro ao criar convite');
-  }
+  } else { alert(data.error || 'Erro ao criar convite'); }
 });
 
-function copyInvite() {
-  const url = document.getElementById('invite-url').textContent;
-  navigator.clipboard.writeText(url).then(() => alert('Link copiado!'));
-}
+function copyInvite() { navigator.clipboard.writeText(document.getElementById('invite-url').textContent).then(() => alert('Link copiado!')); }
+async function changeRole(id, role) { await fetch('/admin/users/' + id + '/role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) }); }
+async function toggleUser(id, btn) { const res = await fetch('/admin/users/' + id + '/toggle', { method: 'POST' }); const data = await res.json(); if (data.ok) location.reload(); }
 
-async function changeRole(id, role) {
-  await fetch('/admin/users/' + id + '/role', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role }),
-  });
-}
-
-async function toggleUser(id, btn) {
-  const res = await fetch('/admin/users/' + id + '/toggle', { method: 'POST' });
-  const data = await res.json();
-  if (data.ok) {
-    btn.textContent = data.active ? 'Desativar' : 'Ativar';
-    location.reload();
-  }
-}
+// Notificações
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() { document.getElementById('notifDropdown').classList.toggle('open'); }
+async function loadNotifs() {}
+async function markAllRead() { if (!NOTIF_USER) return; await fetch('/api/notifications/read', { method: 'POST' }); }
+if (NOTIF_USER) { fetch('/api/notifications').then(r=>r.json()).then(({unread})=>{const b=document.getElementById('notifBadge');b.style.display=unread>0?'block':'none';b.textContent=unread}).catch(()=>{}); }
+document.addEventListener('click', e => { const dd=document.getElementById('notifDropdown'),btn=document.getElementById('notifBtn'); if(dd && btn && !dd.contains(e.target)&&!btn.contains(e.target)) dd.classList.remove('open'); });
 </script>
 </body>
 </html>

@@ -12,6 +12,34 @@ function getNextWindow() {
   return 'amanhã às 08:00';
 }
 
+// GET /dashboard — página dedicada de dashboard
+router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req, res) => {
+  try {
+    const [stats, lastLog, pendingCount, ticketStats] = await Promise.all([
+      Shipment.getStats(),
+      Shipment.getLastSchedulerLog(),
+      Shipment.countPendingForRefresh(),
+      Shipment.getTicketStats(),
+    ]);
+
+    const fmtDate = (iso) => iso
+      ? new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : null;
+
+    res.render('home-dashboard', {
+      stats,
+      lastLog: lastLog ? { ...lastLog, ran_at_fmt: fmtDate(lastLog.ran_at) } : null,
+      pendingCount,
+      nextWindow: getNextWindow(),
+      ticketStats,
+    });
+  } catch (err) {
+    console.error('[Dashboard] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao carregar dashboard: ' + err.message });
+  }
+});
+
+// GET / — Rastreios (lista de envios)
 router.get('/', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {
     const { status, search, seller_id, carrier, product, paid_at_from, paid_at_to, page = 1 } = req.query;
