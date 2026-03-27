@@ -54,9 +54,9 @@ const fmtDate = (iso) => {
 const fmtMoney = (v) => v ? 'R$ ' + (v/100).toFixed(2).replace('.',',') : '';
 const fmtCpf = (d) => d ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '';
 const paymentLabels = {
-  paid:'Pago', chargeback_presented:'CB Apresentado', chargeback:'Chargeback',
-  refunded:'Estornado', one_click_buy_refunded:'Upsell Estornado',
-  refunded_partial:'Reemb. Parcial', one_click_buy_refunded_partial:'Upsell Reemb. Parcial',
+  paid:'Pago', chargeback_presented:'Chargeback Apresentado', chargeback:'Chargeback',
+  refunded:'Reembolsado', one_click_buy_refunded:'Upsell Reembolsado',
+  refunded_partial:'Reembolso Parcial', one_click_buy_refunded_partial:'Upsell Reembolso Parcial',
 };
 const STATUS_ATEND = ['A contatar','Sem contato','Sem retorno','Em contato','Aguardando retorno','Concluído'];
 const STATUS_ENTREGA = ['Trânsito','Entregue','Retornou','Ag. retirada','Sem envio','Em devolução','Aguardando postagem','Envio suspenso','Etiqueta emitida','Etiqueta expirada','Postado','Tentativa de entrega'];
@@ -72,10 +72,12 @@ const STATUS_NF = ['Sem NF','Pendente','Cancelada','Sem alteração','Alterada']
     </select>
     <select name="payment_status">
       <option value="">Status pgto.</option>
-      <option value="chargeback_presented" <%= filters.payment_status==='chargeback_presented'?'selected':'' %>>CB Apresentado</option>
+      <option value="chargeback_presented" <%= filters.payment_status==='chargeback_presented'?'selected':'' %>>Chargeback Apresentado</option>
       <option value="chargeback" <%= filters.payment_status==='chargeback'?'selected':'' %>>Chargeback</option>
-      <option value="refunded" <%= filters.payment_status==='refunded'?'selected':'' %>>Estornado</option>
-      <option value="refunded_partial" <%= filters.payment_status==='refunded_partial'?'selected':'' %>>Reemb. Parcial</option>
+      <option value="refunded" <%= filters.payment_status==='refunded'?'selected':'' %>>Reembolsado</option>
+      <option value="one_click_buy_refunded" <%= filters.payment_status==='one_click_buy_refunded'?'selected':'' %>>Upsell Reembolsado</option>
+      <option value="refunded_partial" <%= filters.payment_status==='refunded_partial'?'selected':'' %>>Reembolso Parcial</option>
+      <option value="one_click_buy_refunded_partial" <%= filters.payment_status==='one_click_buy_refunded_partial'?'selected':'' %>>Upsell Reembolso Parcial</option>
     </select>
     <select name="status_atendimento">
       <option value="">Atendimento</option>
