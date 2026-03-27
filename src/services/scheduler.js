@@ -1,9 +1,10 @@
 const cron = require('node-cron');
 const Shipment = require('../models/Shipment');
 const { queryTracking } = require('./correios');
+const { queryH7ByCpf } = require('./haga7');
 
 /**
- * Scheduler — consulta Correios a cada 5 dias por rastreio
+ * Scheduler — consulta Correios/H7 a cada 5 dias por rastreio
  * Roda a cada 6h para verificar quais pedidos estão prontos para atualização
  */
 function startScheduler() {
@@ -23,43 +24,49 @@ async function refreshPendingShipments() {
     return;
   }
 
-  console.log(`[Scheduler] Atualizando ${pending.length} rastreio(s)...`);
+  const correios = pending.filter(s => s.carrier === 'Correios');
+  const loggi = pending.filter(s => s.carrier !== 'Correios' && s.customer_doc);
+
+  console.log(`[Scheduler] Atualizando ${correios.length} Correios + ${loggi.length} Loggi/H7...`);
 
   let updated = 0;
   let errors = 0;
 
-  for (const shipment of pending) {
+  // Correios
+  for (const shipment of correios) {
     try {
       const tracking = await queryTracking(shipment.tracking_code);
-
-      await Shipment.upsert({
-        tracking_code: shipment.tracking_code,
-        order_id: shipment.order_id,
-        seller_id: shipment.seller_id,
-        company_name: shipment.company_name,
-        customer_name: shipment.customer_name,
-        customer_email: shipment.customer_email,
-        customer_phone: shipment.customer_phone,
-        status: tracking.status,
-        last_event: tracking.last_event,
-        last_event_date: tracking.last_event_date,
-      });
-
-      if (tracking.events?.length) {
-        await Shipment.saveEvents(shipment.tracking_code, tracking.events);
-      }
-
-      const log = tracking.status !== shipment.status
-        ? `${shipment.tracking_code}: ${shipment.status} → ${tracking.status}`
-        : `${shipment.tracking_code}: sem mudança (${tracking.status})`;
-      console.log(`[Scheduler] ${log}`);
+      await Shipment.upsert({ ...shipment, status: tracking.status, last_event: tracking.last_event, last_event_date: tracking.last_event_date });
+      if (tracking.events?.length) await Shipment.saveEvents(shipment.tracking_code, tracking.events);
+      console.log(`[Correios] ${shipment.tracking_code}: ${shipment.status} → ${tracking.status}`);
       updated++;
-
-      // Pausa entre consultas para não sobrecarregar a API
       await sleep(800);
     } catch (err) {
-      console.error(`[Scheduler] Erro em ${shipment.tracking_code}:`, err.message);
+      console.error(`[Correios] Erro em ${shipment.tracking_code}:`, err.message);
       errors++;
+    }
+  }
+
+  // H7/Loggi — agrupa por CPF para evitar consultas duplicadas
+  const cpfMap = {};
+  for (const s of loggi) {
+    if (!cpfMap[s.customer_doc]) cpfMap[s.customer_doc] = [];
+    cpfMap[s.customer_doc].push(s);
+  }
+
+  for (const [cpf, shipments] of Object.entries(cpfMap)) {
+    try {
+      const tracking = await queryH7ByCpf(cpf);
+      for (const shipment of shipments) {
+        await Shipment.upsert({ ...shipment, status: tracking.status, last_event: tracking.last_event, last_event_date: tracking.last_event_date });
+        if (tracking.events?.length) await Shipment.saveEvents(shipment.tracking_code, tracking.events);
+        console.log(`[H7] ${shipment.tracking_code} (CPF ${cpf.slice(0,3)}***): ${shipment.status} → ${tracking.status}`);
+        updated++;
+      }
+      await sleep(500);
+    } catch (err) {
+      console.error(`[H7] Erro no CPF ${cpf.slice(0,3)}***:`, err.message);
+      errors += shipments.length;
     }
   }
 
