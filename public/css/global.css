@@ -407,10 +407,13 @@ html.dark .badge-brand { color: var(--brand); }
 /* Status badges */
 .badge-delivered           { background: var(--success-bg);  color: var(--success);  border-color: var(--success-border); }
 .badge-forwarded           { background: var(--info-bg);     color: var(--info);     border-color: var(--info-border); }
+.badge-in_transit          { background: var(--info-bg);     color: var(--info);     border-color: var(--info-border); }
 .badge-posted_object       { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
 html.dark .badge-posted_object { background: rgba(3,105,161,.12); color: #38bdf8; border-color: rgba(56,189,248,.2); }
 .badge-delivering          { background: var(--purple-bg);   color: var(--purple);   border-color: var(--purple-border); }
+.badge-out_for_delivery    { background: var(--purple-bg);   color: var(--purple);   border-color: var(--purple-border); }
 .badge-recipient_not_found { background: var(--warning-bg);  color: var(--warning);  border-color: var(--warning-border); }
+.badge-delivery_attempt    { background: var(--warning-bg);  color: var(--warning);  border-color: var(--warning-border); }
 .badge-returned            { background: var(--danger-bg);   color: var(--danger);   border-color: var(--danger-border); }
 .badge-returning           { background: #fce7f3; color: #9d174d; border-color: #fbcfe8; }
 html.dark .badge-returning { background: rgba(236,72,153,.12); color: #f472b6; border-color: rgba(244,114,182,.2); }
