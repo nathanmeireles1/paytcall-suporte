@@ -70,6 +70,7 @@ async function requireAuth(req, res, next) {
       email: user.email,
       name: profile.name,
       role: profile.role,
+      avatar_url: profile.avatar_url || null,
       permissions: perms[profile.role] || {},
     };
 

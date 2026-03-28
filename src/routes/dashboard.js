@@ -3,6 +3,7 @@ const router = express.Router();
 const Shipment = require('../models/Shipment');
 const { TICKET_CONFIG, MOTIVOS_CANCELAMENTO } = require('../models/Shipment');
 const { requirePermission } = require('../middleware/auth');
+const { db } = require('../config/database');
 
 function getNextWindow() {
   const brt = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
@@ -279,6 +280,38 @@ router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req,
   } catch (err) {
     console.error('[Analytics] Erro:', err.message);
     res.status(500).render('error', { message: 'Erro ao carregar analytics: ' + err.message });
+  }
+});
+
+// POST /api/profile/photo — atualiza foto de perfil (todos os usuários)
+router.post('/api/profile/photo', async (req, res) => {
+  try {
+    const { imageBase64, mimeType } = req.body;
+    if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'Imagem inválida' });
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(mimeType)) return res.status(400).json({ error: 'Tipo de imagem não suportado' });
+
+    const buffer = Buffer.from(imageBase64, 'base64');
+    if (buffer.length > 3 * 1024 * 1024) return res.status(400).json({ error: 'Imagem muito grande (máx 3MB)' });
+
+    const ext = mimeType.split('/')[1].replace('jpeg', 'jpg');
+    const filename = `avatars/${req.user.id}.${ext}`;
+
+    const { error: uploadError } = await db.storage
+      .from('avatars')
+      .upload(filename, buffer, { contentType: mimeType, upsert: true });
+
+    if (uploadError) throw new Error(uploadError.message);
+
+    const { data: { publicUrl } } = db.storage.from('avatars').getPublicUrl(filename);
+
+    await db.from('user_profiles').update({ avatar_url: publicUrl, updated_at: new Date().toISOString() }).eq('id', req.user.id);
+
+    res.json({ ok: true, url: publicUrl });
+  } catch (err) {
+    console.error('[Profile] Erro ao salvar foto:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

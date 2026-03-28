@@ -209,7 +209,15 @@ html.dark .nav-item.active { color: var(--brand); }
   display: flex; align-items: center; justify-content: center;
   font-size: 11.5px; font-weight: 700; flex-shrink: 0;
   border: 1.5px solid var(--brand-border);
+  overflow: hidden; position: relative;
 }
+.sidebar-user .avatar-clickable { cursor: pointer; }
+.sidebar-user .avatar-overlay {
+  display: none; position: absolute; inset: 0; border-radius: 99px;
+  background: rgba(0,0,0,.5); color: #fff;
+  align-items: center; justify-content: center;
+}
+.sidebar-user .avatar-clickable:hover .avatar-overlay { display: flex; }
 .sidebar-user .user-info { min-width: 0; flex: 1; }
 .sidebar-user .user-name {
   font-size: 12.5px; font-weight: 600; color: var(--text);
