@@ -92,27 +92,39 @@ async function handleRastreios(req, res) {
 router.get('/', requirePermission('dashboard', 'can_view'), handleRastreios);
 router.get('/rastreios', requirePermission('dashboard', 'can_view'), handleRastreios);
 
+// Handler compartilhado para exibir detalhe do pedido
+async function handlePedido(shipment, req, res) {
+  if (!shipment) return res.status(404).render('error', { message: 'Pedido não encontrado' });
+  if (req.user.role === 'terceiros' && !req.user.seller_ids.includes(shipment.seller_id)) {
+    return res.status(403).render('error', { message: 'Acesso negado a este pedido' });
+  }
+  const [events, tickets] = await Promise.all([
+    Shipment.getEvents(shipment.tracking_code),
+    Shipment.getTickets(shipment.tracking_code),
+  ]);
+  res.render('shipment', { shipment, events, tickets, TICKET_CONFIG, MOTIVOS_CANCELAMENTO });
+}
+
+// GET /pedido/:orderId — detalhe por ID do pedido Payt (URL canônica)
+router.get('/pedido/:orderId', requirePermission('dashboard', 'can_view'), async (req, res) => {
+  try {
+    const shipment = await Shipment.findByOrderId(req.params.orderId.trim());
+    await handlePedido(shipment, req, res);
+  } catch (err) {
+    console.error('[Pedido] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao carregar pedido: ' + err.message });
+  }
+});
+
+// GET /shipment/:code — mantido para compatibilidade, redireciona para /pedido/:orderId
 router.get('/shipment/:code', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {
     const code = req.params.code.trim().toUpperCase();
-    const [shipment, events, tickets] = await Promise.all([
-      Shipment.findByCode(code),
-      Shipment.getEvents(code),
-      Shipment.getTickets(code),
-    ]);
-
-    if (!shipment) {
-      return res.status(404).render('error', { message: 'Envio não encontrado' });
-    }
-
-    // Terceiros: verifica se tem acesso a este seller
-    if (req.user.role === 'terceiros' && !req.user.seller_ids.includes(shipment.seller_id)) {
-      return res.status(403).render('error', { message: 'Acesso negado a este pedido' });
-    }
-
-    res.render('shipment', { shipment, events, tickets, TICKET_CONFIG, MOTIVOS_CANCELAMENTO });
+    const shipment = await Shipment.findByCode(code);
+    if (shipment && shipment.order_id) return res.redirect(301, `/pedido/${shipment.order_id}`);
+    await handlePedido(shipment, req, res);
   } catch (err) {
-    console.error('[Dashboard] Erro em /shipment:', err.message);
+    console.error('[Shipment] Erro:', err.message);
     res.status(500).render('error', { message: 'Erro ao carregar pedido: ' + err.message });
   }
 });

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tickets — payt Suporte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/css/global.css">
   <style>
     .prio-1 { color: var(--danger); font-weight: 700; }
@@ -135,5 +136,6 @@ async function markAllRead() { if (!NOTIF_USER) return; await fetch('/api/notifi
 if (NOTIF_USER) { fetch('/api/notifications').then(r=>r.json()).then(({unread})=>{const b=document.getElementById('notifBadge');b.style.display=unread>0?'block':'none';b.textContent=unread}).catch(()=>{}); }
 document.addEventListener('click', e => { const dd=document.getElementById('notifDropdown'),btn=document.getElementById('notifBtn'); if(!dd.contains(e.target)&&!btn.contains(e.target)) dd.classList.remove('open'); });
 </script>
+<%- include('partials/ai-chat') %>
 </body>
 </html>

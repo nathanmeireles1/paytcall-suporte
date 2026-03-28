@@ -61,6 +61,7 @@ app.use('/api/tracking', apiLimiter, requireAuth, require('./routes/tracking'));
 // Rotas protegidas — auth via cookie
 app.use('/admin', require('./routes/admin'));
 app.use('/relatorios', requireAuth, require('./routes/relatorios'));
+app.use('/', requireAuth, require('./routes/ai'));
 app.use('/', requireAuth, require('./routes/dashboard'));
 
 // 404

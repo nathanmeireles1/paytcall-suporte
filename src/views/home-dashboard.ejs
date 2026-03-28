@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — payt Suporte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/css/global.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -390,5 +391,6 @@ document.addEventListener('click', (e) => {
   if (!dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
 });
 </script>
+<%- include('partials/ai-chat') %>
 </body>
 </html>

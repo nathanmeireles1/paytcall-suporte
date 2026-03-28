@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rastreios — payt Suporte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/css/global.css">
 </head>
 <body>
@@ -209,7 +210,7 @@
             </thead>
             <tbody>
               <% shipments.forEach(s => { %>
-              <tr data-code="<%= s.tracking_code %>" onclick="handleRowClick(event, '<%= s.tracking_code %>')">
+              <tr data-code="<%= s.tracking_code %>" onclick="handleRowClick(event, '<%= s.order_id || s.tracking_code %>')">
                 <td style="padding:11px 10px 11px 16px" onclick="event.stopPropagation()">
                   <input type="checkbox" class="row-check" value="<%= s.tracking_code %>" onchange="updateBulkBar()" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer">
                 </td>
@@ -219,8 +220,8 @@
                       <span class="code"><%= s.tracking_code %></span>
                       <span style="font-size:11px;color:var(--text-4);font-weight:500"><%= s.carrier || '—' %></span>
                     </div>
-                    <button onclick="copyCode(event,'<%= s.tracking_code %>')" title="Copiar código" style="padding:3px;border-radius:4px;color:var(--text-4);transition:color .1s,background .1s;flex-shrink:0;background:none;border:none;cursor:pointer;display:flex;align-items:center" onmouseover="this.style.color='var(--brand)';this.style.background='var(--brand-dim)'" onmouseout="this.style.color='var(--text-4)';this.style.background='none'">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <button onclick="copyCode(event,'<%= s.tracking_code %>')" title="Copiar código de rastreio" class="copy-btn">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                     </button>
                   </div>
                 </td>
@@ -233,11 +234,18 @@
                   <% } %>
                 </td>
                 <td>
-                  <% if (s.order_id) { %><div style="font-weight:500;color:var(--gray-700)">#<%= s.order_id %></div><% } %>
-                  <% if (s.product_name) { %>
-                    <div style="font-size:12px;color:var(--gray-500)"><%= s.product_name %><% if (s.product_quantity > 1) { %> ×<%= s.product_quantity %><% } %></div>
+                  <% if (s.order_id) { %>
+                  <div style="display:flex;align-items:center;gap:5px">
+                    <span style="font-weight:500;color:var(--text-2)">#<%= s.order_id %></span>
+                    <button onclick="copyCode(event,'<%= s.order_id %>')" title="Copiar ID do pedido" class="copy-btn">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    </button>
+                  </div>
                   <% } %>
-                  <% if (!s.order_id && !s.product_name) { %><span style="color:var(--gray-300)">—</span><% } %>
+                  <% if (s.product_name) { %>
+                    <div style="font-size:12px;color:var(--text-4)"><%= s.product_name %><% if (s.product_quantity > 1) { %> ×<%= s.product_quantity %><% } %></div>
+                  <% } %>
+                  <% if (!s.order_id && !s.product_name) { %><span style="color:var(--text-4)">—</span><% } %>
                 </td>
                 <td>
                   <% if (s.customer_name) { %>
@@ -274,9 +282,9 @@
         }
 
         // Navegação na linha (apenas quando não clicar em checkbox)
-        function handleRowClick(e, code) {
+        function handleRowClick(e, orderId) {
           if (e.target.type === 'checkbox') return;
-          window.location = '/shipment/' + code;
+          window.location = '/pedido/' + orderId;
         }
 
         // Bulk selection
@@ -415,5 +423,6 @@ document.addEventListener('click', (e) => {
   if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
 });
 </script>
+<%- include('partials/ai-chat') %>
 </body>
 </html>

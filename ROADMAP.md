@@ -24,25 +24,33 @@
 
 ---
 
-## 9 — AI AGENT / CHAT (PRÓXIMO)
+## 9 — AI AGENT / CHAT
 
-### Objetivo
-Implementar um assistente de IA dentro do portal que tenha acesso à base de conhecimento completa: pedidos, tickets, cancelamentos e analytics.
+### Status: ✅ IMPLEMENTADO — aguardando GEMINI_API_KEY no Railway
 
-### Funcionalidades
-- [ ] Chat flutuante acessível em qualquer página
-- [ ] Acesso aos dados: shipments, tickets, cancelamentos, stats
-- [ ] Responder perguntas como "quais pedidos estão em atraso?" ou "qual o SLA médio do mês?"
-- [ ] Sugerir ações (ex: abrir ticket para pedido X)
-- [ ] Histórico de conversa por sessão
+### O que foi feito
+- [x] Rota `POST /api/ai/chat` com contexto dinâmico do banco
+- [x] Widget flutuante (bottom-right) em todas as páginas
+- [x] Histórico de conversa por sessão
+- [x] Busca automática de pedido quando código é mencionado
+- [x] Injeção de stats gerais em cada mensagem
+- [x] Modelo: `gemini-1.5-flash`
+- [x] System prompt em português como assistente Paytcall
 
-### Tecnologia
-- **Gemini** (Google) — usuário já possui acesso via outro portal
-  - Modelo: `gemini-1.5-flash` (gratuito) ou `gemini-1.5-pro` (maior contexto)
-  - Alternativa: Claude API (`claude-haiku-4-5`) — mais barato para chat simples
-- Contexto injetado via system prompt com dados reais do banco
-- Rota backend: `POST /api/ai/chat`
-- Frontend: componente de chat fixo (bottom-right)
+### Para ativar
+Adicionar no Railway: `GEMINI_API_KEY=AIzaSyD9lE5Juiqca9UZ5SwYCQ-mUKRzyuG6cN4`
+
+### Próximas evoluções do agente — IDENTIDADE E CONFIGURAÇÕES
+- [ ] **Nome e personalidade**: definir nome definitivo do agente (ex: "Payt IA", "Sora", "Flux")
+- [ ] **Avatar personalizado**: foto/ilustração do agente
+- [ ] **Tom de voz**: formal, amigável, técnico — definir com o time
+- [ ] **Conhecimento expandido**: injetar FAQs, políticas de devolução, prazos SLA
+- [ ] **Ações proativas**: agente sugere abrir ticket quando detecta problema
+- [ ] **Acesso a cancelamentos**: injetar dados de chargeback/reembolso no contexto
+- [ ] **Consulta de tickets ativos**: responder sobre SLA de tickets específicos
+- [ ] **Memória persistente**: histórico de conversa salvo no banco por usuário
+- [ ] **Escalação**: quando agente não souber, sugerir contato com equipe
+- [ ] **Analytics via IA**: "quais produtos tiveram mais problemas este mês?"
 
 ---
 
