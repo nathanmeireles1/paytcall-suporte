@@ -46,7 +46,7 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
         <div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <h1 style="font-size:20px;font-weight:700;color:var(--text)">#<%= shipment.order_id || shipment.tracking_code %></h1>
+            <h1 style="font-family:'Calistoga',serif;font-size:24px;font-weight:400;color:var(--text);letter-spacing:-0.01em;line-height:1.1">#<%= shipment.order_id || shipment.tracking_code %></h1>
             <span class="badge badge-<%= shipment.status %>"><%= statusLabel[shipment.status] || shipment.status %></span>
           </div>
           <div style="font-size:13px;color:var(--text-3);margin-top:4px">
@@ -97,7 +97,7 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
               <% if (shipment.expected_date) { %>
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
                 <span class="text-muted">Previsão de entrega</span>
-                <span class="fw-600" style="color:var(--success)"><%= shipment.expected_date %></span>
+                <span class="fw-600" style="color:var(--success)"><%= shipment.expected_date ? new Date(String(shipment.expected_date).replace(' ','T')).toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric'}) : '—' %></span>
               </div>
               <% } %>
               <% if (shipment.tracking_url) { %>
@@ -139,7 +139,7 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
               <% } %>
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
                 <span class="text-muted">Empresa</span>
-                <span class="fw-600"><%= shipment.company_name || shipment.seller_id || '—' %></span>
+                <span class="fw-600"><%= shipment.company_name || '—' %></span>
               </div>
               <% if (shipment.paid_at) { %>
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
@@ -228,13 +228,13 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
       <% if (events.length > 0) { %>
       <div class="card" style="margin-bottom:18px">
         <div class="card-header">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
           <h3>Histórico de Rastreamento</h3>
           <span class="badge badge-neutral" style="margin-left:auto"><%= events.length %> eventos</span>
         </div>
         <div class="card-body no-pad">
           <div style="position:relative;padding:16px 20px">
-            <div style="position:absolute;left:32px;top:0;bottom:0;width:2px;background:var(--border)"></div>
+            <div style="position:absolute;left:26px;top:0;bottom:0;width:2px;background:var(--border)"></div>
             <% events.forEach((ev, idx) => { %>
             <div style="display:flex;gap:14px;padding-bottom:<%= idx === events.length-1 ? '0' : '16px' %>">
               <div style="flex-shrink:0;width:12px;height:12px;border-radius:99px;background:<%= idx===0 ? 'var(--brand)' : 'var(--border-2)' %>;border:2px solid var(--surface);box-shadow:0 0 0 2px <%= idx===0 ? 'var(--brand)' : 'var(--border-2)' %>;margin-top:3px;position:relative;z-index:1"></div>
@@ -309,7 +309,7 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Abrir novo ticket
             </summary>
-            <form method="POST" action="/shipment/<%= shipment.tracking_code %>/ticket" style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+            <form method="POST" action="<%= shipment.tracking_code ? '/shipment/' + shipment.tracking_code + '/ticket' : '/pedido/' + shipment.order_id + '/ticket' %>" style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
               <select name="tipo" id="ticketTipo" class="form-select" required>
                 <option value="">Selecione o tipo</option>
                 <option value="RETENCAO">Retenção</option>
@@ -337,12 +337,46 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
   </div>
 </div>
 
+<!-- Toast & Confirm -->
+<div id="toast" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#fff;padding:13px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.22);min-width:220px;max-width:400px;text-align:center;pointer-events:none"></div>
+<div id="confirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <p id="confirmMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5"></p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="confirmResolve(false)" class="btn btn-secondary btn-sm">Cancelar</button>
+      <button onclick="confirmResolve(true)" class="btn btn-primary btn-sm">Confirmar</button>
+    </div>
+  </div>
+</div>
 <script>
+let _toastTimer;
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  const icon = type==='error' ? '✕' : type==='warning' ? '⚠' : '✓';
+  t.innerHTML = `<span style="font-size:16px;margin-right:8px">${icon}</span>${msg}`;
+  t.style.background = type==='error' ? '#dc2626' : type==='warning' ? '#c2800a' : '#16a34a';
+  t.style.display = 'block'; t.style.opacity = '1';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.style.display='none',200); }, 3000);
+}
+let confirmResolve;
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    confirmResolve = resolve;
+    document.getElementById('confirmMsg').textContent = msg;
+    document.getElementById('confirmOverlay').style.display = 'flex';
+  });
+}
+document.getElementById('confirmOverlay').addEventListener('click', function(e) {
+  if (e.target === this) confirmResolve(false);
+});
+
 function copyText(text) {
-  navigator.clipboard.writeText(text).catch(() => {});
+  navigator.clipboard.writeText(text).then(() => showToast('Copiado!')).catch(() => {});
 }
 
 function refreshTracking(e) {
+  <% if (shipment.tracking_code) { %>
   const btn = e.currentTarget;
   btn.disabled = true;
   btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 11-6.22-8.56"/></svg> Consultando…';
@@ -352,8 +386,11 @@ function refreshTracking(e) {
     .catch(() => {
       btn.disabled = false;
       btn.textContent = 'Atualizar rastreio';
-      alert('Erro ao consultar. Tente novamente.');
+      showToast('Erro ao consultar. Tente novamente.', 'error');
     });
+  <% } else { %>
+  showToast('Pedido ainda não tem código de rastreio.', 'warning');
+  <% } %>
 }
 
 const TCFG = <%- JSON.stringify(TICKET_CONFIG) %>;
@@ -380,19 +417,21 @@ if (tipoSel) {
   });
 }
 
-function updateTicketStatus(id, selectEl) {
+async function updateTicketStatus(id, selectEl) {
   const newStatus = selectEl.value;
-  if (!newStatus || !confirm('Alterar status para "' + newStatus + '"?')) { selectEl.value = ''; return; }
+  if (!newStatus) return;
+  const ok = await showConfirm('Alterar status para "' + newStatus + '"?');
+  if (!ok) { selectEl.value = ''; document.getElementById('confirmOverlay').style.display='none'; return; }
+  document.getElementById('confirmOverlay').style.display='none';
   fetch('/ticket/' + id + '/status', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status: newStatus }),
   })
   .then(r => r.json())
-  .then(d => { if (d.ok) location.reload(); else alert(d.error || 'Erro'); })
-  .catch(() => { selectEl.value = ''; alert('Erro ao alterar status.'); });
+  .then(d => { if (d.ok) location.reload(); else showToast(d.error || 'Erro ao alterar status.', 'error'); })
+  .catch(() => { selectEl.value = ''; showToast('Erro ao alterar status.', 'error'); });
 }
 
-// Notificações
 const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
 function toggleNotifs() {
   const dd = document.getElementById('notifDropdown');
@@ -407,7 +446,7 @@ async function loadNotifs() {
     b.style.display = unread > 0 ? 'block' : 'none';
     b.textContent = unread;
     const list = document.getElementById('notifList');
-    if (!notifications.length) { list.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:24px;font-size:13px">Nenhuma notificação</div>'; return; }
+    if (!notifications.length) { list.innerHTML = '<div style="text-align:center;color:var(--text-4);padding:24px;font-size:13px">Nenhuma notificação</div>'; return; }
     list.innerHTML = notifications.map(n => {
       const date = new Date(n.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
       return `<a href="/pedido/${n.order_id||n.tracking_code||''}" class="notif-item${n.is_read ? '' : ' unread'}"><div style="font-size:13px;color:var(--text-2)">${n.message}</div><div style="font-size:11px;color:var(--text-4);margin-top:2px">${date}</div></a>`;
@@ -429,7 +468,6 @@ document.addEventListener('click', (e) => {
   const btn = document.getElementById('notifBtn');
   if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
 });
-@keyframes spin { to { transform: rotate(360deg); } }
 </script>
 <%- include('partials/ai-chat') %>
 </body>

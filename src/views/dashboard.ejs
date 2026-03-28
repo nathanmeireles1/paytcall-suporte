@@ -755,7 +755,12 @@ async function submitBulkTicket(e) {
     const d = await r.json();
     document.getElementById('bulkTicketModal').style.display = 'none';
     clearSelection();
-    showToast((d.created || codes.length) + ' ticket(s) criado(s) com sucesso.');
+    if (d.created > 0) {
+      const msg = d.created + ' ticket(s) criado(s)' + (d.errors > 0 ? ' (' + d.errors + ' com erro)' : '') + '.';
+      showToast(msg, d.errors > 0 ? 'warning' : 'success');
+    } else {
+      showToast('Nenhum ticket criado. Verifique os pedidos selecionados.', 'error');
+    }
   } catch(err) {
     showToast('Erro ao criar tickets.', 'error');
   } finally {

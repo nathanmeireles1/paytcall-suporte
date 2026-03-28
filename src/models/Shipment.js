@@ -220,14 +220,15 @@ const Shipment = {
   },
 
   async getCompanies() {
-    const { data, error } = await db
-      .from('shipments')
-      .select('seller_id, company_name')
-      .not('seller_id', 'is', null);
-    if (error) throw error;
+    const [{ data: shipData, error: e1 }, { data: queueData, error: e2 }] = await Promise.all([
+      db.from('shipments').select('seller_id, company_name').not('seller_id', 'is', null),
+      db.from('customer_queue').select('seller_id, company_name').not('seller_id', 'is', null),
+    ]);
+    if (e1) throw e1;
+    if (e2) throw e2;
 
     const map = {};
-    for (const row of data || []) {
+    for (const row of [...(shipData || []), ...(queueData || [])]) {
       const key = row.seller_id;
       if (!map[key]) map[key] = { seller_id: key, company_name: row.company_name, total: 0 };
       map[key].total++;
@@ -365,7 +366,7 @@ const Shipment = {
 
   async getAllTickets({ tipo, status, assigned_to, priority, search, page = 1, limit = 50 } = {}) {
     const offset = (page - 1) * limit;
-    let query = db.from('tickets').select('*, shipments!inner(customer_name, customer_doc, order_id, company_name)', { count: 'exact' });
+    let query = db.from('tickets').select('*, shipments(customer_name, customer_doc, order_id, company_name)', { count: 'exact' });
 
     if (tipo)        query = query.eq('tipo', tipo);
     if (status)      query = query.eq('status', status);
@@ -487,12 +488,15 @@ const Shipment = {
 
   // --- Tickets ---
 
-  async getTickets(trackingCode) {
-    const { data, error } = await db
-      .from('tickets')
-      .select('*')
-      .eq('tracking_code', trackingCode)
-      .order('created_at', { ascending: false });
+  async getTickets(trackingCode, orderId = null) {
+    if (!trackingCode && !orderId) return [];
+    let query = db.from('tickets').select('*').order('created_at', { ascending: false });
+    if (trackingCode) {
+      query = query.eq('tracking_code', trackingCode);
+    } else {
+      query = query.eq('order_id', orderId);
+    }
+    const { data, error } = await query;
     if (error) throw error;
     return data || [];
   },

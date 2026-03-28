@@ -96,8 +96,9 @@ async function handleRastreios(req, res) {
   }
 }
 
-// GET / e /rastreios — Rastreios (lista de envios)
-router.get('/', requirePermission('dashboard', 'can_view'), handleRastreios);
+// GET / — redireciona para /dashboard
+router.get('/', (req, res) => res.redirect(302, '/dashboard'));
+// GET /rastreios — Rastreios (lista de envios)
 router.get('/rastreios', requirePermission('dashboard', 'can_view'), handleRastreios);
 
 // Handler compartilhado para exibir detalhe do pedido
@@ -108,7 +109,7 @@ async function handlePedido(shipment, req, res) {
   }
   const [events, tickets] = await Promise.all([
     Shipment.getEvents(shipment.tracking_code),
-    Shipment.getTickets(shipment.tracking_code),
+    Shipment.getTickets(shipment.tracking_code, shipment.order_id),
   ]);
   res.render('shipment', { shipment, events, tickets, TICKET_CONFIG, MOTIVOS_CANCELAMENTO });
 }
@@ -116,7 +117,14 @@ async function handlePedido(shipment, req, res) {
 // GET /pedido/:orderId — detalhe por ID do pedido Payt (URL canônica)
 router.get('/pedido/:orderId', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {
-    const shipment = await Shipment.findByOrderId(req.params.orderId.trim());
+    const orderId = req.params.orderId.trim();
+    let shipment = await Shipment.findByOrderId(orderId);
+    if (!shipment) {
+      const { data: queued } = await db.from('customer_queue').select('*').eq('order_id', orderId).maybeSingle();
+      if (queued) {
+        shipment = { ...queued, tracking_code: null, status: 'no_tracking', carrier: null, last_event: 'Aguardando código de rastreio', last_event_date: null };
+      }
+    }
     await handlePedido(shipment, req, res);
   } catch (err) {
     console.error('[Pedido] Erro:', err.message);
@@ -155,6 +163,23 @@ router.post('/shipment/:code/ticket', requirePermission('tickets', 'can_create')
     console.error('[Ticket] Erro ao criar:', err.message);
   }
   res.redirect(`/shipment/${code}`);
+});
+
+// POST /pedido/:orderId/ticket — abre ticket para pedido sem rastreio (customer_queue)
+router.post('/pedido/:orderId/ticket', requirePermission('tickets', 'can_create'), async (req, res) => {
+  const orderId = req.params.orderId.trim();
+  const { tipo, motivo, motivo_cancelamento, observacao } = req.body;
+  try {
+    await Shipment.createTicket({
+      tracking_code: null,
+      order_id: orderId,
+      tipo, motivo, motivo_cancelamento, observacao,
+      created_by: req.user.name,
+    });
+  } catch (err) {
+    console.error('[Ticket] Erro ao criar:', err.message);
+  }
+  res.redirect(`/pedido/${orderId}`);
 });
 
 // POST /ticket/:id/status — altera status do ticket
@@ -302,10 +327,29 @@ router.post('/api/tickets/bulk', async (req, res) => {
     const config = TICKET_CONFIG[tipo] || {};
     const priority = (config.priorities || {})[motivo] || 2;
     const assigned_to = config.assignedTo || null;
+
+    // Resolve which codes are real tracking codes vs order_ids from customer_queue
+    const { data: ships } = await db.from('shipments').select('tracking_code, order_id').in('tracking_code', tracking_codes);
+    const { data: queued } = await db.from('customer_queue').select('order_id').in('order_id', tracking_codes);
+    const validTrackingCodes = new Set((ships || []).map(s => s.tracking_code));
+    const validOrderIds = new Set((queued || []).map(s => s.order_id));
+
     const results = [];
+    const errors = [];
     for (const code of tracking_codes) {
+      let tracking_code = null;
+      let order_id = null;
+      if (validTrackingCodes.has(code)) {
+        tracking_code = code;
+      } else if (validOrderIds.has(code)) {
+        order_id = code; // customer_queue item — no tracking code yet
+      } else {
+        errors.push(code);
+        continue;
+      }
       const { data, error } = await db.from('tickets').insert({
-        tracking_code: code || null,
+        tracking_code,
+        order_id,
         tipo, motivo, priority,
         observacao: observacao || null,
         status: 'Aberto',
@@ -313,10 +357,27 @@ router.post('/api/tickets/bulk', async (req, res) => {
         assigned_to,
       }).select().single();
       if (!error) results.push(data);
+      else errors.push(code);
     }
-    res.json({ ok: true, created: results.length });
+    res.json({ ok: true, created: results.length, errors: errors.length });
   } catch (err) {
     console.error('[Tickets Bulk] Erro:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/tickets/bulk-status — altera status de múltiplos tickets
+router.post('/api/tickets/bulk-status', requirePermission('tickets', 'can_edit'), async (req, res) => {
+  try {
+    const { ids, status } = req.body;
+    if (!ids?.length || !status) return res.status(400).json({ error: 'Campos obrigatórios ausentes' });
+    const { error } = await db.from('tickets')
+      .update({ status, closed_at: ['Concluído','Cancelado','Retido'].includes(status) ? new Date().toISOString() : null })
+      .in('id', ids);
+    if (error) throw error;
+    res.json({ ok: true, updated: ids.length });
+  } catch (err) {
+    console.error('[BulkStatus] Erro:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

@@ -55,4 +55,23 @@ router.post('/refresh', async (req, res) => {
   refreshPendingShipments().catch(console.error);
 });
 
+// POST /api/tracking/refresh-batch — atualiza rastreio de códigos específicos
+router.post('/refresh-batch', async (req, res) => {
+  const { codes } = req.body;
+  if (!codes?.length) return res.status(400).json({ error: 'Nenhum código informado' });
+  res.json({ message: `Atualizando ${codes.length} pedido(s)...`, total: codes.length });
+  // Processa em background
+  (async () => {
+    for (const code of codes) {
+      try {
+        const shipment = await Shipment.findByCode(code);
+        if (!shipment?.customer_doc) continue;
+        const tracking = await queryH7ByCpf(shipment.customer_doc);
+        await Shipment.upsert({ ...shipment, tracking_code: code, status: tracking.status, last_event: tracking.last_event, last_event_date: tracking.last_event_date });
+        if (tracking.events?.length) await Shipment.saveEvents(code, tracking.events);
+      } catch (e) { /* skip individual errors */ }
+    }
+  })().catch(console.error);
+});
+
 module.exports = router;

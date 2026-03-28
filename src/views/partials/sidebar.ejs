@@ -88,14 +88,6 @@
         </span>
         Retenção
       </a>
-      <% if (canView('tickets')) { %>
-      <a href="/relatorios/retencao/solicitacoes" class="nav-item <%= _page === 'retencao-solicitacoes' ? 'active' : '' %>" style="padding:5px 10px 5px 28px;font-size:12px">
-        <span class="nav-icon">
-          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-        </span>
-        Solicitações
-      </a>
-      <% } %>
       <% } %>
 
       <% if (canView('relatorio_logistica')) { %>
@@ -105,14 +97,6 @@
         </span>
         Logística
       </a>
-      <% if (canView('tickets')) { %>
-      <a href="/relatorios/logistica/solicitacoes" class="nav-item <%= _page === 'logistica-solicitacoes' ? 'active' : '' %>" style="padding:5px 10px 5px 28px;font-size:12px">
-        <span class="nav-icon">
-          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-        </span>
-        Solicitações
-      </a>
-      <% } %>
       <% } %>
     </div>
     <% } %>

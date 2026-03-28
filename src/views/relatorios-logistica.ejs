@@ -69,17 +69,26 @@
         </a>
       </form>
       <div style="margin:12px 0;font-size:13px;color:var(--gray-500)"><strong><%= total %></strong> tickets de logística</div>
+      <div id="bulkBarLog" style="display:none;padding:10px 16px;background:var(--brand-dim);border:1px solid var(--brand-border);border-radius:8px;margin-bottom:12px;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="bulkCountLog" style="font-size:13px;font-weight:600;color:var(--brand-dark)">0 selecionados</span>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button onclick="bulkResolveLog('Concluído')" class="btn btn-primary btn-sm">Marcar Concluído</button>
+          <button onclick="bulkResolveLog('Em andamento')" class="btn btn-secondary btn-sm">Em andamento</button>
+          <button onclick="clearSelLog()" class="btn btn-ghost btn-sm">Cancelar</button>
+        </div>
+      </div>
       <div class="card">
         <div class="card-body no-pad">
           <div class="table-wrap">
             <table>
               <colgroup>
-                <col style="width:100px"><col style="width:140px"><col style="width:130px">
+                <col style="width:36px"><col style="width:100px"><col style="width:140px"><col style="width:130px">
                 <col style="width:100px"><col style="width:100px"><col style="width:90px">
                 <col style="width:70px"><col style="width:100px">
               </colgroup>
               <thead>
                 <tr>
+                  <th style="width:36px;padding:9px 10px 9px 14px"><input type="checkbox" id="selAll" onchange="toggleAll(this)" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer"></th>
                   <th>Rastreio</th><th>Motivo</th><th>Responsável</th>
                   <th>Status</th><th>Prioridade</th><th>SLA</th>
                   <th>Criado</th><th>Observação</th>
@@ -87,23 +96,25 @@
               </thead>
               <tbody>
                 <% if (tickets.length === 0) { %>
-                <tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:40px">Nenhum ticket de logística encontrado</td></tr>
+                <tr><td colspan="9" style="text-align:center;color:var(--gray-400);padding:40px">Nenhum ticket de logística encontrado</td></tr>
                 <% } %>
                 <% tickets.forEach(t => {
                   const hoursOpen = Math.floor((Date.now() - new Date(t.created_at).getTime()) / 3600000);
                   const slaClass = hoursOpen >= 72 ? 'sla-expired' : hoursOpen >= 48 ? 'sla-warn' : 'sla-ok';
                   const isTerminal = ['Concluído'].includes(t.status);
                   const prioClass = 'prio-' + (t.priority || 3);
+                  const rowHref = t.order_id ? '/pedido/' + t.order_id : (t.shipments && t.shipments.order_id ? '/pedido/' + t.shipments.order_id : '/shipment/' + t.tracking_code);
                 %>
-                <tr onclick="window.location='/pedido/<%= t.order_id || t.tracking_code %>'" style="cursor:pointer">
-                  <td><a href="/pedido/<%= t.order_id || t.tracking_code %>" style="font-family:monospace;font-size:12px;color:var(--brand)"><%= t.tracking_code %></a></td>
-                  <td><span style="font-weight:600;font-size:12.5px"><%= t.motivo %></span></td>
-                  <td style="font-size:12px"><%= t.assigned_to || '—' %></td>
-                  <td><span class="badge <%= t.status === 'Concluído' ? 'badge-success' : t.status === 'Aberto' ? 'badge-warning' : 'badge-info' %>"><%= t.status %></span></td>
-                  <td><span class="<%= prioClass %>"><%= prioLabel[t.priority] || '—' %></span></td>
-                  <td class="<%= isTerminal ? '' : slaClass %>" style="font-size:12px"><%= isTerminal ? '—' : hoursOpen + 'h' %></td>
-                  <td style="font-size:11.5px;color:var(--gray-500)"><%= fmtDate(t.created_at).slice(0,10) %></td>
-                  <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= t.observacao || '—' %></td>
+                <tr style="cursor:pointer">
+                  <td style="padding:9px 10px 9px 14px" onclick="event.stopPropagation()"><input type="checkbox" class="row-chk" value="<%= t.id %>" onchange="updateBulkLog()" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer"></td>
+                  <td onclick="window.location='<%= rowHref %>'"><a href="<%= rowHref %>" style="font-family:monospace;font-size:12px;color:var(--brand)"><%= t.tracking_code || t.order_id || '—' %></a></td>
+                  <td onclick="window.location='<%= rowHref %>'"><span style="font-weight:600;font-size:12.5px"><%= t.motivo %></span></td>
+                  <td onclick="window.location='<%= rowHref %>'" style="font-size:12px"><%= t.assigned_to || '—' %></td>
+                  <td onclick="window.location='<%= rowHref %>'"><span class="badge <%= t.status === 'Concluído' ? 'badge-success' : t.status === 'Aberto' ? 'badge-warning' : 'badge-info' %>"><%= t.status %></span></td>
+                  <td onclick="window.location='<%= rowHref %>'"><span class="<%= prioClass %>"><%= prioLabel[t.priority] || '—' %></span></td>
+                  <td onclick="window.location='<%= rowHref %>'" class="<%= isTerminal ? '' : slaClass %>" style="font-size:12px"><%= isTerminal ? '—' : hoursOpen + 'h' %></td>
+                  <td onclick="window.location='<%= rowHref %>'" style="font-size:11.5px;color:var(--gray-500)"><%= fmtDate(t.created_at).slice(0,10) %></td>
+                  <td onclick="window.location='<%= rowHref %>'" style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= t.observacao || '—' %></td>
                 </tr>
                 <% }) %>
               </tbody>
@@ -121,7 +132,50 @@
     </div>
   </div>
 </div>
+<div id="toast" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#fff;padding:13px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.22);min-width:220px;max-width:400px;text-align:center;pointer-events:none"></div>
+<div id="confirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <p id="confirmMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5"></p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="confirmResolve(false)" class="btn btn-secondary btn-sm">Cancelar</button>
+      <button onclick="confirmResolve(true)" class="btn btn-primary btn-sm">Confirmar</button>
+    </div>
+  </div>
+</div>
 <script>
+let _toastTimer, confirmResolve;
+function showToast(msg, type='success') {
+  const t=document.getElementById('toast'); const icon=type==='error'?'✕':type==='warning'?'⚠':'✓';
+  t.innerHTML=`<span style="font-size:16px;margin-right:8px">${icon}</span>${msg}`;
+  t.style.background=type==='error'?'#dc2626':type==='warning'?'#c2800a':'#16a34a';
+  t.style.display='block';t.style.opacity='1';clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.style.display='none',200);},3000);
+}
+function showConfirm(msg) {
+  return new Promise(resolve => { confirmResolve=resolve; document.getElementById('confirmMsg').textContent=msg; document.getElementById('confirmOverlay').style.display='flex'; });
+}
+document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)confirmResolve(false);});
+
+function toggleAll(cb) { document.querySelectorAll('.row-chk').forEach(c=>c.checked=cb.checked); updateBulkLog(); }
+function updateBulkLog() {
+  const checked = [...document.querySelectorAll('.row-chk:checked')];
+  const bar = document.getElementById('bulkBarLog');
+  bar.style.display = checked.length ? 'flex' : 'none';
+  document.getElementById('bulkCountLog').textContent = checked.length + ' selecionado(s)';
+}
+function clearSelLog() { document.querySelectorAll('.row-chk').forEach(c=>c.checked=false); document.getElementById('selAll').checked=false; updateBulkLog(); }
+async function bulkResolveLog(status) {
+  const ids = [...document.querySelectorAll('.row-chk:checked')].map(c=>c.value);
+  if (!ids.length) return;
+  const ok = await showConfirm(`Alterar ${ids.length} ticket(s) para "${status}"?`);
+  document.getElementById('confirmOverlay').style.display='none';
+  if (!ok) return;
+  const r = await fetch('/api/tickets/bulk-status', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids, status}) });
+  const d = await r.json();
+  if (d.ok) { showToast(d.updated + ' ticket(s) atualizados.'); setTimeout(()=>location.reload(),1200); }
+  else showToast(d.error||'Erro', 'error');
+}
+
 const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
 function toggleNotifs() { const dd=document.getElementById('notifDropdown'); dd.classList.toggle('open'); if(dd.classList.contains('open')) loadNotifs(); }
 async function loadNotifs() { try { const r=await fetch('/api/notifications'); const {notifications,unread}=await r.json(); const b=document.getElementById('notifBadge'); b.style.display=unread>0?'block':'none'; b.textContent=unread; const list=document.getElementById('notifList'); if(!notifications.length){list.innerHTML='<div style="text-align:center;color:var(--text-4);padding:24px;font-size:13px">Nenhuma notificação</div>';return;} list.innerHTML=notifications.map(n=>`<a href="/pedido/${n.order_id||n.tracking_code||''}" class="notif-item${n.is_read?'':' unread'}"><div style="font-size:13px;color:var(--text-2)">${n.message}</div></a>`).join(''); } catch(e){} }

@@ -1,6 +1,7 @@
 # Paytcall Suporte — Design System & Style Guide
 
 > Prompt para replicar o design deste portal em outros projetos da Paytcall.
+> **URL:** `https://suporte.paytcall.com.br/`
 
 ---
 
@@ -16,13 +17,27 @@
 
 | Uso | Família | Peso | Tamanho base |
 |-----|---------|------|--------------|
+| Títulos de página (h1) | **Calistoga** | 400 | 24–26px |
 | Corpo / UI | **Plus Jakarta Sans** | 400, 500, 600, 700 | 14px (root) |
-| Brand / logotipo | **Bebas Neue** | 400 | 17–20px |
+| Brand / logotipo sidebar | **Bebas Neue** | 400 | 17px |
 | Código / rastreio | monospace (sistema) | — | 12–13px |
 
 **Import Google Fonts:**
 ```html
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Bebas+Neue&family=Calistoga&display=swap" rel="stylesheet">
+```
+
+**Títulos de página:**
+```css
+.page-header h1,
+.p-page-header-left h1 {
+  font-family: 'Calistoga', serif;
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
 ```
 
 ---
@@ -98,7 +113,7 @@
 │                        │  │ .page         │  │
 │  [Nav items]           │  │  content here │  │
 │                        │  └───────────────┘  │
-│  [User footer]         │                     │
+│  [User footer + foto]  │                     │
 └─────────────────────────────────────────────┘
 ```
 
@@ -137,6 +152,11 @@
 .brand-tag  { font-size: 9px; color: var(--text-4); text-transform: uppercase; letter-spacing: .8px; }
 ```
 
+**Seções da sidebar:**
+- **Principal:** Dashboard, Rastreios, Tickets, Mural de Avisos (só admin)
+- **Relatórios:** Análises, Retenção, Logística (visibilidade por permissão)
+- **Administração:** Usuários, Permissões, Configurações (admin ou permissão específica)
+
 **Nav items:**
 ```css
 .nav-item {
@@ -149,14 +169,16 @@
 html.dark .nav-item.active { color: var(--brand); }
 ```
 
-**Section labels:**
-```css
-.sidebar-section-label {
-  font-size: 10px; font-weight: 700; color: var(--text-4);
-  text-transform: uppercase; letter-spacing: 1px;
-  padding: 10px 10px 4px;
-}
+**User footer com foto de perfil:**
+```html
+<!-- Avatar clicável para trocar foto -->
+<div class="avatar avatar-clickable" onclick="document.getElementById('avatarInput').click()">
+  <img src="..." id="avatarImg"> <!-- ou initial se sem foto -->
+  <div class="avatar-overlay"> <!-- câmera icon, aparece no hover --> </div>
+</div>
+<input type="file" id="avatarInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="uploadAvatar(this)">
 ```
+Upload via `POST /api/profile/photo` com base64. Salvo em Supabase Storage bucket `avatars`.
 
 ### Cards
 ```css
@@ -202,10 +224,6 @@ html.dark .nav-item.active { color: var(--brand); }
   border: 1px solid transparent;
 }
 /* Variantes: badge-brand, badge-success, badge-warning, badge-danger, badge-info, badge-neutral */
-/* brand: background:var(--brand-dim), color:var(--brand), border:var(--brand-border) */
-/* success: background:var(--success-bg), color:var(--success), border:var(--success-border) */
-/* (mesma lógica para warning, danger, info) */
-/* neutral: background:var(--surface-2), color:var(--text-2), border:var(--border) */
 ```
 
 ### Formulários
@@ -255,6 +273,59 @@ tbody tr:hover td { background: var(--surface-2); }
 tbody tr:last-child td { border-bottom: none; }
 ```
 
+### Toast & Confirm (sistema custom — NUNCA usar alert/confirm nativos)
+```js
+// Toast — centered top, verde = success, vermelho = error, âmbar = warning
+function showToast(msg, type='success') { /* ... */ }
+
+// Confirm — overlay com botões Cancelar/Confirmar, retorna Promise<boolean>
+function showConfirm(msg) { return new Promise(resolve => { /* ... */ }); }
+
+// Uso:
+const ok = await showConfirm('Tem certeza?');
+if (!ok) return;
+showToast('Ação realizada com sucesso.');
+showToast('Erro ao processar.', 'error');
+showToast('Atenção necessária.', 'warning');
+```
+
+**HTML do sistema:**
+```html
+<div id="toast" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#fff;padding:13px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.22);min-width:220px;text-align:center;pointer-events:none"></div>
+<div id="confirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:340px;width:90%">
+    <p id="confirmMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5"></p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="confirmResolve(false)" class="btn btn-secondary btn-sm">Cancelar</button>
+      <button onclick="confirmResolve(true)" class="btn btn-primary btn-sm">Confirmar</button>
+    </div>
+  </div>
+</div>
+```
+
+### Bulk Actions (seleção em massa nas tabelas)
+Padrão usado em Rastreios, Tickets e Logística:
+```html
+<!-- Barra de ação (aparece ao selecionar) -->
+<div id="bulkBar" style="display:none;padding:10px 16px;background:var(--brand-dim);border:1px solid var(--brand-border);border-radius:8px;margin-bottom:12px;align-items:center;gap:10px">
+  <span id="bulkCount" style="font-size:13px;font-weight:600;color:var(--brand-dark)">0 selecionados</span>
+  <div style="margin-left:auto;display:flex;gap:6px">
+    <button onclick="bulkAction('Concluído')" class="btn btn-primary btn-sm">Marcar Concluído</button>
+    <button onclick="clearSel()" class="btn btn-ghost btn-sm">Cancelar</button>
+  </div>
+</div>
+
+<!-- Thead com checkbox -->
+<th style="width:36px;padding:9px 10px 9px 14px">
+  <input type="checkbox" id="selAll" onchange="toggleAll(this)" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer">
+</th>
+
+<!-- Cada row com checkbox -->
+<td style="padding:9px 10px 9px 14px" onclick="event.stopPropagation()">
+  <input type="checkbox" class="row-chk" value="<%= item.id %>" onchange="updateBulk()" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer">
+</td>
+```
+
 ---
 
 ## Sombras
@@ -294,7 +365,7 @@ Toda página usa esta estrutura:
     <div class="page">
       <!-- page-header opcional -->
       <div class="page-header">
-        <h1>Título</h1>
+        <h1>Título</h1>  <!-- Calistoga 26px -->
         <p>Subtítulo descritivo</p>
       </div>
       <!-- conteúdo em cards -->
@@ -366,10 +437,11 @@ transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
 | Template | EJS (server-side rendering) |
 | Banco | Supabase (PostgreSQL) via `@supabase/supabase-js` |
 | Auth | Cookie JWT, papéis: `admin`, `suporte`, `usuario`, `terceiros` |
+| Permissões | Sistema granular por módulo (can_view/create/edit/delete), admin bypassa tudo |
 | Charts | Chart.js v4.4.0 (CDN) |
 | Fonts | Google Fonts CDN |
-| AI | Google Gemini Flash via REST API |
-| Deploy | Railway (auto-deploy via GitHub) |
+| AI | Google Gemini Flash via REST API (chat "Lina") |
+| Deploy | Railway (auto-deploy via GitHub `nathanmeireles1/paytcall-suporte`) |
 | Exports | `xlsx` npm package para Excel/CSV |
 
 ---
@@ -377,23 +449,62 @@ transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
 ## Estrutura de Rotas
 
 ```
-GET  /                    → Rastreios (lista)
-GET  /rastreios           → Rastreios (alias)
-GET  /pedido/:id          → Detalhe do pedido
-GET  /dashboard           → Dashboard/KPIs
-GET  /analytics           → Análises
-GET  /relatorios/tickets  → Todos os tickets
-GET  /relatorios/retencao → Retenção (chargebacks/reembolsos)
-GET  /relatorios/logistica → Logística (tickets de envio)
-GET  /relatorios/retencao/solicitacoes → Tickets Retenção
-GET  /relatorios/logistica/solicitacoes → Tickets Logística
-GET  /admin/users         → Gestão de usuários
-GET  /admin/permissions   → Gestão de permissões
-GET  /admin/settings      → Configurações do sistema
-GET  /admin/mural         → Mural de avisos
-GET  /login               → Login
-GET  /invite/:token       → Aceite de convite
+GET  /                              → Rastreios (lista)
+GET  /rastreios                     → Rastreios (alias)
+GET  /pedido/:orderId               → Detalhe do pedido (shipments + customer_queue)
+GET  /shipment/:code                → Redirect 301 → /pedido/:orderId
+GET  /dashboard                     → Dashboard/KPIs
+GET  /analytics                     → Análises
+GET  /relatorios/tickets            → Todos os tickets
+GET  /relatorios/retencao           → Retenção (chargebacks/cancelamentos)
+GET  /relatorios/logistica          → Logística (tickets de envio)
+GET  /admin/users                   → Gestão de usuários
+GET  /admin/permissions             → Gestão de permissões
+GET  /admin/settings                → Configurações do sistema
+GET  /admin/mural                   → Mural de Avisos (seção Principal, só admin)
+GET  /login                         → Login
+GET  /invite/:token                 → Aceite de convite
+
+POST /shipment/:code/ticket         → Abre ticket (pedido com rastreio)
+POST /pedido/:orderId/ticket        → Abre ticket (pedido sem rastreio / customer_queue)
+POST /ticket/:id/status             → Altera status do ticket
+POST /api/tickets/bulk              → Cria tickets em massa
+POST /api/tickets/bulk-status       → Altera status de múltiplos tickets
+POST /api/tracking/refresh          → Dispara atualização H7 manual
+GET  /api/pedido/:orderId           → JSON para modal de detalhe
+POST /api/profile/photo             → Upload de foto de perfil (todos os usuários)
 ```
+
+---
+
+## Modelo de Dados — Pedidos
+
+O sistema é **pedido-first**: pedidos chegam via webhook na `customer_queue` sem rastreio ainda. Quando o H7 (scheduler) encontra um código de rastreio, o pedido é "promovido" para a tabela `shipments`.
+
+```
+customer_queue: order_id, seller_id, company_name, customer_name, customer_email,
+                customer_doc, product_name, paid_at, shipping_address, ...
+                (sem tracking_code)
+
+shipments:      tracking_code, order_id, seller_id, company_name, customer_name,
+                status, carrier, last_event, last_event_date, expected_date, ...
+                (tem tracking_code)
+```
+
+`Shipment.findAllCombined()` une as duas tabelas para exibir todos os pedidos (com e sem rastreio).
+
+**Tickets** podem ter `tracking_code` (pedido com rastreio) OU `order_id` (pedido sem rastreio ainda).
+
+---
+
+## Módulos de Permissão (role_permissions)
+
+```
+dashboard, tickets, relatorio_cancelamentos, relatorio_logistica,
+admin_usuarios, admin_permissoes
+```
+
+Roles: `admin` (bypassa tudo), `suporte`, `usuario`, `terceiros`
 
 ---
 

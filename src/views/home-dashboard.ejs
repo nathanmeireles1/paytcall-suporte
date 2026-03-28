@@ -29,7 +29,7 @@
 
       <!-- Saudação -->
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px">
-        <h1 style="font-size:22px;font-weight:700;color:var(--gray-900)">
+        <h1 style="font-family:'Calistoga',serif;font-size:26px;font-weight:400;color:var(--text);letter-spacing:-0.01em;line-height:1.1">
           <span id="greeting-text">Olá</span>, <%= typeof currentUser !== 'undefined' ? currentUser.name : '' %>!
         </h1>
         <button onclick="window.print()" class="btn btn-ghost btn-sm no-print" style="display:flex;align-items:center;gap:6px">
@@ -394,11 +394,48 @@ async function markAllRead() {
   }
 })();
 
+// Toast system
+function showToast(msg, type = 'success') {
+  let t = document.getElementById('_toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = '_toast';
+    t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.18);transition:opacity .3s;white-space:nowrap;pointer-events:none';
+    document.body.appendChild(t);
+  }
+  const colors = { success: '#16a34a', error: '#dc2626', warning: '#c2800a' };
+  const icons  = { success: '✓', error: '✕', warning: '⚠' };
+  t.style.background = colors[type] || colors.success;
+  t.textContent = (icons[type] || '✓') + '  ' + msg;
+  t.style.opacity = '1';
+  clearTimeout(t._to);
+  t._to = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    let overlay = document.getElementById('_confirm');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = '_confirm';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99998;display:flex;align-items:center;justify-content:center';
+      overlay.innerHTML = '<div style="background:var(--surface,#fff);border-radius:12px;padding:24px 28px;max-width:360px;width:90%;box-shadow:0 20px 40px rgba(0,0,0,.15)"><p id="_cMsg" style="font-size:14px;font-weight:500;color:var(--text,#1a1410);margin-bottom:20px;line-height:1.5"></p><div style="display:flex;gap:10px;justify-content:flex-end"><button id="_cNo" style="padding:7px 16px;border-radius:6px;border:1px solid var(--border,#e0d8cc);background:var(--surface-2,#f7f3ee);color:var(--text-2,#4a3f35);font-size:13px;font-weight:600;cursor:pointer">Cancelar</button><button id="_cYes" style="padding:7px 16px;border-radius:6px;border:none;background:#e47c24;color:#fff;font-size:13px;font-weight:600;cursor:pointer">Confirmar</button></div></div>';
+      document.body.appendChild(overlay);
+    }
+    document.getElementById('_cMsg').textContent = msg;
+    overlay.style.display = 'flex';
+    const cleanup = (val) => { overlay.style.display = 'none'; resolve(val); };
+    document.getElementById('_cYes').onclick = () => cleanup(true);
+    document.getElementById('_cNo').onclick  = () => cleanup(false);
+  });
+}
+
 async function refreshAll() {
-  if (!confirm('Atualizar todos os envios ativos via H7?')) return;
+  const ok = await showConfirm('Atualizar todos os envios ativos via H7?');
+  if (!ok) return;
+  showToast('Atualização iniciada…', 'warning');
   fetch('/api/tracking/refresh', { method: 'POST' })
-    .then(() => {})
-    .catch(() => {});
+    .then(() => showToast('H7 acionado com sucesso.'))
+    .catch(() => showToast('Erro ao acionar H7.', 'error'));
 }
 
 // Check unread on load
