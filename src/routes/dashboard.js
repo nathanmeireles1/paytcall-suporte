@@ -18,14 +18,22 @@ router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req,
   try {
     const { seller_id, date_from, date_to } = req.query;
 
+    const queueQuery = () => {
+      let q = db.from('customer_queue').select('*', { count: 'exact', head: true });
+      if (seller_id) q = q.eq('seller_id', seller_id);
+      if (date_from) q = q.gte('paid_at', date_from);
+      if (date_to)   q = q.lte('paid_at', date_to + 'T23:59:59Z');
+      return q.then(r => r.count || 0);
+    };
+
     const [stats, lastLog, pendingCount, ticketStats, timeSeries, companies, queueCount] = await Promise.all([
-      Shipment.getStats(),
+      Shipment.getStats({ seller_id: seller_id || null, date_from: date_from || null, date_to: date_to || null }),
       Shipment.getLastSchedulerLog(),
       Shipment.countPendingForRefresh(),
       Shipment.getTicketStats(),
       Shipment.getShipmentsPerDay({ sellerId: seller_id || null, dateFrom: date_from || null, dateTo: date_to || null }),
       Shipment.getCompanies(),
-      db.from('customer_queue').select('*', { count: 'exact', head: true }).then(r => r.count || 0),
+      queueQuery(),
     ]);
     const totalOrders = (stats.total || 0) + queueCount;
 

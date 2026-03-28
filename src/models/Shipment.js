@@ -191,8 +191,12 @@ const Shipment = {
     return data || [];
   },
 
-  async getStats() {
-    const { data, error } = await db.rpc('get_shipment_stats');
+  async getStats({ seller_id, date_from, date_to } = {}) {
+    const { data, error } = await db.rpc('get_shipment_stats', {
+      p_seller_id: seller_id || null,
+      p_date_from: date_from || null,
+      p_date_to:   date_to   || null,
+    });
     if (error) {
       const { count } = await db.from('shipments').select('*', { count: 'exact', head: true });
       return { total: count || 0, delivered: 0, in_transit: 0, out_for_delivery: 0, delivery_attempt: 0, returned: 0, waiting_client: 0 };
