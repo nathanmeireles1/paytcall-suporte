@@ -113,6 +113,8 @@ const Shipment = {
       shipping_address: data.shipping_address || null,
       tracking_url:     data.tracking_url     || null,
       paid_at:          data.paid_at          || null,
+      sale_type:        data.sale_type        || 'venda_direta',
+      parent_order_id:  data.parent_order_id  || null,
       updated_at:       new Date().toISOString(),
     };
 
@@ -445,6 +447,8 @@ const Shipment = {
         total_price:      data.total_price      || null,
         shipping_address: data.shipping_address || null,
         paid_at:          data.paid_at          || null,
+        sale_type:        data.sale_type        || 'venda_direta',
+        parent_order_id:  data.parent_order_id  || null,
       },
       { onConflict: 'order_id', ignoreDuplicates: false }
     );

@@ -69,6 +69,8 @@ router.post('/', async (req, res) => {
     ? (body.started_at || body.transaction?.created_at || body.updated_at || null)
     : null;
 
+  const parentOrderId = transaction.upsell_from || null;
+
   const orderData = {
     order_id:         orderId,
     seller_id:        body.seller_id || null,
@@ -87,6 +89,8 @@ router.post('/', async (req, res) => {
     shipping_address: shippingAddress,
     tracking_url:     trackingUrl,
     paid_at:          paidAt,
+    sale_type:        parentOrderId ? 'upsell' : 'venda_direta',
+    parent_order_id:  parentOrderId,
   };
 
   // Responde imediatamente para a payt não fazer retry
