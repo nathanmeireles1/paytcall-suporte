@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const { db } = require('../config/database');
+const { invalidateCachedSession } = require('../middleware/auth');
 
 // GET /login
 router.get('/login', (req, res) => {
@@ -52,12 +53,14 @@ router.post('/login', async (req, res) => {
 
 // POST /logout
 router.post('/logout', (req, res) => {
+  invalidateCachedSession(req.cookies?.auth_token);
   res.clearCookie('auth_token');
   res.redirect('/login');
 });
 
 // GET /logout (conveniência)
 router.get('/logout', (req, res) => {
+  invalidateCachedSession(req.cookies?.auth_token);
   res.clearCookie('auth_token');
   res.redirect('/login');
 });

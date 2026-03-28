@@ -68,48 +68,27 @@ const Shipment = {
   },
 
   async findAllCombined({ page = 1, limit = 50, status, search, seller_id, paid_at_from, paid_at_to } = {}) {
-    // When filtering by a specific tracking status (not no_tracking), only query shipments
-    if (status && status !== 'no_tracking') {
-      return this.findAll({ page, limit, status, search, seller_id, paid_at_from, paid_at_to });
-    }
-
-    // When status === 'no_tracking', only return queue items
-    if (status === 'no_tracking') {
-      let q = db.from('customer_queue').select('*', { count: 'exact' });
-      if (seller_id) q = q.eq('seller_id', seller_id);
-      if (search) q = q.or(`order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%,customer_doc.ilike.%${search}%,product_name.ilike.%${search}%`);
-      const offset = (page - 1) * limit;
-      const { data, count, error } = await q.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
-      if (error) throw error;
-      const total = count || 0;
-      return {
-        rows: (data || []).map(r => ({ ...r, tracking_code: null, status: 'no_tracking', carrier: null, last_event: null, last_event_date: null })),
-        total, page, pages: Math.ceil(total / limit),
-      };
-    }
-
-    // No status filter: query both tables, merge by date
-    const [shipRes, queueRes] = await Promise.all([
-      this.findAll({ page: 1, limit: 9999, search, seller_id, paid_at_from, paid_at_to }),
-      (async () => {
-        let q = db.from('customer_queue').select('*');
-        if (seller_id) q = q.eq('seller_id', seller_id);
-        if (search) q = q.or(`order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%,customer_doc.ilike.%${search}%,product_name.ilike.%${search}%`);
-        const { data, error } = await q.order('created_at', { ascending: false });
-        if (error) throw error;
-        return (data || []).map(r => ({ ...r, tracking_code: null, status: 'no_tracking', carrier: null, last_event: null, last_event_date: null, updated_at: r.created_at }));
-      })(),
-    ]);
-
-    const allRows = [...shipRes.rows, ...queueRes]
-      .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
-
-    const total = allRows.length;
     const offset = (page - 1) * limit;
-    return {
-      rows: allRows.slice(offset, offset + limit),
-      total, page, pages: Math.ceil(total / limit),
-    };
+
+    let query = db.from('all_orders').select('*', { count: 'exact' });
+
+    if (status)       query = query.eq('status', status);
+    if (seller_id)    query = query.eq('seller_id', seller_id);
+    if (paid_at_from) query = query.gte('paid_at', paid_at_from);
+    if (paid_at_to)   query = query.lte('paid_at', paid_at_to + 'T23:59:59Z');
+    if (search) {
+      query = query.or(
+        `tracking_code.ilike.%${search}%,order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%,customer_doc.ilike.%${search}%,product_name.ilike.%${search}%`
+      );
+    }
+
+    const { data, error, count } = await query
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    const total = count || 0;
+    return { rows: data || [], total, page, pages: Math.ceil(total / limit) };
   },
 
   async upsertFromPaytcall(data) {

@@ -85,14 +85,14 @@
               <input type="text" name="search" placeholder="Pedido, rastreio, cliente, CPF ou produto..." value="<%= filters.search || '' %>" class="form-input" style="font-size:13px;padding:6px 10px 6px 30px;box-shadow:none;width:100%">
             </div>
 
-            <select name="seller_id" class="form-select" style="font-size:13px;padding:6px 10px;box-shadow:none" onchange="this.form.submit()">
+            <select name="seller_id" class="form-select" style="font-size:13px;padding:6px 10px;box-shadow:none">
               <option value="">Todas as empresas</option>
               <% companies.forEach(c => { %>
                 <option value="<%= c.seller_id %>" <%= filters.seller_id === c.seller_id ? 'selected' : '' %>><%= c.company_name || c.seller_id %> (<%= c.total %>)</option>
               <% }) %>
             </select>
 
-            <select name="status" class="form-select" style="font-size:13px;padding:6px 10px;box-shadow:none" onchange="this.form.submit()">
+            <select name="status" class="form-select" style="font-size:13px;padding:6px 10px;box-shadow:none">
               <option value="">Todos os status</option>
               <option value="pending"             <%= filters.status==='pending' ? 'selected':'' %>>Pendente</option>
               <option value="posted_object"       <%= filters.status==='posted_object' ? 'selected':'' %>>Obj. Postado</option>
@@ -108,6 +108,11 @@
               <option value="no_tracking"         <%= filters.status==='no_tracking' ? 'selected':'' %>>Sem rastreio</option>
               <option value="tracking_delayed"    <%= filters.status==='tracking_delayed' ? 'selected':'' %>>Rastreio em atraso</option>
             </select>
+
+            <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              Filtrar
+            </button>
 
             <div style="display:flex;gap:4px;margin-left:auto">
               <% if (filters.status || filters.seller_id || filters.search || filters.paid_at_from || filters.paid_at_to) { %>

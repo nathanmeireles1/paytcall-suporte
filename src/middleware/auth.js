@@ -1,5 +1,29 @@
 const { db } = require('../config/database');
 
+// Cache de sessão de usuário por token (2 minutos)
+const _sessionCache = new Map();
+const SESSION_TTL = 2 * 60 * 1000;
+
+function _getCachedSession(token) {
+  const entry = _sessionCache.get(token);
+  if (!entry) return null;
+  if (Date.now() - entry.at > SESSION_TTL) { _sessionCache.delete(token); return null; }
+  return entry.user;
+}
+
+function _setCachedSession(token, user) {
+  // Limpa entradas velhas periodicamente
+  if (_sessionCache.size > 500) {
+    const now = Date.now();
+    for (const [k, v] of _sessionCache) { if (now - v.at > SESSION_TTL) _sessionCache.delete(k); }
+  }
+  _sessionCache.set(token, { user, at: Date.now() });
+}
+
+function _invalidateCachedSession(token) {
+  if (token) _sessionCache.delete(token);
+}
+
 // Cache de permissões (recarrega a cada 5 minutos)
 let permissionsCache = {};
 let permissionsCacheAt = 0;
@@ -47,6 +71,14 @@ async function requireAuth(req, res, next) {
 
   if (!token) return deny();
 
+  // Serve do cache se disponível (evita 2 round-trips ao Supabase por request)
+  const cached = _getCachedSession(token);
+  if (cached) {
+    req.user = cached;
+    res.locals.currentUser = cached;
+    return next();
+  }
+
   try {
     const { data: { user }, error } = await db.auth.getUser(token);
     if (error || !user) return deny();
@@ -82,6 +114,9 @@ async function requireAuth(req, res, next) {
         .eq('user_id', profile.id);
       req.user.seller_ids = (access || []).map(a => a.seller_id);
     }
+
+    // Salva no cache
+    _setCachedSession(token, req.user);
 
     // Disponibiliza para EJS
     res.locals.currentUser = req.user;
@@ -142,4 +177,4 @@ async function requireApiAuth(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireRole, requirePermission, requireApiAuth, loadPermissions, invalidatePermissionsCache };
+module.exports = { requireAuth, requireRole, requirePermission, requireApiAuth, loadPermissions, invalidatePermissionsCache, invalidateCachedSession: _invalidateCachedSession };
