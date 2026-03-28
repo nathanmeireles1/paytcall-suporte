@@ -68,6 +68,26 @@
         </a>
       </div>
 
+      <!-- Filtros da dashboard -->
+      <form method="GET" action="/dashboard" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+        <select name="seller_id" class="form-select" style="font-size:13px;padding:6px 10px;min-width:180px" onchange="this.form.submit()">
+          <option value="">Todas as empresas</option>
+          <% (typeof companies !== 'undefined' ? companies : []).forEach(c => { %>
+            <option value="<%= c.seller_id %>" <%= (typeof filters !== 'undefined' && filters.seller_id === c.seller_id) ? 'selected' : '' %>><%= c.company_name || c.seller_id %></option>
+          <% }) %>
+        </select>
+        <select name="days" class="form-select" style="font-size:13px;padding:6px 10px" onchange="this.form.submit()">
+          <option value="7"  <%= (typeof filters !== 'undefined' && filters.days === '7')  ? 'selected' : '' %>>Últimos 7 dias</option>
+          <option value="14" <%= (typeof filters !== 'undefined' && filters.days === '14') ? 'selected' : '' %>>Últimos 14 dias</option>
+          <option value="30" <%= (typeof filters !== 'undefined' && (filters.days === '30' || !filters.days)) ? 'selected' : '' %>>Últimos 30 dias</option>
+          <option value="60" <%= (typeof filters !== 'undefined' && filters.days === '60') ? 'selected' : '' %>>Últimos 60 dias</option>
+          <option value="90" <%= (typeof filters !== 'undefined' && filters.days === '90') ? 'selected' : '' %>>Últimos 90 dias</option>
+        </select>
+        <% if (typeof filters !== 'undefined' && (filters.seller_id || filters.days !== '30')) { %>
+        <a href="/dashboard" class="btn btn-ghost btn-sm">Limpar</a>
+        <% } %>
+      </form>
+
       <!-- Gráficos -->
       <div class="grid-2" style="margin-bottom:22px">
 
@@ -103,16 +123,28 @@
           </div>
         </div>
 
-        <!-- Tickets por tipo -->
+        <!-- Pedidos ao longo do tempo -->
         <div class="card">
           <div class="card-header">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-            <h3>Tickets por Tipo</h3>
-            <a href="/relatorios/tickets" class="btn btn-ghost btn-xs" style="margin-left:auto">Ver todos</a>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <h3>Pedidos por Dia</h3>
+            <span style="margin-left:auto;font-size:11px;color:var(--text-3)"><%= typeof filters !== 'undefined' && filters.days ? 'últimos ' + filters.days + ' dias' : 'últimos 30 dias' %></span>
           </div>
-          <div class="card-body">
-            <canvas id="chartTickets" height="110"></canvas>
+          <div class="card-body" style="padding-top:8px">
+            <canvas id="chartTimeSeries" height="120"></canvas>
           </div>
+        </div>
+      </div>
+
+      <!-- Tickets por tipo -->
+      <div class="card" style="margin-bottom:22px">
+        <div class="card-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          <h3>Tickets por Tipo</h3>
+          <a href="/relatorios/tickets" class="btn btn-ghost btn-xs" style="margin-left:auto">Ver todos</a>
+        </div>
+        <div class="card-body">
+          <canvas id="chartTickets" height="80"></canvas>
         </div>
       </div>
 
@@ -295,6 +327,45 @@ async function markAllRead() {
         plugins: { legend: { display: false }, tooltip: { callbacks: {
           label: (ctx) => ' ' + ctx.label + ': ' + ctx.parsed.toLocaleString('pt-BR')
         }}},
+        animation: { duration: 400 }
+      }
+    });
+  }
+
+  // Line — pedidos por dia
+  const ctxTS = document.getElementById('chartTimeSeries');
+  if (ctxTS) {
+    <%
+    const tsData = typeof timeSeries !== 'undefined' ? timeSeries : [];
+    const tsLabels = tsData.map(d => d.day);
+    const tsValues = tsData.map(d => d.total);
+    %>
+    new Chart(ctxTS, {
+      type: 'line',
+      data: {
+        labels: <%- JSON.stringify(tsLabels) %>,
+        datasets: [{
+          data: <%- JSON.stringify(tsValues) %>,
+          borderColor: '#e47c24',
+          backgroundColor: 'rgba(228,124,36,.08)',
+          pointBackgroundColor: '#e47c24',
+          pointRadius: <%= tsLabels.length > 20 ? 0 : 3 %>,
+          pointHoverRadius: 5,
+          tension: 0.4,
+          fill: true,
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => ' ' + ctx.parsed.y + ' pedidos' } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: textColor, font: { size: 10 }, maxTicksLimit: 8, maxRotation: 0 } },
+          y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, precision: 0 }, beginAtZero: true }
+        },
         animation: { duration: 400 }
       }
     });

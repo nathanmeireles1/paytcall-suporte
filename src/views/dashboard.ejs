@@ -15,10 +15,7 @@
   <div class="main">
     <%- include('partials/topbar', {
       pageTitle: 'Rastreios',
-      breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Rastreios' }],
-      polarisTopbar: true,
-      searchAction: '/rastreios',
-      searchValue: filters.search || ''
+      breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Rastreios' }]
     }) %>
 
     <div class="p-page">
@@ -78,9 +75,15 @@
 
         <!-- Filtros -->
         <div class="p-filters">
-          <form method="GET" action="/" style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap">
-            <% if (filters.search) { %><input type="hidden" name="search" value="<%= filters.search %>"><% } %>
+          <form method="GET" action="/rastreios" style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap">
             <% if (filters.carrier) { %><input type="hidden" name="carrier" value="<%= filters.carrier %>"><% } %>
+
+            <div style="position:relative;flex:1;min-width:180px">
+              <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-4)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              </span>
+              <input type="text" name="search" placeholder="Buscar pedido, código ou cliente..." value="<%= filters.search || '' %>" class="form-input" style="font-size:13px;padding:6px 10px 6px 30px;box-shadow:none;width:100%">
+            </div>
 
             <select name="seller_id" class="form-select" style="font-size:13px;padding:6px 10px;box-shadow:none" onchange="this.form.submit()">
               <option value="">Todas as empresas</option>

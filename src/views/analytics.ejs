@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Analytics — Suporte Paytcall</title>
+  <title>Análises — Suporte Paytcall</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/css/global.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -15,16 +15,59 @@
 
   <div class="main">
     <%- include('partials/topbar', {
-      pageTitle: 'Analytics',
-      breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Analytics' }]
+      pageTitle: 'Análises',
+      breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Análises' }]
     }) %>
 
     <div class="page">
 
       <div class="page-header">
-        <h1>Analytics</h1>
-        <p>Análise de performance de entregas e atendimento</p>
+        <h1>Análises</h1>
+        <p>Performance de entregas, transportadoras e atendimento</p>
       </div>
+
+      <!-- Filtros -->
+      <form method="GET" action="/analytics" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md)">
+        <span style="font-size:12px;font-weight:600;color:var(--text-3);margin-right:4px">Filtros:</span>
+
+        <select name="seller_id" class="form-select" style="font-size:12.5px;padding:5px 9px" onchange="this.form.submit()">
+          <option value="">Todas as empresas</option>
+          <% (typeof companies !== 'undefined' ? companies : []).forEach(c => { %>
+            <option value="<%= c.seller_id %>" <%= filters.seller_id === c.seller_id ? 'selected' : '' %>><%= c.company_name || c.seller_id %></option>
+          <% }) %>
+        </select>
+
+        <select name="days" class="form-select" style="font-size:12.5px;padding:5px 9px" onchange="this.form.submit()">
+          <option value="7"  <%= filters.days === '7'  ? 'selected' : '' %>>Últimos 7 dias</option>
+          <option value="14" <%= filters.days === '14' ? 'selected' : '' %>>Últimos 14 dias</option>
+          <option value="30" <%= !filters.days || filters.days === '30' ? 'selected' : '' %>>Últimos 30 dias</option>
+          <option value="60" <%= filters.days === '60' ? 'selected' : '' %>>Últimos 60 dias</option>
+          <option value="90" <%= filters.days === '90' ? 'selected' : '' %>>Últimos 90 dias</option>
+          <option value="180" <%= filters.days === '180' ? 'selected' : '' %>>Últimos 6 meses</option>
+          <option value="365" <%= filters.days === '365' ? 'selected' : '' %>>Último ano</option>
+        </select>
+
+        <select name="carrier" class="form-select" style="font-size:12.5px;padding:5px 9px" onchange="this.form.submit()">
+          <option value="">Todas as transportadoras</option>
+          <option value="Loggi"    <%= filters.carrier === 'Loggi'    ? 'selected' : '' %>>Loggi</option>
+          <option value="Correios" <%= filters.carrier === 'Correios' ? 'selected' : '' %>>Correios</option>
+          <option value="Jadlog"   <%= filters.carrier === 'Jadlog'   ? 'selected' : '' %>>Jadlog</option>
+        </select>
+
+        <select name="status" class="form-select" style="font-size:12.5px;padding:5px 9px" onchange="this.form.submit()">
+          <option value="">Todos os status</option>
+          <option value="delivered"        <%= filters.status === 'delivered'        ? 'selected' : '' %>>Entregues</option>
+          <option value="forwarded"        <%= filters.status === 'forwarded'        ? 'selected' : '' %>>Em Trânsito</option>
+          <option value="delivering"       <%= filters.status === 'delivering'       ? 'selected' : '' %>>Saiu p/ Entrega</option>
+          <option value="returned"         <%= filters.status === 'returned'         ? 'selected' : '' %>>Devolvidos</option>
+          <option value="tracking_delayed" <%= filters.status === 'tracking_delayed' ? 'selected' : '' %>>Rastreio em Atraso</option>
+          <option value="no_tracking"      <%= filters.status === 'no_tracking'      ? 'selected' : '' %>>Sem Rastreio</option>
+        </select>
+
+        <% if (filters.seller_id || filters.carrier || filters.status || (filters.days && filters.days !== '30')) { %>
+        <a href="/analytics" class="btn btn-ghost btn-sm">Limpar filtros</a>
+        <% } %>
+      </form>
 
       <%
       const s = stats;
@@ -55,6 +98,18 @@
           <div class="stat-label">Rastreio em Atraso</div>
           <div class="stat-value" style="color:var(--brand)"><%= (s.tracking_delayed||0).toLocaleString('pt-BR') %></div>
           <div class="stat-sub"><%= (((s.tracking_delayed||0)/total)*100).toFixed(1) %>% do total</div>
+        </div>
+      </div>
+
+      <!-- Gráfico de linha — pedidos por dia -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <h3>Pedidos por Dia</h3>
+          <span style="margin-left:auto;font-size:11px;color:var(--text-3)">últimos <%= filters.days || 30 %> dias</span>
+        </div>
+        <div class="card-body">
+          <canvas id="chartTimeSeriesAnalytics" height="70"></canvas>
         </div>
       </div>
 
@@ -185,6 +240,38 @@
   const isDark = document.documentElement.classList.contains('dark');
   const textColor = isDark ? '#a8a8a8' : '#8a7a6a';
   const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.05)';
+
+  // Line — pedidos por dia (analytics)
+  const ctxTSA = document.getElementById('chartTimeSeriesAnalytics');
+  if (ctxTSA) {
+    <%
+    const tsaData = typeof timeSeries !== 'undefined' ? timeSeries : [];
+    %>
+    new Chart(ctxTSA, {
+      type: 'line',
+      data: {
+        labels: <%- JSON.stringify(tsaData.map(d => d.day)) %>,
+        datasets: [{
+          data: <%- JSON.stringify(tsaData.map(d => d.total)) %>,
+          borderColor: '#e47c24',
+          backgroundColor: 'rgba(228,124,36,.07)',
+          pointBackgroundColor: '#e47c24',
+          pointRadius: <%= tsaData.length > 20 ? 0 : 3 %>,
+          pointHoverRadius: 5,
+          tension: 0.4, fill: true, borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ' ' + ctx.parsed.y + ' pedidos' } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: textColor, font: { size: 10 }, maxTicksLimit: 10, maxRotation: 0 } },
+          y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, precision: 0 }, beginAtZero: true }
+        },
+        animation: { duration: 400 }
+      }
+    });
+  }
 
   // Donut — status
   const ctxD = document.getElementById('chartStatusDonut');

@@ -15,11 +15,15 @@ function getNextWindow() {
 // GET /dashboard — página dedicada de dashboard
 router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {
-    const [stats, lastLog, pendingCount, ticketStats] = await Promise.all([
+    const { seller_id, days = '30' } = req.query;
+
+    const [stats, lastLog, pendingCount, ticketStats, timeSeries, companies] = await Promise.all([
       Shipment.getStats(),
       Shipment.getLastSchedulerLog(),
       Shipment.countPendingForRefresh(),
       Shipment.getTicketStats(),
+      Shipment.getShipmentsPerDay({ days: parseInt(days) || 30, sellerId: seller_id || null }),
+      Shipment.getCompanies(),
     ]);
 
     const fmtDate = (iso) => iso
@@ -32,6 +36,9 @@ router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req,
       pendingCount,
       nextWindow: getNextWindow(),
       ticketStats,
+      timeSeries,
+      companies,
+      filters: { seller_id: seller_id || '', days },
     });
   } catch (err) {
     console.error('[Dashboard] Erro:', err.message);
@@ -204,11 +211,17 @@ router.get('/api/pedido/:orderId', requirePermission('dashboard', 'can_view'), a
 // GET /analytics — página de KPIs e gráficos analíticos
 router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {
-    const [stats, analytics] = await Promise.all([
+    const { seller_id, days = '30', carrier, status } = req.query;
+    const [stats, analytics, timeSeries, companies] = await Promise.all([
       Shipment.getStats(),
       Shipment.getAnalytics(),
+      Shipment.getShipmentsPerDay({ days: parseInt(days) || 30, sellerId: seller_id || null }),
+      Shipment.getCompanies(),
     ]);
-    res.render('analytics', { stats, analytics });
+    res.render('analytics', {
+      stats, analytics, timeSeries, companies,
+      filters: { seller_id: seller_id || '', days, carrier: carrier || '', status: status || '' },
+    });
   } catch (err) {
     console.error('[Analytics] Erro:', err.message);
     res.status(500).render('error', { message: 'Erro ao carregar analytics: ' + err.message });

@@ -5,7 +5,7 @@ const Shipment = require('../models/Shipment');
 const { requireAuth } = require('../middleware/auth');
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
 
 const SYSTEM_PROMPT = `Você é o assistente de suporte da PAYTCALL, chamado de "Payt IA".
 

@@ -523,6 +523,18 @@ const Shipment = {
     }
   },
 
+  async getShipmentsPerDay({ days = 30, sellerId = null } = {}) {
+    const { data, error } = await db.rpc('get_shipments_per_day', {
+      p_days: days,
+      p_seller_id: sellerId || null,
+    });
+    if (error) return [];
+    return (data || []).map(r => ({
+      day: new Date(r.day).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit' }),
+      total: r.total,
+    }));
+  },
+
   async getAnalytics() {
     const [produtos, transportadoras, ticketsMotivo] = await Promise.all([
       db.rpc('get_analytics_produtos'),
