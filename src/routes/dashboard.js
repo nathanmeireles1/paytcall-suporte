@@ -15,14 +15,14 @@ function getNextWindow() {
 // GET /dashboard — página dedicada de dashboard
 router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {
-    const { seller_id, days = '30' } = req.query;
+    const { seller_id, date_from, date_to } = req.query;
 
     const [stats, lastLog, pendingCount, ticketStats, timeSeries, companies] = await Promise.all([
       Shipment.getStats(),
       Shipment.getLastSchedulerLog(),
       Shipment.countPendingForRefresh(),
       Shipment.getTicketStats(),
-      Shipment.getShipmentsPerDay({ days: parseInt(days) || 30, sellerId: seller_id || null }),
+      Shipment.getShipmentsPerDay({ sellerId: seller_id || null, dateFrom: date_from || null, dateTo: date_to || null }),
       Shipment.getCompanies(),
     ]);
 
@@ -38,7 +38,7 @@ router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req,
       ticketStats,
       timeSeries,
       companies,
-      filters: { seller_id: seller_id || '', days },
+      filters: { seller_id: seller_id || '', date_from: date_from || '', date_to: date_to || '' },
     });
   } catch (err) {
     console.error('[Dashboard] Erro:', err.message);
@@ -211,16 +211,16 @@ router.get('/api/pedido/:orderId', requirePermission('dashboard', 'can_view'), a
 // GET /analytics — página de KPIs e gráficos analíticos
 router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {
-    const { seller_id, days = '30', carrier, status } = req.query;
+    const { seller_id, date_from, date_to, carrier, status } = req.query;
     const [stats, analytics, timeSeries, companies] = await Promise.all([
       Shipment.getStats(),
       Shipment.getAnalytics(),
-      Shipment.getShipmentsPerDay({ days: parseInt(days) || 30, sellerId: seller_id || null }),
+      Shipment.getShipmentsPerDay({ sellerId: seller_id || null, dateFrom: date_from || null, dateTo: date_to || null }),
       Shipment.getCompanies(),
     ]);
     res.render('analytics', {
       stats, analytics, timeSeries, companies,
-      filters: { seller_id: seller_id || '', days, carrier: carrier || '', status: status || '' },
+      filters: { seller_id: seller_id || '', date_from: date_from || '', date_to: date_to || '', carrier: carrier || '', status: status || '' },
     });
   } catch (err) {
     console.error('[Analytics] Erro:', err.message);

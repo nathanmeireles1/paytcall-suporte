@@ -1,4 +1,51 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#e47c24"/>
-  <text x="16" y="23" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="20" font-weight="900" fill="white">P</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background rounded square dark -->
+  <rect width="512" height="512" rx="100" fill="#1a1410"/>
+
+  <!-- Outer flame wreath — left side -->
+  <path d="M108 348 C72 282 82 198 138 152 C116 216 148 262 168 284 C152 308 132 328 108 348Z" fill="#b91c1c"/>
+  <path d="M128 338 C96 276 108 204 158 164 C140 224 166 268 182 288 C168 310 150 326 128 338Z" fill="#e47c24"/>
+
+  <!-- Outer flame wreath — right side -->
+  <path d="M404 348 C440 282 430 198 374 152 C396 216 364 262 344 284 C360 308 380 328 404 348Z" fill="#b91c1c"/>
+  <path d="M384 338 C416 276 404 204 354 164 C372 224 346 268 330 288 C344 310 362 326 384 338Z" fill="#e47c24"/>
+
+  <!-- Top left flame spike -->
+  <path d="M162 128 C144 82 164 44 200 36 C176 68 188 100 198 122 C180 126 170 128 162 128Z" fill="#b91c1c"/>
+  <path d="M174 122 C158 80 176 50 206 44 C184 72 194 100 204 118 C190 122 182 122 174 122Z" fill="#e47c24"/>
+
+  <!-- Top right flame spike -->
+  <path d="M350 128 C368 82 348 44 312 36 C336 68 324 100 314 122 C332 126 342 128 350 128Z" fill="#b91c1c"/>
+  <path d="M338 122 C354 80 336 50 306 44 C328 72 318 100 308 118 C322 122 330 122 338 122Z" fill="#e47c24"/>
+
+  <!-- Top center flame -->
+  <path d="M256 88 C242 58 246 28 256 16 C266 28 270 58 256 88Z" fill="#e47c24"/>
+  <path d="M232 104 C212 68 218 38 230 26 C236 50 238 76 232 104Z" fill="#b91c1c" opacity=".9"/>
+  <path d="M280 104 C300 68 294 38 282 26 C276 50 274 76 280 104Z" fill="#b91c1c" opacity=".9"/>
+
+  <!-- Female silhouette — head (geometric) -->
+  <ellipse cx="256" cy="192" rx="34" ry="38" fill="#e47c24"/>
+  <!-- Hair left -->
+  <path d="M222 178 C210 164 214 140 222 128 C226 144 226 162 222 178Z" fill="#c46918"/>
+  <!-- Hair right -->
+  <path d="M290 178 C302 164 298 140 290 128 C286 144 286 162 290 178Z" fill="#c46918"/>
+
+  <!-- Body / torso -->
+  <path d="M218 228 C204 240 200 262 204 284 L308 284 C312 262 308 240 294 228 C280 220 268 216 256 216 C244 216 232 220 218 228Z" fill="#e47c24"/>
+
+  <!-- Arms spread wide — left -->
+  <path d="M204 236 C185 242 162 248 136 258 C145 265 162 268 178 264 C190 256 198 248 204 236Z" fill="#e47c24"/>
+  <!-- Arms spread wide — right -->
+  <path d="M308 236 C327 242 350 248 376 258 C367 265 350 268 334 264 C322 256 314 248 308 236Z" fill="#e47c24"/>
+
+  <!-- Bottom flames from body -->
+  <path d="M256 284 L228 380 L256 358 L284 380 Z" fill="#e47c24"/>
+  <path d="M256 284 L205 395 L240 368 Z" fill="#b91c1c"/>
+  <path d="M256 284 L307 395 L272 368 Z" fill="#b91c1c"/>
+
+  <!-- Small accent diamonds (Lina's signature look) -->
+  <polygon points="200,108 208,120 196,120" fill="#fca5a5" opacity=".6"/>
+  <polygon points="312,108 320,120 308,120" fill="#fca5a5" opacity=".6"/>
+  <polygon points="145,200 155,215 143,215" fill="#fca5a5" opacity=".5"/>
+  <polygon points="367,200 357,215 369,215" fill="#fca5a5" opacity=".5"/>
 </svg>

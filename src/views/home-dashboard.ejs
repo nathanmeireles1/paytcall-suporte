@@ -70,20 +70,18 @@
 
       <!-- Filtros da dashboard -->
       <form method="GET" action="/dashboard" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:20px">
-        <select name="seller_id" class="form-select" style="font-size:13px;padding:6px 10px;min-width:180px" onchange="this.form.submit()">
+        <select name="seller_id" class="form-select" style="font-size:13px;padding:6px 10px;min-width:160px" onchange="this.form.submit()">
           <option value="">Todas as empresas</option>
           <% (typeof companies !== 'undefined' ? companies : []).forEach(c => { %>
             <option value="<%= c.seller_id %>" <%= (typeof filters !== 'undefined' && filters.seller_id === c.seller_id) ? 'selected' : '' %>><%= c.company_name || c.seller_id %></option>
           <% }) %>
         </select>
-        <select name="days" class="form-select" style="font-size:13px;padding:6px 10px" onchange="this.form.submit()">
-          <option value="7"  <%= (typeof filters !== 'undefined' && filters.days === '7')  ? 'selected' : '' %>>Últimos 7 dias</option>
-          <option value="14" <%= (typeof filters !== 'undefined' && filters.days === '14') ? 'selected' : '' %>>Últimos 14 dias</option>
-          <option value="30" <%= (typeof filters !== 'undefined' && (filters.days === '30' || !filters.days)) ? 'selected' : '' %>>Últimos 30 dias</option>
-          <option value="60" <%= (typeof filters !== 'undefined' && filters.days === '60') ? 'selected' : '' %>>Últimos 60 dias</option>
-          <option value="90" <%= (typeof filters !== 'undefined' && filters.days === '90') ? 'selected' : '' %>>Últimos 90 dias</option>
-        </select>
-        <% if (typeof filters !== 'undefined' && (filters.seller_id || filters.days !== '30')) { %>
+        <div style="display:flex;align-items:center;gap:4px">
+          <input type="date" name="date_from" value="<%= (typeof filters !== 'undefined' && filters.date_from) ? filters.date_from : '' %>" class="form-input" style="font-size:13px;padding:6px 9px;width:140px" onchange="this.form.submit()">
+          <span style="font-size:12px;color:var(--text-3)">até</span>
+          <input type="date" name="date_to" value="<%= (typeof filters !== 'undefined' && filters.date_to) ? filters.date_to : '' %>" class="form-input" style="font-size:13px;padding:6px 9px;width:140px" onchange="this.form.submit()">
+        </div>
+        <% if (typeof filters !== 'undefined' && (filters.seller_id || filters.date_from || filters.date_to)) { %>
         <a href="/dashboard" class="btn btn-ghost btn-sm">Limpar</a>
         <% } %>
       </form>
@@ -128,7 +126,7 @@
           <div class="card-header">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             <h3>Pedidos por Dia</h3>
-            <span style="margin-left:auto;font-size:11px;color:var(--text-3)"><%= typeof filters !== 'undefined' && filters.days ? 'últimos ' + filters.days + ' dias' : 'últimos 30 dias' %></span>
+            <span style="margin-left:auto;font-size:11px;color:var(--text-3)"><%= typeof filters !== 'undefined' && filters.date_from ? filters.date_from + ' → ' + (filters.date_to || 'hoje') : 'últimos 30 dias' %></span>
           </div>
           <div class="card-body" style="padding-top:8px">
             <canvas id="chartTimeSeries" height="120"></canvas>

@@ -37,15 +37,11 @@
           <% }) %>
         </select>
 
-        <select name="days" class="form-select" style="font-size:12.5px;padding:5px 9px" onchange="this.form.submit()">
-          <option value="7"  <%= filters.days === '7'  ? 'selected' : '' %>>Últimos 7 dias</option>
-          <option value="14" <%= filters.days === '14' ? 'selected' : '' %>>Últimos 14 dias</option>
-          <option value="30" <%= !filters.days || filters.days === '30' ? 'selected' : '' %>>Últimos 30 dias</option>
-          <option value="60" <%= filters.days === '60' ? 'selected' : '' %>>Últimos 60 dias</option>
-          <option value="90" <%= filters.days === '90' ? 'selected' : '' %>>Últimos 90 dias</option>
-          <option value="180" <%= filters.days === '180' ? 'selected' : '' %>>Últimos 6 meses</option>
-          <option value="365" <%= filters.days === '365' ? 'selected' : '' %>>Último ano</option>
-        </select>
+        <div style="display:flex;align-items:center;gap:4px">
+          <input type="date" name="date_from" value="<%= filters.date_from || '' %>" class="form-input" style="font-size:12.5px;padding:5px 9px;width:140px" onchange="this.form.submit()">
+          <span style="font-size:11px;color:var(--text-3)">até</span>
+          <input type="date" name="date_to" value="<%= filters.date_to || '' %>" class="form-input" style="font-size:12.5px;padding:5px 9px;width:140px" onchange="this.form.submit()">
+        </div>
 
         <select name="carrier" class="form-select" style="font-size:12.5px;padding:5px 9px" onchange="this.form.submit()">
           <option value="">Todas as transportadoras</option>
@@ -106,7 +102,7 @@
         <div class="card-header">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <h3>Pedidos por Dia</h3>
-          <span style="margin-left:auto;font-size:11px;color:var(--text-3)">últimos <%= filters.days || 30 %> dias</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--text-3)"><%= filters.date_from ? filters.date_from + ' → ' + (filters.date_to || 'hoje') : 'últimos 30 dias' %></span>
         </div>
         <div class="card-body">
           <canvas id="chartTimeSeriesAnalytics" height="70"></canvas>

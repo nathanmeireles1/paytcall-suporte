@@ -235,4 +235,20 @@ router.post('/permissions', requireAuth, requirePermission('admin_permissoes', '
   }
 });
 
+// GET /admin/settings
+router.get('/settings', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).render('error', { message: 'Acesso negado' });
+  const { data: settings } = await db.from('portal_settings').select('*').order('key');
+  res.render('admin-settings', { settings: settings || [], saved: req.query.saved });
+});
+
+// POST /admin/settings
+router.post('/settings', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).render('error', { message: 'Acesso negado' });
+  const { key, value } = req.body;
+  if (!key) return res.redirect('/admin/settings');
+  await db.from('portal_settings').upsert({ key, value, updated_at: new Date().toISOString(), updated_by: req.user.name });
+  res.redirect('/admin/settings?saved=1');
+});
+
 module.exports = router;

@@ -2,10 +2,20 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const Shipment = require('../models/Shipment');
+const { db } = require('../config/database');
 const { requireAuth } = require('../middleware/auth');
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+// Lê a chave Gemini do DB (com cache de 5 min) ou cai no env var
+let _geminiKeyCache = null;
+let _geminiKeyCacheAt = 0;
+async function getGeminiKey() {
+  if (_geminiKeyCache && Date.now() - _geminiKeyCacheAt < 5 * 60 * 1000) return _geminiKeyCache;
+  try {
+    const { data } = await db.from('portal_settings').select('value').eq('key', 'gemini_api_key').single();
+    if (data?.value) { _geminiKeyCache = data.value; _geminiKeyCacheAt = Date.now(); return data.value; }
+  } catch(e) {}
+  return process.env.GEMINI_API_KEY || '';
+}
 
 const SYSTEM_PROMPT = `Você é o assistente de suporte da PAYTCALL, chamado de "Payt IA".
 
@@ -35,7 +45,9 @@ router.post('/api/ai/chat', requireAuth, async (req, res) => {
     const { message, history = [] } = req.body;
     if (!message || !message.trim()) return res.status(400).json({ error: 'Mensagem vazia' });
 
-    if (!GEMINI_KEY) return res.status(500).json({ error: 'API do Gemini não configurada. Adicione GEMINI_API_KEY no Railway.' });
+    const GEMINI_KEY = await getGeminiKey();
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+    if (!GEMINI_KEY) return res.status(500).json({ error: 'API do Gemini não configurada. Acesse Admin → Configurações para adicionar a chave.' });
 
     // Busca contexto relevante
     let contextData = '';

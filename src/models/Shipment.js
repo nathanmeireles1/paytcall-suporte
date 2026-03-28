@@ -523,10 +523,12 @@ const Shipment = {
     }
   },
 
-  async getShipmentsPerDay({ days = 30, sellerId = null } = {}) {
+  async getShipmentsPerDay({ days = 30, sellerId = null, dateFrom = null, dateTo = null } = {}) {
     const { data, error } = await db.rpc('get_shipments_per_day', {
       p_days: days,
       p_seller_id: sellerId || null,
+      p_date_from: dateFrom || null,
+      p_date_to: dateTo || null,
     });
     if (error) return [];
     return (data || []).map(r => ({

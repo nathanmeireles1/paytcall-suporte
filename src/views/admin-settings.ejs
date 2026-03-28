@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações — Suporte Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'admin-settings' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', {
+      pageTitle: 'Configurações',
+      breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Admin' }, { label: 'Configurações' }]
+    }) %>
+
+    <div class="page">
+
+      <div class="page-header">
+        <h1>Configurações do Sistema</h1>
+        <p>Gerencie as configurações globais do portal</p>
+      </div>
+
+      <% if (saved) { %>
+      <div style="padding:12px 16px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:var(--radius-md);color:var(--success);font-size:13px;font-weight:600;margin-bottom:18px;display:flex;align-items:center;gap:8px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Configuração salva com sucesso!
+      </div>
+      <% } %>
+
+      <!-- Gemini / Lina IA -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <h3>Lina IA — Google Gemini</h3>
+          <span class="badge badge-brand" style="margin-left:auto">API</span>
+        </div>
+        <div class="card-body">
+          <%
+          const geminiSetting = (settings || []).find(s => s.key === 'gemini_api_key');
+          const geminiKey = geminiSetting ? geminiSetting.value : '';
+          const geminiUpdated = geminiSetting ? geminiSetting.updated_at : null;
+          const geminiUpdatedBy = geminiSetting ? geminiSetting.updated_by : null;
+          const keyMasked = geminiKey ? geminiKey.substring(0, 8) + '•'.repeat(Math.max(0, geminiKey.length - 12)) + geminiKey.slice(-4) : '';
+          %>
+          <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">
+            Chave da API do Google Gemini usada pelo agente <strong>Lina</strong>. Obtenha sua chave em
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--brand)">Google AI Studio</a>.
+          </p>
+
+          <% if (geminiKey) { %>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:14px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;color:var(--text-3)">Chave atual</div>
+              <code style="font-family:monospace;font-size:12.5px;color:var(--text-2)"><%= keyMasked %></code>
+            </div>
+            <% if (geminiUpdated) { %>
+            <div style="font-size:11px;color:var(--text-4);text-align:right">
+              Atualizado <%= new Date(geminiUpdated).toLocaleDateString('pt-BR') %>
+              <% if (geminiUpdatedBy) { %><br>por <%= geminiUpdatedBy %><% } %>
+            </div>
+            <% } %>
+          </div>
+          <% } %>
+
+          <form method="POST" action="/admin/settings" style="display:flex;flex-direction:column;gap:12px">
+            <input type="hidden" name="key" value="gemini_api_key">
+            <div class="form-group">
+              <label class="form-label">Nova chave API</label>
+              <input type="password" name="value" class="form-input" placeholder="AIzaSy..." autocomplete="new-password" style="font-family:monospace">
+              <div style="font-size:11.5px;color:var(--text-4);margin-top:4px">A chave ficará ativa imediatamente após salvar (sem necessidade de reiniciar o servidor).</div>
+            </div>
+            <div><button type="submit" class="btn btn-primary btn-sm">Salvar chave</button></div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Outras configurações futuras -->
+      <div class="card">
+        <div class="card-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 21 12"/></svg>
+          <h3>Outras configurações</h3>
+          <span class="badge badge-neutral" style="margin-left:auto">Em breve</span>
+        </div>
+        <div class="card-body">
+          <div class="empty-state" style="padding:24px">
+            <p>Mais configurações serão adicionadas em breve.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() {
+  const dd = document.getElementById('notifDropdown');
+  dd.classList.toggle('open');
+  if (dd.classList.contains('open')) loadNotifs();
+}
+async function loadNotifs() {
+  try {
+    const r = await fetch('/api/notifications');
+    const { notifications, unread } = await r.json();
+    const b = document.getElementById('notifBadge');
+    b.style.display = unread > 0 ? 'block' : 'none';
+    b.textContent = unread;
+    const list = document.getElementById('notifList');
+    if (!notifications.length) { list.innerHTML = '<div style="text-align:center;color:var(--text-4);padding:24px;font-size:13px">Nenhuma notificação</div>'; return; }
+    list.innerHTML = notifications.map(n => `<a href="/pedido/${n.order_id||n.tracking_code||''}" class="notif-item${n.is_read ? '' : ' unread'}"><div style="font-size:13px;color:var(--text-2)">${n.message}</div></a>`).join('');
+  } catch(e) {}
+}
+async function markAllRead() { await fetch('/api/notifications/read', { method: 'POST' }); loadNotifs(); }
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('notifDropdown');
+  const btn = document.getElementById('notifBtn');
+  if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
+});
+</script>
+<%- include('partials/ai-chat') %>
+</body>
+</html>

@@ -3,381 +3,365 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= shipment.tracking_code %> — payt Tracker</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
-    .navbar { background: #1a1a2e; padding: 0 24px; display: flex; align-items: center; height: 56px; gap: 16px; }
-    .navbar h1 { color: #fff; font-size: 18px; font-weight: 700; }
-    .navbar a { color: #aaa; font-size: 13px; text-decoration: none; margin-left: auto; }
-    .navbar a:hover { color: #fff; }
-    .container { max-width: 800px; margin: 0 auto; padding: 24px; }
-    .card { background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
-    .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #555; text-transform: uppercase; letter-spacing: .5px; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .info-item .label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #999; margin-bottom: 4px; }
-    .info-item .val { font-size: 15px; font-weight: 500; }
-    .code { font-family: monospace; font-size: 22px; font-weight: 700; letter-spacing: 2px; color: #1a1a2e; }
-    .badge { display: inline-block; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
-    .badge-delivered { background: #dcfce7; color: #16a34a; }
-    .badge-forwarded { background: #dbeafe; color: #2563eb; }
-    .badge-posted_object { background: #e0f2fe; color: #0369a1; }
-    .badge-delivering { background: #ede9fe; color: #7c3aed; }
-    .badge-recipient_not_found { background: #fef3c7; color: #d97706; }
-    .badge-returned { background: #fee2e2; color: #dc2626; }
-    .badge-returning { background: #fce7f3; color: #9d174d; }
-    .badge-waiting_client { background: #fef9c3; color: #854d0e; }
-    .badge-overdue { background: #ffedd5; color: #c2410c; }
-    .badge-wrong_address { background: #fee2e2; color: #991b1b; }
-    .badge-delivery_problem { background: #fef3c7; color: #92400e; }
-    .badge-pending { background: #f3f4f6; color: #6b7280; }
-    .badge-no_tracking { background: #f1f5f9; color: #94a3b8; }
-    .badge-tracking_delayed { background: #fee2e2; color: #dc2626; }
-    .timeline { position: relative; padding-left: 24px; }
-    .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: #e5e7eb; }
-    .event { position: relative; padding-bottom: 20px; }
-    .event:last-child { padding-bottom: 0; }
-    .event::before { content: ''; position: absolute; left: -20px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #d1d5db; border: 2px solid #fff; box-shadow: 0 0 0 2px #d1d5db; }
-    .event:first-child::before { background: #4f46e5; box-shadow: 0 0 0 2px #4f46e5; }
-    .event .desc { font-size: 14px; font-weight: 500; }
-    .event .meta { font-size: 12px; color: #999; margin-top: 2px; }
-    .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; }
-    .btn-primary { background: #4f46e5; color: #fff; }
-    .btn-danger { background: #dc2626; color: #fff; }
-    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
-    .btn-ghost:hover { background: #f5f5f5; }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
-    .actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
-    .last-event-box { margin-top: 16px; padding: 12px 16px; background: #f8f8fb; border-radius: 8px; border-left: 3px solid #4f46e5; }
-    .last-event-box .ev-label { font-size: 12px; color: #999; margin-bottom: 4px; }
-    .last-event-box .ev-text { font-size: 14px; font-weight: 500; }
-    .last-event-box .ev-date { font-size: 12px; color: #999; margin-top: 2px; }
-    .expected-box { display:inline-flex; align-items:center; gap:8px; background:#ecfdf5; border:1px solid #6ee7b7; border-radius:8px; padding:8px 14px; margin-top:12px; }
-    .expected-box .exp-label { font-size:11px; color:#059669; text-transform:uppercase; letter-spacing:.5px; }
-    .expected-box .exp-val { font-size:15px; font-weight:700; color:#065f46; }
-    .ticket { border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px; margin-bottom:10px; }
-    .ticket.open { border-left:3px solid #4f46e5; }
-    .ticket.closed { border-left:3px solid #d1d5db; opacity:.7; }
-    .ticket-title { font-weight:600; font-size:14px; }
-    .ticket-meta { font-size:12px; color:#999; margin-top:4px; }
-    .ticket-desc { font-size:13px; color:#555; margin-top:8px; }
-    .ticket-form input, .ticket-form textarea, .ticket-form select { width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px; margin-bottom:10px; outline:none; font-family:inherit; }
-    .ticket-form textarea { resize:vertical; min-height:80px; }
-    .ticket-form input:focus, .ticket-form textarea:focus { border-color:#4f46e5; }
-    .priority-normal { color:#6b7280; } .priority-high { color:#dc2626; } .priority-low { color:#16a34a; }
-  </style>
+  <title>#<%= shipment.order_id || shipment.tracking_code %> — Suporte Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
 </head>
 <body>
-<nav class="navbar">
-  <h1>payt Tracker</h1>
-  <div style="margin-left:auto;display:flex;gap:16px;align-items:center">
-    <a href="/">← Voltar ao painel</a>
-    <% if (typeof currentUser !== 'undefined') { %>
-    <span style="color:#4f46e5;background:rgba(79,70,229,.1);padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600"><%= currentUser.name %></span>
-    <a href="/logout" style="color:#f87171">Sair</a>
-    <% } %>
-  </div>
-</nav>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'rastreios' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', {
+      pageTitle: shipment.order_id ? '#' + shipment.order_id : shipment.tracking_code,
+      breadcrumb: [
+        { label: 'Paytcall', href: '/dashboard' },
+        { label: 'Rastreios', href: '/rastreios' },
+        { label: shipment.order_id ? '#' + shipment.order_id : shipment.tracking_code }
+      ]
+    }) %>
+
+    <div class="page">
 
 <%
 const statusLabel = {
-  pending: 'Pendente', posted_object: 'Objeto Postado', forwarded: 'Em Trânsito',
+  pending: 'Pendente', posted_object: 'Obj. Postado', forwarded: 'Em Trânsito',
   delivering: 'Saiu p/ Entrega', recipient_not_found: 'Dest. não encontrado',
-  delivery_problem: 'Problema na Entrega', wrong_address: 'Endereço Incorreto',
+  delivery_problem: 'Prob. Entrega', wrong_address: 'End. Incorreto',
   waiting_client: 'Ag. Retirada', delivered: 'Entregue',
   returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
-  no_tracking: 'Sem Rastreio',
-  tracking_delayed: 'Rastreio em Atraso',
+  no_tracking: 'Sem Rastreio', tracking_delayed: 'Rastreio em Atraso',
 };
 const fmtDate = (iso) => {
   if (!iso) return '—';
   try {
-    const d = new Date(String(iso).replace(' ', 'T'));
-    return d.toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+    return new Date(String(iso).replace(' ', 'T')).toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
   } catch(e) { return String(iso); }
 };
-const fmtCep = (cep) => cep ? String(cep).replace(/^(\d{5})(\d{3})$/, '$1-$2') : '';
 const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() === ',') ? '' : loc;
 %>
 
-<div class="container">
-
-  <!-- Rastreio principal -->
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
-      <div>
-        <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Código de Rastreio</div>
-        <div class="code"><%= shipment.tracking_code %></div>
-        <% if (shipment.loggi_code && shipment.loggi_code !== shipment.tracking_code) { %>
-        <div style="font-size:12px;color:#666;margin-top:4px">Cód. Loggi: <strong><%= shipment.loggi_code %></strong></div>
-        <% } %>
-      </div>
-      <span class="badge badge-<%= shipment.status %>"><%= statusLabel[shipment.status] || shipment.status %></span>
-    </div>
-
-    <% if (shipment.last_event) { %>
-    <div class="last-event-box">
-      <div class="ev-label">Último evento</div>
-      <div class="ev-text"><%= shipment.last_event %></div>
-      <% if (shipment.last_event_date) { %><div class="ev-date"><%= fmtDate(shipment.last_event_date) %></div><% } %>
-    </div>
-    <% } %>
-
-    <% if (shipment.expected_date) { %>
-    <div class="expected-box">
-      <div>
-        <div class="exp-label">Data prevista de entrega</div>
-        <div class="exp-val"><%= shipment.expected_date %></div>
-      </div>
-    </div>
-    <% } %>
-
-    <div class="info-grid" style="margin-top:20px">
-      <% if (shipment.order_id) { %>
-      <div class="info-item">
-        <div class="label">Pedido</div>
-        <div class="val">#<%= shipment.order_id %></div>
-      </div>
-      <% } %>
-      <% if (shipment.company_name) { %>
-      <div class="info-item">
-        <div class="label">Empresa</div>
-        <div class="val"><%= shipment.company_name %></div>
-      </div>
-      <% } %>
-      <% if (shipment.carrier) { %>
-      <div class="info-item">
-        <div class="label">Transportadora</div>
-        <div class="val"><%= shipment.carrier %></div>
-      </div>
-      <% } %>
-      <div class="info-item">
-        <div class="label">Última consulta H7</div>
-        <div class="val"><%= fmtDate(shipment.last_queried_at) %></div>
-      </div>
-      <% if (shipment.paid_at) { %>
-      <div class="info-item">
-        <div class="label">Pagamento aprovado em</div>
-        <div class="val"><%= fmtDate(shipment.paid_at) %></div>
-      </div>
-      <% } %>
-      <div class="info-item">
-        <div class="label">Cadastrado em</div>
-        <div class="val"><%= fmtDate(shipment.created_at) %></div>
-      </div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-primary" onclick="refreshTracking(event)">↻ Atualizar agora</button>
-      <% if (shipment.tracking_url) { %>
-      <a href="<%= shipment.tracking_url %>" target="_blank" class="btn btn-ghost">🔗 Ver rastreio <%= shipment.carrier || '' %></a>
-      <% } %>
-      <a href="/" class="btn btn-ghost">Voltar</a>
-    </div>
-  </div>
-
-  <!-- Cliente -->
-  <div class="card">
-    <h2>Cliente</h2>
-    <div class="info-grid">
-      <% if (shipment.customer_name) { %>
-      <div class="info-item"><div class="label">Nome</div><div class="val"><%= shipment.customer_name %></div></div>
-      <% } %>
-      <% if (shipment.customer_doc) { %>
-      <div class="info-item"><div class="label">CPF</div><div class="val"><%= shipment.customer_doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') %></div></div>
-      <% } %>
-      <% if (shipment.customer_email) { %>
-      <div class="info-item"><div class="label">E-mail</div><div class="val"><%= shipment.customer_email %></div></div>
-      <% } %>
-      <% if (shipment.customer_phone) { %>
-      <div class="info-item"><div class="label">Telefone</div><div class="val"><%= shipment.customer_phone %></div></div>
-      <% } %>
-    </div>
-  </div>
-
-  <!-- Pedido e pagamento -->
-  <div class="card">
-    <h2>Pedido</h2>
-    <div class="info-grid">
-      <% if (shipment.product_name) { %>
-      <div class="info-item" style="grid-column:1/-1"><div class="label">Produto</div><div class="val"><%= shipment.product_name %></div></div>
-      <% } %>
-      <% if (shipment.product_quantity) { %>
-      <div class="info-item"><div class="label">Quantidade</div><div class="val"><%= shipment.product_quantity %></div></div>
-      <% } %>
-      <% if (shipment.product_price) { %>
-      <div class="info-item"><div class="label">Preço unitário</div><div class="val">R$ <%= (shipment.product_price/100).toFixed(2).replace('.',',') %></div></div>
-      <% } %>
-      <% if (shipment.total_price) { %>
-      <div class="info-item"><div class="label">Total pago</div><div class="val" style="color:#16a34a;font-weight:700">R$ <%= (shipment.total_price/100).toFixed(2).replace('.',',') %></div></div>
-      <% } %>
-      <% if (shipment.payment_method) { %>
-      <div class="info-item"><div class="label">Forma de pagamento</div><div class="val"><%= {pix:'PIX',credit_card:'Cartão de crédito',boleto:'Boleto',debit_card:'Cartão de débito'}[shipment.payment_method] || shipment.payment_method %></div></div>
-      <% } %>
-      <% if (shipment.payment_status) { %>
-      <div class="info-item"><div class="label">Status do pagamento</div><div class="val"><%= {paid:'Pago',waiting_payment:'Aguardando',canceled:'Cancelado',refunded:'Reembolsado',chargeback:'Chargeback',chargeback_presented:'Chargeback Apresentado',refunded_partial:'Reembolso Parcial'}[shipment.payment_status] || shipment.payment_status %></div></div>
-      <% } %>
-    </div>
-  </div>
-
-  <!-- Endereço -->
-  <% if (shipment.shipping_address) { %>
-  <% const addr = typeof shipment.shipping_address === 'string' ? JSON.parse(shipment.shipping_address) : shipment.shipping_address; %>
-  <div class="card">
-    <h2>Endereço de Entrega</h2>
-    <div class="info-grid">
-      <div class="info-item" style="grid-column:1/-1">
-        <div class="label">Logradouro</div>
-        <div class="val"><%= addr.street %><% if (addr.street_number) { %>, <%= addr.street_number %><% } %><% if (addr.complement) { %> — <%= addr.complement %><% } %></div>
-      </div>
-      <% if (addr.district) { %>
-      <div class="info-item">
-        <div class="label">Bairro</div>
-        <div class="val"><%= addr.district %></div>
-      </div>
-      <% } %>
-      <div class="info-item">
-        <div class="label">Cidade / UF</div>
-        <div class="val"><%= addr.city %> / <%= addr.state %></div>
-      </div>
-      <div class="info-item">
-        <div class="label">CEP</div>
-        <div class="val"><%= fmtCep(addr.zipcode) %></div>
-      </div>
-    </div>
-  </div>
-  <% } %>
-
-  <!-- Timeline H7 -->
-  <% if (events.length > 0) { %>
-  <div class="card">
-    <h2>Histórico de Rastreamento (<%= events.length %> eventos)</h2>
-    <div class="timeline">
-      <% events.forEach(ev => { %>
-      <div class="event">
-        <div class="desc"><%= ev.description %></div>
-        <div class="meta">
-          <%= ev.event_date ? fmtDate(ev.event_date) : '' %>
-          <% const loc = cleanLocation(ev.location); if (loc) { %> · <%= loc %><% } %>
+      <!-- Page header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <h1 style="font-size:20px;font-weight:700;color:var(--text)">#<%= shipment.order_id || shipment.tracking_code %></h1>
+            <span class="badge badge-<%= shipment.status %>"><%= statusLabel[shipment.status] || shipment.status %></span>
+          </div>
+          <div style="font-size:13px;color:var(--text-3);margin-top:4px">
+            <%= shipment.customer_name || '—' %><% if (shipment.company_name) { %> · <%= shipment.company_name %><% } %>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="refreshTracking(event)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+            Atualizar rastreio
+          </button>
+          <a href="/rastreios" class="btn btn-ghost btn-sm">← Voltar</a>
         </div>
       </div>
-      <% }) %>
-    </div>
-  </div>
-  <% } else { %>
-  <div class="card" style="text-align:center;color:#999;padding:40px">
-    <p>Nenhum evento de rastreamento ainda.</p>
-    <p style="font-size:13px;margin-top:8px">Clique em "Atualizar agora" para consultar a H7.</p>
-  </div>
-  <% } %>
 
-  <!-- Tickets de suporte -->
-  <div class="card">
-    <h2>Tickets de Suporte (<%= tickets.length %>)</h2>
+      <!-- Grid principal -->
+      <div class="grid-2" style="margin-bottom:18px;align-items:start">
 
-    <% if (tickets.length > 0) { %>
-    <% tickets.forEach(t => {
-      const cfg = TICKET_CONFIG[t.tipo] || {};
-      const isTerminal = (cfg.terminalStatuses || []).includes(t.status);
-      const hoursOpen = Math.floor((Date.now() - new Date(t.created_at).getTime()) / 3600000);
-      const prioLabel = {1:'ALTA',2:'MÉDIA',3:'BAIXA'}[t.priority] || t.priority;
-      const prioColor = {1:'#dc2626',2:'#d97706',3:'#6b7280'}[t.priority] || '#6b7280';
-      const tipoLabel = t.tipo === 'RETENCAO' ? 'Retenção' : 'Logística';
-      const tipoBg = t.tipo === 'RETENCAO' ? '#fef3c7' : '#dbeafe';
-      const tipoColor = t.tipo === 'RETENCAO' ? '#92400e' : '#1e40af';
-    %>
-    <div class="ticket" style="border-left:3px solid <%= isTerminal ? '#d1d5db' : '#4f46e5' %>;<%= isTerminal ? 'opacity:.7;' : '' %>">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:<%= tipoBg %>;color:<%= tipoColor %>"><%= tipoLabel %></span>
-          <span class="ticket-title"><%= t.motivo %></span>
-          <% if (t.motivo_cancelamento) { %><span style="font-size:12px;color:#666">— <%= t.motivo_cancelamento %></span><% } %>
-          <span style="font-size:11px;font-weight:700;color:<%= prioColor %>">[<%= prioLabel %>]</span>
+        <!-- Card rastreio -->
+        <div class="card">
+          <div class="card-header">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <h3>Rastreamento</h3>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">Código</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <code style="font-family:monospace;font-size:13px;background:var(--surface-2);border:1px solid var(--border);padding:2px 9px;border-radius:5px;letter-spacing:.5px;color:var(--text)"><%= shipment.tracking_code %></code>
+                  <button onclick="copyText('<%= shipment.tracking_code %>')" class="copy-btn" title="Copiar">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  </button>
+                </div>
+              </div>
+              <% if (shipment.loggi_code && shipment.loggi_code !== shipment.tracking_code) { %>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">Cód. Loggi</span>
+                <span class="fw-600 font-mono" style="font-family:monospace;font-size:12px"><%= shipment.loggi_code %></span>
+              </div>
+              <% } %>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">Transportadora</span>
+                <span class="fw-600"><%= shipment.carrier || '—' %></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">Última consulta</span>
+                <span class="fw-600"><%= fmtDate(shipment.last_queried_at) %></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">Cadastrado em</span>
+                <span class="fw-600"><%= fmtDate(shipment.created_at) %></span>
+              </div>
+              <% if (shipment.expected_date) { %>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">Previsão de entrega</span>
+                <span class="fw-600" style="color:var(--success)"><%= shipment.expected_date %></span>
+              </div>
+              <% } %>
+              <% if (shipment.tracking_url) { %>
+              <div style="padding-top:8px;border-top:1px solid var(--border)">
+                <a href="<%= shipment.tracking_url %>" target="_blank" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  Ver rastreio <%= shipment.carrier || '' %>
+                </a>
+              </div>
+              <% } %>
+            </div>
+          </div>
         </div>
-        <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:<%= isTerminal ? '#f3f4f6' : '#ede9fe' %>;color:<%= isTerminal ? '#9ca3af' : '#7c3aed' %>"><%= t.status %></span>
+
+        <!-- Card pedido -->
+        <div class="card">
+          <div class="card-header">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+            <h3>Pedido</h3>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <% if (shipment.order_id) { %>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">ID do Pedido</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span class="fw-600">#<%= shipment.order_id %></span>
+                  <button onclick="copyText('<%= shipment.order_id %>')" class="copy-btn" title="Copiar">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  </button>
+                </div>
+              </div>
+              <% } %>
+              <% if (shipment.product_name) { %>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+                <span class="text-muted" style="flex-shrink:0">Produto</span>
+                <span class="fw-600" style="text-align:right"><%= shipment.product_name %><% if (shipment.product_quantity > 1) { %> ×<%= shipment.product_quantity %><% } %></span>
+              </div>
+              <% } %>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">Empresa</span>
+                <span class="fw-600"><%= shipment.company_name || shipment.seller_id || '—' %></span>
+              </div>
+              <% if (shipment.paid_at) { %>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">Pago em</span>
+                <span class="fw-600"><%= fmtDate(shipment.paid_at) %></span>
+              </div>
+              <% } %>
+              <% if (shipment.total_price) { %>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">Total pago</span>
+                <span class="fw-600" style="color:var(--success)">R$ <%= (shipment.total_price/100).toFixed(2).replace('.',',') %></span>
+              </div>
+              <% } %>
+              <% if (shipment.payment_method) { %>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span class="text-muted">Pagamento</span>
+                <span class="fw-600"><%= {pix:'PIX',credit_card:'Cartão de crédito',boleto:'Boleto',debit_card:'Cartão de débito'}[shipment.payment_method] || shipment.payment_method %></span>
+              </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="ticket-meta" style="margin-top:6px">
-        <strong><%= t.assigned_to %></strong> · Criado por <%= t.created_by %> · <%= fmtDate(t.created_at) %>
-      </div>
+      <div class="grid-2" style="margin-bottom:18px;align-items:start">
 
-      <div style="margin-top:6px;font-size:12px">
-        <% if (isTerminal && t.closed_at) { %>
-          <span style="color:#16a34a">Encerrado em <%= fmtDate(t.closed_at) %></span>
-          <% const hoursClosed = Math.floor((new Date(t.closed_at).getTime() - new Date(t.created_at).getTime()) / 3600000); %>
-          <span style="color:#666"> — <%= hoursClosed %>h para resolução</span>
-        <% } else { %>
-          <span>Aberto há <strong><%= hoursOpen %>h</strong></span>
-          <% if (hoursOpen >= 72) { %><span style="color:#dc2626;font-weight:700"> (SLA estourado)</span>
-          <% } else if (hoursOpen >= 48) { %><span style="color:#d97706;font-weight:600"> (atenção: próximo do SLA)</span>
-          <% } %>
+        <!-- Cliente -->
+        <div class="card">
+          <div class="card-header">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <h3>Cliente</h3>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <% if (shipment.customer_name) { %>
+              <div style="display:flex;justify-content:space-between;gap:12px"><span class="text-muted">Nome</span><span class="fw-600"><%= shipment.customer_name %></span></div>
+              <% } %>
+              <% if (shipment.customer_email) { %>
+              <div style="display:flex;justify-content:space-between;gap:12px"><span class="text-muted">Email</span><span style="font-size:13px;color:var(--text-2)"><%= shipment.customer_email %></span></div>
+              <% } %>
+              <% if (shipment.customer_cpf || shipment.customer_doc) { %>
+              <div style="display:flex;justify-content:space-between;gap:12px"><span class="text-muted">CPF</span><span class="fw-600"><%= (shipment.customer_cpf || shipment.customer_doc || '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') %></span></div>
+              <% } %>
+              <% if (shipment.customer_phone) { %>
+              <div style="display:flex;justify-content:space-between;gap:12px"><span class="text-muted">Telefone</span><span class="fw-600"><%= shipment.customer_phone %></span></div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Endereço -->
+        <% const addr = shipment.shipping_address ? (typeof shipment.shipping_address === 'string' ? JSON.parse(shipment.shipping_address) : shipment.shipping_address) : null; %>
+        <% if (addr) { %>
+        <div class="card">
+          <div class="card-header">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <h3>Endereço de Entrega</h3>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span class="text-muted" style="flex-shrink:0">Logradouro</span><span class="fw-600" style="text-align:right"><%= addr.street %><% if (addr.street_number) { %>, <%= addr.street_number %><% } %><% if (addr.complement) { %> — <%= addr.complement %><% } %></span></div>
+              <% if (addr.district) { %><div style="display:flex;justify-content:space-between;gap:12px"><span class="text-muted">Bairro</span><span class="fw-600"><%= addr.district %></span></div><% } %>
+              <div style="display:flex;justify-content:space-between;gap:12px"><span class="text-muted">Cidade / UF</span><span class="fw-600"><%= addr.city %> / <%= addr.state %></span></div>
+              <div style="display:flex;justify-content:space-between;gap:12px"><span class="text-muted">CEP</span><span class="fw-600"><%= String(addr.zipcode||'').replace(/^(\d{5})(\d{3})$/, '$1-$2') %></span></div>
+            </div>
+          </div>
+        </div>
         <% } %>
       </div>
 
-      <% if (t.observacao) { %><div class="ticket-desc" style="margin-top:8px"><%= t.observacao %></div><% } %>
-
-      <% if (!isTerminal) { %>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
-        <select onchange="updateTicketStatus('<%= t.id %>', this)" style="padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">
-          <option value="">Alterar status...</option>
-          <% (cfg.statuses || []).filter(s => s !== t.status).forEach(s => { %>
-          <option value="<%= s %>"><%= s %></option>
-          <% }) %>
-        </select>
+      <!-- Último evento -->
+      <% if (shipment.last_event) { %>
+      <div class="card" style="margin-bottom:18px;border-left:3px solid var(--brand)">
+        <div class="card-header">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <h3>Último Evento</h3>
+        </div>
+        <div class="card-body">
+          <div style="font-size:13.5px;font-weight:500;color:var(--text)"><%= shipment.last_event %></div>
+          <% if (shipment.last_event_date) { %><div style="font-size:12px;color:var(--text-3);margin-top:4px"><%= fmtDate(shipment.last_event_date) %></div><% } %>
+        </div>
       </div>
       <% } %>
-    </div>
-    <% }) %>
-    <% } %>
 
-    <details style="margin-top:16px">
-      <summary style="cursor:pointer;font-size:14px;font-weight:600;color:#4f46e5">+ Abrir novo ticket</summary>
-      <form class="ticket-form" method="POST" action="/shipment/<%= shipment.tracking_code %>/ticket" style="margin-top:14px">
-        <select name="tipo" id="ticketTipo" required>
-          <option value="">Selecione o tipo</option>
-          <option value="RETENCAO">Retenção</option>
-          <option value="LOGISTICA">Logística</option>
-        </select>
-
-        <select name="motivo" id="ticketMotivo" required disabled>
-          <option value="">Selecione o motivo</option>
-        </select>
-
-        <div id="motivoCancelamentoWrap" style="display:none">
-          <select name="motivo_cancelamento" id="ticketMotivoCancelamento">
-            <option value="">Motivo do cancelamento (opcional)</option>
-            <% MOTIVOS_CANCELAMENTO.forEach(m => { %>
-            <option value="<%= m %>"><%= m %></option>
+      <!-- Timeline -->
+      <% if (events.length > 0) { %>
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-header">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/></svg>
+          <h3>Histórico de Rastreamento</h3>
+          <span class="badge badge-neutral" style="margin-left:auto"><%= events.length %> eventos</span>
+        </div>
+        <div class="card-body no-pad">
+          <div style="position:relative;padding:16px 20px">
+            <div style="position:absolute;left:32px;top:0;bottom:0;width:2px;background:var(--border)"></div>
+            <% events.forEach((ev, idx) => { %>
+            <div style="display:flex;gap:14px;padding-bottom:<%= idx === events.length-1 ? '0' : '16px' %>">
+              <div style="flex-shrink:0;width:12px;height:12px;border-radius:99px;background:<%= idx===0 ? 'var(--brand)' : 'var(--border-2)' %>;border:2px solid var(--surface);box-shadow:0 0 0 2px <%= idx===0 ? 'var(--brand)' : 'var(--border-2)' %>;margin-top:3px;position:relative;z-index:1"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:500;color:var(--text)"><%= ev.description %></div>
+                <div style="font-size:11.5px;color:var(--text-3);margin-top:2px">
+                  <%= ev.event_date ? fmtDate(ev.event_date) : '' %>
+                  <% const loc = cleanLocation(ev.location); if (loc) { %> · <%= loc %><% } %>
+                </div>
+              </div>
+            </div>
             <% }) %>
-          </select>
+          </div>
         </div>
+      </div>
+      <% } %>
 
-        <textarea name="observacao" placeholder="Observações (opcional)"></textarea>
-        <button type="submit" class="btn btn-primary">Abrir ticket</button>
-      </form>
-    </details>
+      <!-- Tickets -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-header">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+          <h3>Tickets de Suporte</h3>
+          <span class="badge badge-neutral" style="margin-left:auto"><%= tickets.length %></span>
+        </div>
+        <div class="card-body">
+          <% if (tickets.length > 0) { %>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+          <% tickets.forEach(t => {
+            const cfg = TICKET_CONFIG[t.tipo] || {};
+            const isTerminal = (cfg.terminalStatuses || []).includes(t.status);
+            const hoursOpen = Math.floor((Date.now() - new Date(t.created_at).getTime()) / 3600000);
+            const prioColor = {1:'var(--danger)',2:'var(--warning)',3:'var(--text-3)'}[t.priority] || 'var(--text-3)';
+            const tipoLabel = t.tipo === 'RETENCAO' ? 'Retenção' : 'Logística';
+          %>
+          <div style="border:1px solid var(--border);border-left:3px solid <%= isTerminal ? 'var(--border-2)' : 'var(--brand)' %>;border-radius:var(--radius-md);padding:12px 14px;opacity:<%= isTerminal ? '.7' : '1' %>">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+              <span class="badge badge-brand" style="<%= t.tipo === 'LOGISTICA' ? 'background:var(--info-bg);color:var(--info);border-color:var(--info-border)' : '' %>"><%= tipoLabel %></span>
+              <span style="font-weight:600;font-size:13px;color:var(--text)"><%= t.motivo %></span>
+              <% if (t.motivo_cancelamento) { %><span style="font-size:12px;color:var(--text-3)">— <%= t.motivo_cancelamento %></span><% } %>
+              <span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:99px;background:var(--surface-2);color:var(--text-2);border:1px solid var(--border)"><%= t.status %></span>
+            </div>
+            <div style="font-size:12px;color:var(--text-3)">
+              <% if (t.assigned_to) { %><strong style="color:var(--text-2)"><%= t.assigned_to %></strong> · <% } %>
+              Criado por <%= t.created_by %> · <%= fmtDate(t.created_at) %>
+              <% if (!isTerminal) { %>
+              · <span style="color:<%= hoursOpen >= 72 ? 'var(--danger)' : hoursOpen >= 48 ? 'var(--warning)' : 'var(--text-3)' %>;font-weight:<%= hoursOpen >= 48 ? '600' : '400' %>">
+                Aberto há <%= hoursOpen %>h<% if (hoursOpen >= 72) { %> (SLA estourado)<% } %>
+              </span>
+              <% } else if (t.closed_at) { %>
+              · <span style="color:var(--success)">Encerrado em <%= fmtDate(t.closed_at) %></span>
+              <% } %>
+            </div>
+            <% if (t.observacao) { %><div style="font-size:13px;color:var(--text-2);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><%= t.observacao %></div><% } %>
+            <% if (!isTerminal) { %>
+            <div style="margin-top:10px;display:flex;align-items:center;gap:6px">
+              <select onchange="updateTicketStatus('<%= t.id %>', this)" class="form-select" style="font-size:12px;padding:4px 8px;max-width:200px">
+                <option value="">Alterar status...</option>
+                <% (cfg.statuses || []).filter(s => s !== t.status).forEach(s => { %>
+                <option value="<%= s %>"><%= s %></option>
+                <% }) %>
+              </select>
+            </div>
+            <% } %>
+          </div>
+          <% }) %>
+          </div>
+          <% } %>
+
+          <!-- Abrir novo ticket -->
+          <details>
+            <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--brand);list-style:none;display:flex;align-items:center;gap:6px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Abrir novo ticket
+            </summary>
+            <form method="POST" action="/shipment/<%= shipment.tracking_code %>/ticket" style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+              <select name="tipo" id="ticketTipo" class="form-select" required>
+                <option value="">Selecione o tipo</option>
+                <option value="RETENCAO">Retenção</option>
+                <option value="LOGISTICA">Logística</option>
+              </select>
+              <select name="motivo" id="ticketMotivo" class="form-select" required disabled>
+                <option value="">Selecione o motivo</option>
+              </select>
+              <div id="motivoCancelamentoWrap" style="display:none">
+                <select name="motivo_cancelamento" id="ticketMotivoCancelamento" class="form-select">
+                  <option value="">Motivo do cancelamento (opcional)</option>
+                  <% MOTIVOS_CANCELAMENTO.forEach(m => { %>
+                  <option value="<%= m %>"><%= m %></option>
+                  <% }) %>
+                </select>
+              </div>
+              <textarea name="observacao" placeholder="Observações (opcional)" class="form-textarea" style="min-height:80px"></textarea>
+              <div><button type="submit" class="btn btn-primary btn-sm">Abrir ticket</button></div>
+            </form>
+          </details>
+        </div>
+      </div>
+
+    </div>
   </div>
-
 </div>
 
 <script>
+function copyText(text) {
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
 function refreshTracking(e) {
-  const btn = e.target;
+  const btn = e.currentTarget;
   btn.disabled = true;
-  btn.textContent = 'Consultando H7...';
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 11-6.22-8.56"/></svg> Consultando…';
   fetch('/api/tracking/<%= shipment.tracking_code %>')
     .then(r => r.json())
-    .then(data => {
-      if (data.warning) alert('Aviso: ' + data.warning);
-      location.reload();
-    })
+    .then(() => location.reload())
     .catch(() => {
       btn.disabled = false;
-      btn.textContent = '↻ Atualizar agora';
-      alert('Erro ao consultar H7. Tente novamente.');
+      btn.textContent = 'Atualizar rastreio';
+      alert('Erro ao consultar. Tente novamente.');
     });
 }
-// --- Ticket form logic ---
+
 const TCFG = <%- JSON.stringify(TICKET_CONFIG) %>;
 const tipoSel = document.getElementById('ticketTipo');
 const motivoSel = document.getElementById('ticketMotivo');
@@ -406,14 +390,52 @@ function updateTicketStatus(id, selectEl) {
   const newStatus = selectEl.value;
   if (!newStatus || !confirm('Alterar status para "' + newStatus + '"?')) { selectEl.value = ''; return; }
   fetch('/ticket/' + id + '/status', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status: newStatus }),
   })
   .then(r => r.json())
   .then(d => { if (d.ok) location.reload(); else alert(d.error || 'Erro'); })
   .catch(() => { selectEl.value = ''; alert('Erro ao alterar status.'); });
 }
+
+// Notificações
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() {
+  const dd = document.getElementById('notifDropdown');
+  dd.classList.toggle('open');
+  if (dd.classList.contains('open')) loadNotifs();
+}
+async function loadNotifs() {
+  try {
+    const r = await fetch('/api/notifications');
+    const { notifications, unread } = await r.json();
+    const b = document.getElementById('notifBadge');
+    b.style.display = unread > 0 ? 'block' : 'none';
+    b.textContent = unread;
+    const list = document.getElementById('notifList');
+    if (!notifications.length) { list.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:24px;font-size:13px">Nenhuma notificação</div>'; return; }
+    list.innerHTML = notifications.map(n => {
+      const date = new Date(n.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      return `<a href="/pedido/${n.order_id||n.tracking_code||''}" class="notif-item${n.is_read ? '' : ' unread'}"><div style="font-size:13px;color:var(--text-2)">${n.message}</div><div style="font-size:11px;color:var(--text-4);margin-top:2px">${date}</div></a>`;
+    }).join('');
+  } catch(e) {}
+}
+async function markAllRead() {
+  await fetch('/api/notifications/read', { method: 'POST' });
+  loadNotifs();
+}
+if (NOTIF_USER) {
+  fetch('/api/notifications').then(r=>r.json()).then(({unread})=>{
+    const b = document.getElementById('notifBadge');
+    if (b) { b.style.display = unread > 0 ? 'block' : 'none'; b.textContent = unread; }
+  }).catch(()=>{});
+}
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('notifDropdown');
+  const btn = document.getElementById('notifBtn');
+  if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
+});
+@keyframes spin { to { transform: rotate(360deg); } }
 </script>
 <%- include('partials/ai-chat') %>
 </body>
