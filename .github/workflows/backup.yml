@@ -40,7 +40,7 @@ jobs:
           echo "Backup gerado: $FILENAME ($(du -sh $FILENAME | cut -f1))"
 
       - name: Salvar backup como artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: backup-${{ env.BACKUP_FILE }}
           path: ${{ env.BACKUP_FILE }}
