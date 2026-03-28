@@ -313,7 +313,7 @@ router.get('/logistica/solicitacoes', requirePermission('tickets', 'can_view'), 
 });
 
 // GET /relatorios/rastreio-log — Log das execuções do scheduler H7
-router.get('/rastreio-log', async (req, res) => {
+router.get('/rastreio-log', requirePermission('rastreio_log', 'can_view'), async (req, res) => {
   try {
     const { page = 1 } = req.query;
     const result = await Shipment.getSchedulerLogs({ page: parseInt(page) });

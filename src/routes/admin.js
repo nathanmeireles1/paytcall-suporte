@@ -16,6 +16,7 @@ const MODULES = [
   { key: 'admin_permissoes',         label: 'Admin — Permissões' },
   { key: 'tracking',                 label: 'Rastreamento (API)' },
   { key: 'notificacoes',             label: 'Notificações' },
+  { key: 'rastreio_log',             label: 'Log de Rastreios (Scheduler)' },
 ];
 const ROLES = ['admin', 'suporte', 'usuario', 'terceiros'];
 const ROLE_LABELS = { admin: 'Administrador', suporte: 'Suporte', usuario: 'Usuário', terceiros: 'Terceiros' };

@@ -13,8 +13,11 @@
     .perm-table td:first-child { text-align: left; font-weight: 500; color: var(--gray-700); padding-left: 16px; cursor: pointer; }
     .perm-table td:first-child:hover { color: var(--brand); }
     .perm-table input[type=checkbox] { width: 17px; height: 17px; cursor: pointer; accent-color: var(--brand); }
-    .role-col { border-left: 2px solid var(--gray-200); }
+    .role-col { border-left: 3px solid var(--border-2); }
+    .role-head-first { border-left: 3px solid var(--border-2); background: var(--surface-2); }
     .action-head { font-size: 10px !important; color: var(--gray-400) !important; font-weight: 500 !important; }
+    .perm-table tbody tr:hover td { background: var(--surface-2); }
+    .perm-table tbody tr td.role-col { border-left: 3px solid var(--border-2); }
   </style>
 </head>
 <body>
@@ -61,8 +64,8 @@
                 <thead>
                   <tr>
                     <th>Módulo</th>
-                    <% ROLES.forEach(role => { %>
-                    <th colspan="4" class="role-col" style="color:var(--gray-800);font-size:12px"><%= ROLE_LABELS[role] %></th>
+                    <% ROLES.forEach((role, i) => { %>
+                    <th colspan="4" class="role-col" style="color:var(--text);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface-2)"><%= ROLE_LABELS[role] %></th>
                     <% }) %>
                   </tr>
                   <tr>
