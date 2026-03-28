@@ -183,6 +183,24 @@ router.post('/api/notifications/read', async (req, res) => {
   }
 });
 
+// GET /api/pedido/:orderId — JSON para modal de detalhe
+router.get('/api/pedido/:orderId', requirePermission('dashboard', 'can_view'), async (req, res) => {
+  try {
+    const shipment = await Shipment.findByOrderId(req.params.orderId.trim());
+    if (!shipment) return res.status(404).json({ error: 'Pedido não encontrado' });
+    if (req.user.role === 'terceiros' && !req.user.seller_ids.includes(shipment.seller_id)) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    const [events, tickets] = await Promise.all([
+      Shipment.getEvents(shipment.tracking_code),
+      Shipment.getTickets(shipment.tracking_code),
+    ]);
+    res.json({ shipment, events, tickets });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /analytics — página de KPIs e gráficos analíticos
 router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {

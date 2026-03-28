@@ -308,9 +308,11 @@ html.dark .theme-toggle .icon-moon { display: none; }
 .stat-card {
   background: var(--surface); border-radius: var(--radius-lg);
   padding: 16px 18px; border: 1px solid var(--border);
-  transition: border-color .1s, box-shadow .1s;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
 }
-.stat-card:hover { border-color: var(--border-2); box-shadow: var(--shadow-sm); }
+.stat-card:hover { border-color: var(--brand-border); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+a.stat-card { display: block; text-decoration: none; }
+a.stat-card:hover { border-color: var(--brand-border); box-shadow: var(--shadow); }
 .stat-label { font-size: 10.5px; font-weight: 700; color: var(--text-4); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; }
 .stat-value { font-size: 24px; font-weight: 700; line-height: 1; letter-spacing: -.5px; color: var(--text); }
 .stat-sub { font-size: 11px; color: var(--text-3); margin-top: 5px; }

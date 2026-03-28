@@ -221,7 +221,7 @@
                       <span style="font-size:11px;color:var(--text-4);font-weight:500"><%= s.carrier || '—' %></span>
                     </div>
                     <button onclick="copyCode(event,'<%= s.tracking_code %>')" title="Copiar código de rastreio" class="copy-btn">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                     </button>
                   </div>
                 </td>
@@ -238,7 +238,7 @@
                   <div style="display:flex;align-items:center;gap:5px">
                     <span style="font-weight:500;color:var(--text-2)">#<%= s.order_id %></span>
                     <button onclick="copyCode(event,'<%= s.order_id %>')" title="Copiar ID do pedido" class="copy-btn">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                     </button>
                   </div>
                   <% } %>
@@ -276,15 +276,15 @@
           e.stopPropagation();
           navigator.clipboard.writeText(code).then(() => {
             const btn = e.currentTarget;
-            btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-            setTimeout(() => { btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>'; }, 1200);
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+            setTimeout(() => { btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>'; }, 1200);
           });
         }
 
-        // Navegação na linha (apenas quando não clicar em checkbox)
+        // Abre modal ao clicar na linha
         function handleRowClick(e, orderId) {
-          if (e.target.type === 'checkbox') return;
-          window.location = '/pedido/' + orderId;
+          if (e.target.type === 'checkbox' || e.target.closest('.copy-btn')) return;
+          openPedidoModal(orderId);
         }
 
         // Bulk selection
@@ -423,6 +423,218 @@ document.addEventListener('click', (e) => {
   if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
 });
 </script>
+<!-- Modal de detalhe do pedido -->
+<div id="pedidoModal" style="display:none;position:fixed;inset:0;z-index:2000;align-items:flex-end;justify-content:center;padding:0" onclick="closePedidoModal(event)">
+  <!-- Backdrop com blur -->
+  <div style="position:absolute;inset:0;background:rgba(15,10,5,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)"></div>
+  <!-- Painel deslizante -->
+  <div id="pedidoModalPanel" style="position:relative;width:100%;max-width:680px;max-height:88vh;background:var(--surface);border-radius:18px 18px 0 0;box-shadow:0 -16px 64px rgba(0,0,0,.2);display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);overflow:hidden">
+
+    <!-- Handle bar -->
+    <div style="display:flex;justify-content:center;padding:10px 0 2px;flex-shrink:0">
+      <div style="width:36px;height:4px;border-radius:99px;background:var(--border-2)"></div>
+    </div>
+
+    <!-- Header -->
+    <div id="pedidoModalHeader" style="padding:14px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;font-weight:700;color:var(--text)" id="modalTitle">Carregando…</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:2px" id="modalSubtitle"></div>
+      </div>
+      <a id="modalOpenBtn" href="#" target="_blank" style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--brand);font-weight:600;text-decoration:none;padding:5px 10px;border:1px solid var(--brand-border);border-radius:6px;background:var(--brand-dim);flex-shrink:0">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Abrir página
+      </a>
+      <button onclick="closePedidoModal()" style="width:28px;height:28px;border-radius:6px;border:none;background:var(--surface-2);color:var(--text-3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div id="pedidoModalBody" style="flex:1;overflow-y:auto;padding:0">
+      <!-- loading -->
+      <div id="modalLoading" style="padding:48px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--text-3);font-size:13px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 11-6.22-8.56"/></svg>
+        Carregando pedido…
+      </div>
+      <!-- content (populated by JS) -->
+      <div id="modalContent" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+.modal-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.modal-section:last-child { border-bottom: none; }
+.modal-section h4 { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 12px; }
+.modal-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; font-size: 13px; }
+.modal-row:last-child { margin-bottom: 0; }
+.modal-row .lbl { color: var(--text-3); flex-shrink: 0; }
+.modal-row .val { color: var(--text); font-weight: 500; text-align: right; word-break: break-all; }
+.modal-event { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.modal-event:last-child { border-bottom: none; }
+.modal-event-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--brand); flex-shrink: 0; margin-top: 4px; }
+.modal-ticket { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; font-size: 12.5px; }
+.modal-ticket:last-child { margin-bottom: 0; }
+</style>
+
+<script>
+const STATUS_LABELS = {
+  pending:'Pendente', posted_object:'Obj. Postado', forwarded:'Em Trânsito',
+  delivering:'Saiu p/ Entrega', recipient_not_found:'Dest. não encontrado',
+  delivery_problem:'Prob. Entrega', wrong_address:'End. Incorreto',
+  waiting_client:'Ag. Retirada', delivered:'Entregue',
+  returning:'Devolvendo', returned:'Devolvido', overdue:'Em Atraso',
+  no_tracking:'Sem Rastreio', tracking_delayed:'Rastreio em Atraso',
+};
+
+function openPedidoModal(orderId) {
+  const modal = document.getElementById('pedidoModal');
+  const panel = document.getElementById('pedidoModalPanel');
+  const loading = document.getElementById('modalLoading');
+  const content = document.getElementById('modalContent');
+
+  // Reset
+  loading.style.display = 'flex';
+  content.style.display = 'none';
+  content.innerHTML = '';
+  document.getElementById('modalTitle').textContent = 'Carregando…';
+  document.getElementById('modalSubtitle').textContent = '';
+  document.getElementById('modalOpenBtn').href = '/pedido/' + orderId;
+
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => { panel.style.transform = 'translateY(0)'; });
+  document.body.style.overflow = 'hidden';
+
+  fetch('/api/pedido/' + encodeURIComponent(orderId))
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { loading.innerHTML = '⚠️ ' + data.error; return; }
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      content.innerHTML = buildModalContent(data);
+      document.getElementById('modalTitle').textContent = '#' + (data.shipment.order_id || data.shipment.tracking_code);
+      document.getElementById('modalSubtitle').textContent = (data.shipment.customer_name || '') + (data.shipment.company_name ? ' · ' + data.shipment.company_name : '');
+    })
+    .catch(() => { loading.innerHTML = '⚠️ Erro ao carregar pedido.'; });
+}
+
+function closePedidoModal(e) {
+  if (e && e.target !== document.getElementById('pedidoModal') && !e.target.closest('[onclick="closePedidoModal()"]')) return;
+  const panel = document.getElementById('pedidoModalPanel');
+  panel.style.transform = 'translateY(100%)';
+  setTimeout(() => {
+    document.getElementById('pedidoModal').style.display = 'none';
+    document.body.style.overflow = '';
+  }, 300);
+}
+
+function fmtDt(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function badgeColor(status) {
+  const map = { delivered:'#16a34a', forwarded:'#2563eb', delivering:'#7c3aed', returned:'#dc2626', tracking_delayed:'#e47c24', recipient_not_found:'#c2800a', waiting_client:'#854d0e' };
+  return map[status] || 'var(--text-3)';
+}
+
+function buildModalContent(data) {
+  const s = data.shipment;
+  const events = data.events || [];
+  const tickets = data.tickets || [];
+  const statusLabel = STATUS_LABELS[s.status] || s.status || '—';
+  const statusColor = badgeColor(s.status);
+
+  let html = '';
+
+  // Status badge grande
+  html += `<div style="padding:16px 20px;display:flex;align-items:center;gap:10px;background:var(--surface-2);border-bottom:1px solid var(--border)">
+    <span style="padding:5px 12px;border-radius:99px;font-size:12px;font-weight:700;color:#fff;background:${statusColor}">${statusLabel}</span>
+    <span style="font-size:12px;color:var(--text-3)">${s.carrier || '—'}</span>
+    <span style="font-size:12px;color:var(--text-4);margin-left:auto">Atualizado: ${fmtDt(s.updated_at)}</span>
+  </div>`;
+
+  // Dados do pedido
+  html += `<div class="modal-section">
+    <h4>Pedido</h4>
+    <div class="modal-row"><span class="lbl">ID do Pedido</span><span class="val" style="display:flex;align-items:center;gap:6px">${s.order_id || '—'} <button onclick="navigator.clipboard.writeText('${s.order_id||''}');this.textContent='✓'" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;color:var(--text-3)">copiar</button></span></div>
+    <div class="modal-row"><span class="lbl">Código de Rastreio</span><span class="val" style="display:flex;align-items:center;gap:6px;font-family:monospace">${s.tracking_code || '—'} <button onclick="navigator.clipboard.writeText('${s.tracking_code||''}');this.textContent='✓'" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;color:var(--text-3);font-family:var(--font)">copiar</button></span></div>
+    <div class="modal-row"><span class="lbl">Produto</span><span class="val">${s.product_name || '—'}${s.product_quantity > 1 ? ' ×' + s.product_quantity : ''}</span></div>
+    <div class="modal-row"><span class="lbl">Empresa</span><span class="val">${s.company_name || s.seller_id || '—'}</span></div>
+    <div class="modal-row"><span class="lbl">Pago em</span><span class="val">${fmtDt(s.paid_at)}</span></div>
+  </div>`;
+
+  // Dados do cliente
+  html += `<div class="modal-section">
+    <h4>Cliente</h4>
+    <div class="modal-row"><span class="lbl">Nome</span><span class="val">${s.customer_name || '—'}</span></div>
+    <div class="modal-row"><span class="lbl">Email</span><span class="val">${s.customer_email || '—'}</span></div>
+    <div class="modal-row"><span class="lbl">CPF</span><span class="val">${s.customer_cpf || '—'}</span></div>
+  </div>`;
+
+  // Último evento
+  if (s.last_event) {
+    html += `<div class="modal-section">
+      <h4>Último Evento</h4>
+      <div style="font-size:13px;color:var(--text)">${s.last_event}</div>
+      ${s.last_event_date ? `<div style="font-size:11px;color:var(--text-4);margin-top:3px">${s.last_event_date}</div>` : ''}
+    </div>`;
+  }
+
+  // Histórico de eventos
+  if (events.length > 0) {
+    html += `<div class="modal-section">
+      <h4>Histórico (${events.length})</h4>
+      <div style="max-height:200px;overflow-y:auto">`;
+    events.slice(0, 20).forEach(ev => {
+      html += `<div class="modal-event">
+        <div class="modal-event-dot"></div>
+        <div style="flex:1">
+          <div style="color:var(--text)">${ev.description || ev.event || '—'}</div>
+          <div style="color:var(--text-4);margin-top:1px">${fmtDt(ev.event_date || ev.created_at)} ${ev.location ? '· ' + ev.location : ''}</div>
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // Tickets
+  if (tickets.length > 0) {
+    html += `<div class="modal-section">
+      <h4>Tickets (${tickets.length})</h4>`;
+    tickets.forEach(t => {
+      const tColor = t.priority === 1 ? 'var(--danger)' : t.priority === 2 ? 'var(--warning)' : 'var(--text-3)';
+      html += `<div class="modal-ticket">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-weight:700;font-size:11px;text-transform:uppercase;color:var(--brand)">${t.tipo || '—'}</span>
+          <span style="font-size:11px;color:var(--text-3)">${t.motivo || '—'}</span>
+          <span style="margin-left:auto;font-size:11px;padding:2px 7px;border-radius:99px;background:var(--surface-3);color:var(--text-2)">${t.status || '—'}</span>
+        </div>
+        ${t.observacao ? `<div style="font-size:12px;color:var(--text-2);border-top:1px solid var(--border);padding-top:6px;margin-top:2px">${t.observacao}</div>` : ''}
+        <div style="font-size:11px;color:var(--text-4);margin-top:4px">${t.assigned_to ? 'Atribuído: ' + t.assigned_to + ' · ' : ''}${fmtDt(t.created_at)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  return html;
+}
+
+// Fechar com ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('pedidoModal').style.display === 'flex') {
+    const panel = document.getElementById('pedidoModalPanel');
+    panel.style.transform = 'translateY(100%)';
+    setTimeout(() => {
+      document.getElementById('pedidoModal').style.display = 'none';
+      document.body.style.overflow = '';
+    }, 300);
+  }
+});
+</script>
+
 <%- include('partials/ai-chat') %>
 </body>
 </html>
