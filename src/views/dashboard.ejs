@@ -134,13 +134,27 @@
         </div>
 
         <!-- Filter chips (filtros ativos) -->
-        <% const hasActiveFilters = filters.status || filters.seller_id || filters.search || filters.carrier; %>
+        <%
+        const STATUS_LABELS_EJS = {
+          pending:'Pendente', posted_object:'Obj. Postado', forwarded:'Em Trânsito',
+          in_transit:'Em Trânsito', delivering:'Saiu p/ Entrega', out_for_delivery:'Saiu p/ Entrega',
+          recipient_not_found:'Dest. não encontrado', delivery_attempt:'Tentativa',
+          delivery_problem:'Prob. de entrega', wrong_address:'End. incorreto',
+          waiting_client:'Ag. retirada', delivered:'Entregue',
+          returning:'Devolvendo', returned:'Devolvido',
+          overdue:'Em atraso', no_tracking:'Sem rastreio', tracking_delayed:'Rastreio em atraso',
+        };
+        const sellerLabel = filters.seller_id
+          ? ((typeof companies !== 'undefined' ? companies : []).find(c => c.seller_id === filters.seller_id)?.company_name || filters.seller_id)
+          : '';
+        const hasActiveFilters = filters.status || filters.seller_id || filters.search || filters.carrier;
+        %>
         <% if (hasActiveFilters) { %>
         <div class="p-filter-chips">
           <span style="font-size:12px;color:var(--gray-400);font-weight:500;margin-right:2px">Filtros:</span>
           <% if (filters.status) { %>
           <span class="p-filter-chip">
-            Status: <%= filters.status %>
+            Status: <%= STATUS_LABELS_EJS[filters.status] || filters.status %>
             <a href="/rastreios?<%= filters.seller_id ? 'seller_id=' + filters.seller_id + '&' : '' %><%= filters.carrier ? 'carrier=' + filters.carrier : '' %>">
               <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </a>
@@ -148,7 +162,7 @@
           <% } %>
           <% if (filters.seller_id) { %>
           <span class="p-filter-chip">
-            Empresa: <%= filters.seller_id %>
+            Empresa: <%= sellerLabel %>
             <a href="/rastreios?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.carrier ? 'carrier=' + filters.carrier : '' %>">
               <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </a>
@@ -496,12 +510,26 @@ document.addEventListener('click', (e) => {
 
 <script>
 const STATUS_LABELS = {
-  pending:'Pendente', posted_object:'Obj. Postado', forwarded:'Em Trânsito',
-  delivering:'Saiu p/ Entrega', recipient_not_found:'Dest. não encontrado',
-  delivery_problem:'Prob. Entrega', wrong_address:'End. Incorreto',
-  waiting_client:'Ag. Retirada', delivered:'Entregue',
-  returning:'Devolvendo', returned:'Devolvido', overdue:'Em Atraso',
-  no_tracking:'Sem Rastreio', tracking_delayed:'Rastreio em Atraso',
+  pending:'Pendente', posted_object:'Obj. Postado',
+  forwarded:'Em Trânsito', in_transit:'Em Trânsito',
+  delivering:'Saiu p/ Entrega', out_for_delivery:'Saiu p/ Entrega',
+  recipient_not_found:'Dest. não encontrado', delivery_attempt:'Tentativa',
+  delivery_problem:'Prob. de entrega', wrong_address:'End. incorreto',
+  waiting_client:'Ag. retirada', delivered:'Entregue',
+  returning:'Devolvendo', returned:'Devolvido',
+  overdue:'Em atraso', no_tracking:'Sem rastreio', tracking_delayed:'Rastreio em atraso',
+};
+const PAYMENT_LABELS = {
+  paid:'Pago', waiting_payment:'Aguardando pagamento',
+  refused:'Recusado', chargedback:'Chargeback',
+  chargeback:'Chargeback', chargeback_presented:'Chargeback apresentado',
+  refunded:'Reembolsado', refunded_partial:'Reembolso parcial',
+  one_click_buy_refunded:'Upsell estornado', one_click_buy_refunded_partial:'Upsell reembolso parcial',
+  canceled:'Cancelado', expired:'Expirado',
+};
+const PAYMENT_METHOD_LABELS = {
+  pix:'PIX', credit_card:'Cartão de crédito', boleto:'Boleto',
+  debit_card:'Cartão de débito', free:'Gratuito',
 };
 
 function openPedidoModal(orderId) {
@@ -583,6 +611,8 @@ function buildModalContent(data) {
     <div class="modal-row"><span class="lbl">Produto</span><span class="val">${s.product_name || '—'}${s.product_quantity > 1 ? ' ×' + s.product_quantity : ''}</span></div>
     <div class="modal-row"><span class="lbl">Empresa</span><span class="val">${s.company_name || s.seller_id || '—'}</span></div>
     <div class="modal-row"><span class="lbl">Pago em</span><span class="val">${fmtDt(s.paid_at)}</span></div>
+    ${s.payment_method ? `<div class="modal-row"><span class="lbl">Forma de pag.</span><span class="val">${PAYMENT_METHOD_LABELS[s.payment_method] || s.payment_method}</span></div>` : ''}
+    ${s.payment_status ? `<div class="modal-row"><span class="lbl">Status pag.</span><span class="val">${PAYMENT_LABELS[s.payment_status] || s.payment_status}</span></div>` : ''}
   </div>`;
 
   // Dados do cliente
@@ -590,7 +620,7 @@ function buildModalContent(data) {
     <h4>Cliente</h4>
     <div class="modal-row"><span class="lbl">Nome</span><span class="val">${s.customer_name || '—'}</span></div>
     <div class="modal-row"><span class="lbl">Email</span><span class="val">${s.customer_email || '—'}</span></div>
-    <div class="modal-row"><span class="lbl">CPF</span><span class="val">${s.customer_cpf || '—'}</span></div>
+    <div class="modal-row"><span class="lbl">CPF</span><span class="val">${s.customer_doc || s.customer_cpf || '—'}</span></div>
   </div>`;
 
   // Último evento

@@ -26,12 +26,24 @@
 
 <%
 const statusLabel = {
-  pending: 'Pendente', posted_object: 'Obj. Postado', forwarded: 'Em Trânsito',
-  delivering: 'Saiu p/ Entrega', recipient_not_found: 'Dest. não encontrado',
-  delivery_problem: 'Prob. Entrega', wrong_address: 'End. Incorreto',
-  waiting_client: 'Ag. Retirada', delivered: 'Entregue',
-  returning: 'Devolvendo', returned: 'Devolvido', overdue: 'Em Atraso',
-  no_tracking: 'Sem Rastreio', tracking_delayed: 'Rastreio em Atraso',
+  pending:'Pendente', posted_object:'Obj. Postado',
+  forwarded:'Em Trânsito', in_transit:'Em Trânsito',
+  delivering:'Saiu p/ Entrega', out_for_delivery:'Saiu p/ Entrega',
+  recipient_not_found:'Dest. não encontrado', delivery_attempt:'Tentativa',
+  delivery_problem:'Prob. de entrega', wrong_address:'End. incorreto',
+  waiting_client:'Ag. retirada', delivered:'Entregue',
+  returning:'Devolvendo', returned:'Devolvido',
+  overdue:'Em atraso', no_tracking:'Sem rastreio', tracking_delayed:'Rastreio em atraso',
+};
+const paymentStatusLabel = {
+  paid:'Pago', waiting_payment:'Aguardando pagamento',
+  refused:'Recusado', chargeback:'Chargeback', chargeback_presented:'Chargeback apresentado',
+  refunded:'Reembolsado', refunded_partial:'Reembolso parcial',
+  one_click_buy_refunded:'Upsell estornado', one_click_buy_refunded_partial:'Upsell reemb. parcial',
+  canceled:'Cancelado', expired:'Expirado',
+};
+const paymentMethodLabel = {
+  pix:'PIX', credit_card:'Cartão de crédito', boleto:'Boleto', debit_card:'Cartão de débito',
 };
 const fmtDate = (iso) => {
   if (!iso) return '—';
@@ -156,7 +168,7 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
               <% if (shipment.payment_method) { %>
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
                 <span class="text-muted">Pagamento</span>
-                <span class="fw-600"><%= {pix:'PIX',credit_card:'Cartão de crédito',boleto:'Boleto',debit_card:'Cartão de débito'}[shipment.payment_method] || shipment.payment_method %></span>
+                <span class="fw-600"><%= paymentMethodLabel[shipment.payment_method] || shipment.payment_method || '—' %></span>
               </div>
               <% } %>
             </div>
