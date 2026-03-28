@@ -18,6 +18,7 @@ function startScheduler() {
 }
 
 async function refreshPendingShipments() {
+  const startedAt = new Date().toISOString();
   const [pending, queue] = await Promise.all([
     Shipment.getPendingForRefresh(),
     Shipment.getCustomerQueue(),
@@ -91,7 +92,7 @@ async function refreshPendingShipments() {
   }
 
   const pending_after = await Shipment.countPendingForRefresh();
-  await Shipment.saveSchedulerLog({ total_cpfs: totalCpfs, updated, promoted, errors, pending_after });
+  await Shipment.saveSchedulerLog({ total_cpfs: totalCpfs, updated, promoted, errors, pending_after, started_at: startedAt, finished_at: new Date().toISOString() });
   console.log(`[Scheduler] Concluído: ${updated} atualizados, ${promoted} promovidos, ${errors} erros, ${pending_after} ainda ativos`);
 }
 

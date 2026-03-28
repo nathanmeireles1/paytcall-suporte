@@ -17,10 +17,11 @@ const XLSX = require('xlsx');
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são obrigatórios no .env');
+  console.error('Defina SUPABASE_URL e SUPABASE_SERVICE_KEY antes de rodar.');
+  console.error('Exemplo: set SUPABASE_URL=https://xxx.supabase.co && set SUPABASE_SERVICE_KEY=eyJ...');
   process.exit(1);
 }
 
@@ -138,7 +139,12 @@ async function main() {
   let shipmentsBatch = [], queueBatch = [];
   const now = new Date().toISOString();
 
+  // VD rows first so that when we deduplicate by tracking_code, VD wins over upsells
   const allRows = [...vdRows, ...upsellRows];
+
+  // Deduplicate tracking codes: if an upsell shares the same tracking_code as a VD,
+  // only insert ONE shipment (the VD). Track seen tracking codes to skip duplicates.
+  const seenTrackingCodes = new Set();
 
   for (const row of allRows) {
     const orderId    = row['Código'] || null;
@@ -148,6 +154,10 @@ async function main() {
     const dateStr    = parseDate(row['Data']);
     const saleType   = getSaleType(row['Tipo Venda']);
     const parentId   = isUpsellType(saleType) && cpf ? findParentId(cpf, dateStr) : null;
+
+    // Skip upsells that share the same tracking_code as an already-processed main order
+    if (tracking && seenTrackingCodes.has(tracking)) continue;
+    if (tracking) seenTrackingCodes.add(tracking);
 
     const base = {
       order_id:         orderId,
@@ -173,7 +183,6 @@ async function main() {
         state:         row['Estado']     || null,
         zipcode:       row['CEP'] ? String(row['CEP']).replace(/\D/g, '') : null,
       }) : null,
-      tracking_url:     row['Url de Acompanhamento'] || null,
       paid_at:          dateStr,
       sale_type:        saleType,
       parent_order_id:  parentId,
@@ -183,12 +192,13 @@ async function main() {
       shipmentsBatch.push({
         ...base,
         tracking_code: tracking,
+        tracking_url:  row['Url de Acompanhamento'] || null,
         carrier:       detectCarrier(tracking),
         status:        mapStatus(row['Status Compra']),
         updated_at:    now,
       });
       if (shipmentsBatch.length >= BATCH) {
-        await upsertBatch('shipments', shipmentsBatch, 'order_id', stats);
+        await upsertBatch('shipments', shipmentsBatch, 'tracking_code', stats);
         shipmentsBatch = [];
         process.stdout.write(`\r  shipments: ${stats.shipments}  queue: ${stats.queue}  erros: ${stats.errors}   `);
       }
@@ -202,7 +212,7 @@ async function main() {
     }
   }
 
-  if (shipmentsBatch.length) await upsertBatch('shipments', shipmentsBatch, 'order_id', stats);
+  if (shipmentsBatch.length) await upsertBatch('shipments', shipmentsBatch, 'tracking_code', stats);
   if (queueBatch.length)     await upsertBatch('customer_queue', queueBatch, 'order_id', stats);
 
   console.log(`\n\nConcluído:`);

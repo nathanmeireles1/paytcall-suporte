@@ -412,9 +412,11 @@ const Shipment = {
 
   // --- Scheduler logs ---
 
-  async saveSchedulerLog({ total_cpfs, updated, promoted, errors, pending_after }) {
+  async saveSchedulerLog({ total_cpfs, updated, promoted, errors, pending_after, started_at, finished_at }) {
     const { error } = await db.from('scheduler_logs').insert({
       ran_at: new Date().toISOString(),
+      started_at: started_at || new Date().toISOString(),
+      finished_at: finished_at || new Date().toISOString(),
       total_cpfs, updated, promoted, errors, pending_after,
     });
     if (error) console.error('[Scheduler] Erro ao salvar log:', error.message);
@@ -428,6 +430,17 @@ const Shipment = {
       .limit(1);
     if (error || !data?.length) return null;
     return data[0];
+  },
+
+  async getSchedulerLogs({ page = 1, limit = 50 } = {}) {
+    const from = (page - 1) * limit;
+    const { data, error, count } = await db
+      .from('scheduler_logs')
+      .select('*', { count: 'exact' })
+      .order('ran_at', { ascending: false })
+      .range(from, from + limit - 1);
+    if (error) throw error;
+    return { rows: data || [], total: count || 0, pages: Math.ceil((count || 0) / limit) };
   },
 
   // --- customer_queue ---

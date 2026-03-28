@@ -312,4 +312,21 @@ router.get('/logistica/solicitacoes', requirePermission('tickets', 'can_view'), 
   } catch (err) { res.status(500).render('error', { message: err.message }); }
 });
 
+// GET /relatorios/rastreio-log — Log das execuções do scheduler H7
+router.get('/rastreio-log', async (req, res) => {
+  try {
+    const { page = 1 } = req.query;
+    const result = await Shipment.getSchedulerLogs({ page: parseInt(page) });
+    res.render('relatorios-rastreio-log', {
+      logs: result.rows,
+      total: result.total,
+      pages: result.pages,
+      currentPage: parseInt(page),
+    });
+  } catch (err) {
+    console.error('[Relatórios] Erro em /rastreio-log:', err.message);
+    res.status(500).render('error', { message: 'Erro ao carregar log: ' + err.message });
+  }
+});
+
 module.exports = router;
