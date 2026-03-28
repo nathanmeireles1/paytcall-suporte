@@ -224,6 +224,68 @@ router.get('/logistica/export', requirePermission('relatorio_logistica', 'can_vi
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /relatorios/retencao/solicitacoes/export
+router.get('/retencao/solicitacoes/export', requirePermission('tickets', 'can_view'), async (req, res) => {
+  try {
+    const XLSX = require('xlsx');
+    const { status, assigned_to, priority, search, format = 'xlsx' } = req.query;
+    const result = await Shipment.getAllTickets({ tipo: 'RETENCAO', status, assigned_to, priority, search, page: 1, limit: 9999 });
+    const PRIO = {1:'Alta', 2:'Média', 3:'Baixa'};
+    const fmtDt = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
+    const rows = result.rows.map(t => ({
+      'Rastreio': t.tracking_code || '', 'ID Pedido': t.order_id || '',
+      'Motivo': t.motivo || '', 'Status': t.status || '',
+      'Prioridade': PRIO[t.priority] || '', 'Responsável': t.assigned_to || '',
+      'Criado por': t.created_by || '', 'Data': fmtDt(t.created_at), 'Observação': t.observacao || '',
+    }));
+    const filename = `retencao-solicitacoes-${new Date().toISOString().slice(0,10)}`;
+    if (format === 'csv') {
+      const header = Object.keys(rows[0] || {}).join(';');
+      const lines = rows.map(r => Object.values(r).map(v => `"${String(v).replace(/"/g,'""')}"`).join(';'));
+      res.setHeader('Content-Type', 'text/csv;charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment;filename=${filename}.csv`);
+      return res.send('\uFEFF' + [header, ...lines].join('\r\n'));
+    }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Solicitações');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment;filename=${filename}.xlsx`);
+    res.send(buf);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /relatorios/logistica/solicitacoes/export
+router.get('/logistica/solicitacoes/export', requirePermission('tickets', 'can_view'), async (req, res) => {
+  try {
+    const XLSX = require('xlsx');
+    const { status, assigned_to, priority, search, format = 'xlsx' } = req.query;
+    const result = await Shipment.getAllTickets({ tipo: 'LOGISTICA', status, assigned_to, priority, search, page: 1, limit: 9999 });
+    const PRIO = {1:'Alta', 2:'Média', 3:'Baixa'};
+    const fmtDt = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
+    const rows = result.rows.map(t => ({
+      'Rastreio': t.tracking_code || '', 'ID Pedido': t.order_id || '',
+      'Motivo': t.motivo || '', 'Status': t.status || '',
+      'Prioridade': PRIO[t.priority] || '', 'Responsável': t.assigned_to || '',
+      'Criado por': t.created_by || '', 'Data': fmtDt(t.created_at), 'Observação': t.observacao || '',
+    }));
+    const filename = `logistica-solicitacoes-${new Date().toISOString().slice(0,10)}`;
+    if (format === 'csv') {
+      const header = Object.keys(rows[0] || {}).join(';');
+      const lines = rows.map(r => Object.values(r).map(v => `"${String(v).replace(/"/g,'""')}"`).join(';'));
+      res.setHeader('Content-Type', 'text/csv;charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment;filename=${filename}.csv`);
+      return res.send('\uFEFF' + [header, ...lines].join('\r\n'));
+    }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Solicitações');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment;filename=${filename}.xlsx`);
+    res.send(buf);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // GET /relatorios/retencao/solicitacoes
 router.get('/retencao/solicitacoes', requirePermission('tickets', 'can_view'), async (req, res) => {
   try {

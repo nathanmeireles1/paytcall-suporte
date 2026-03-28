@@ -58,6 +58,22 @@
         <input type="text" name="search" placeholder="Buscar..." value="<%= filters.search || '' %>" class="form-input search-input">
         <button type="submit" class="btn btn-primary">Filtrar</button>
         <a href="<%= baseUrl %>" class="btn btn-secondary">Limpar</a>
+        <%
+        const _qSol = [
+          filters.status      ? 'status='      + encodeURIComponent(filters.status)      : '',
+          filters.assigned_to ? 'assigned_to=' + encodeURIComponent(filters.assigned_to) : '',
+          filters.priority    ? 'priority='    + encodeURIComponent(filters.priority)    : '',
+          filters.search      ? 'search='      + encodeURIComponent(filters.search)      : '',
+        ].filter(Boolean).join('&');
+        %>
+        <a href="<%= baseUrl %>/export?format=xlsx<%= _qSol ? '&' + _qSol : '' %>" class="btn btn-ghost btn-sm" title="Baixar Excel">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          XLSX
+        </a>
+        <a href="<%= baseUrl %>/export?format=csv<%= _qSol ? '&' + _qSol : '' %>" class="btn btn-ghost btn-sm" title="Baixar CSV">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          CSV
+        </a>
       </form>
       <div style="margin:12px 0;font-size:13px;color:var(--gray-500)"><strong><%= total %></strong> solicitações de <%= setorLabel.toLowerCase() %></div>
       <div class="card">
@@ -98,8 +114,10 @@
         </div>
       </div>
       <% if (pages > 1) { %>
-      <div style="display:flex;justify-content:center;gap:4px;margin-top:16px">
-        <% for (let i=1; i<=pages; i++) { %><a href="?page=<%= i %>" class="btn <%= i===currentPage ? 'btn-primary' : 'btn-ghost' %> btn-sm"><%= i %></a><% } %>
+      <div class="pagination">
+        <% for (let p=1; p<=Math.min(pages,20); p++) { %>
+        <a href="?<%= Object.entries({...filters, page: p}).filter(([,v])=>v).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&') %>" class="<%= p===currentPage ? 'active' : '' %>"><%= p %></a>
+        <% } %>
       </div>
       <% } %>
     </div>

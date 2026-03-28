@@ -110,6 +110,8 @@ function requireRole(roles) {
 // Uso: requirePermission('tickets', 'can_view')
 function requirePermission(module, action = 'can_view') {
   return (req, res, next) => {
+    // Admin bypassa todas as verificações de permissão
+    if (req.user?.role === 'admin') return next();
     const perms = req.user?.permissions?.[module];
     if (!perms || !perms[action]) {
       if (req.path.startsWith('/api') || req.headers.accept?.includes('json')) {

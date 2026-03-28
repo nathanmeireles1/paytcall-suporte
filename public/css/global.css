@@ -485,7 +485,8 @@ html.dark .badge-overdue   { color: var(--brand); }
   border: 1px solid var(--border); margin-bottom: 14px;
 }
 .toolbar .form-input, .toolbar .form-select { padding: 6px 9px; font-size: 13px; }
-.toolbar .search-input { flex: 1; min-width: 180px; }
+.toolbar .form-select { max-width: 150px; }
+.toolbar .search-input { flex: 1; min-width: 160px; max-width: none; }
 
 /* ===== Pagination ===== */
 .pagination { display: flex; gap: 3px; justify-content: center; margin-top: 16px; }
