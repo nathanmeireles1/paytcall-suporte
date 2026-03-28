@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solicitações <%= setorLabel %> — payt Suporte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+  <style>
+    .prio-1 { color: var(--danger); font-weight: 700; }
+    .prio-2 { color: var(--warning); font-weight: 600; }
+    .prio-3 { color: var(--gray-500); }
+    .sla-expired { color: var(--danger); font-weight: 700; }
+    .sla-warn { color: var(--warning); }
+    .sla-ok { color: var(--success); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <%- include('partials/sidebar', { activePage: setor === 'RETENCAO' ? 'retencao-solicitacoes' : 'logistica-solicitacoes' }) %>
+  <div class="main">
+    <%- include('partials/topbar', {
+      pageTitle: 'Solicitações — ' + setorLabel,
+      breadcrumb: [
+        { label: 'Paytcall', href: '/dashboard' },
+        { label: setorLabel, href: '/relatorios/' + (setor === 'RETENCAO' ? 'retencao' : 'logistica') },
+        { label: 'Solicitações' }
+      ]
+    }) %>
+    <div class="page">
+      <%
+      const fmtDate = (iso) => {
+        if (!iso) return '—';
+        try { return new Date(String(iso).replace(' ','T')).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch(e) { return iso; }
+      };
+      const prioLabel = {1:'ALTA',2:'MÉDIA',3:'BAIXA'};
+      const baseUrl = '/relatorios/' + (setor === 'RETENCAO' ? 'retencao' : 'logistica') + '/solicitacoes';
+      const statusOptions = setor === 'RETENCAO'
+        ? ['Aberto','Em andamento','Cancelado','Retido']
+        : ['Aberto','Em andamento','Aguardando estoque','Concluído'];
+      const assignedOptions = setor === 'RETENCAO' ? ['Flaviany','Sistema'] : ['Shelida','Sistema'];
+      %>
+      <form method="GET" class="toolbar">
+        <select name="status" class="form-select">
+          <option value="">Status</option>
+          <% statusOptions.forEach(s => { %><option value="<%= s %>" <%= filters.status===s?'selected':'' %>><%= s %></option><% }) %>
+        </select>
+        <select name="assigned_to" class="form-select">
+          <option value="">Responsável</option>
+          <% assignedOptions.forEach(a => { %><option value="<%= a %>" <%= filters.assigned_to===a?'selected':'' %>><%= a %></option><% }) %>
+        </select>
+        <select name="priority" class="form-select">
+          <option value="">Prioridade</option>
+          <option value="1" <%= filters.priority==='1'?'selected':'' %>>Alta</option>
+          <option value="2" <%= filters.priority==='2'?'selected':'' %>>Média</option>
+          <option value="3" <%= filters.priority==='3'?'selected':'' %>>Baixa</option>
+        </select>
+        <input type="text" name="search" placeholder="Buscar..." value="<%= filters.search || '' %>" class="form-input search-input">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="<%= baseUrl %>" class="btn btn-secondary">Limpar</a>
+      </form>
+      <div style="margin:12px 0;font-size:13px;color:var(--gray-500)"><strong><%= total %></strong> solicitações de <%= setorLabel.toLowerCase() %></div>
+      <div class="card">
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rastreio</th><th>Motivo</th><th>Status</th><th>Prioridade</th>
+                  <th>Responsável</th><th>SLA</th><th>Criado por</th><th>Data</th><th>Observação</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (tickets.length === 0) { %>
+                <tr><td colspan="9" style="text-align:center;color:var(--gray-400);padding:40px">Nenhuma solicitação encontrada</td></tr>
+                <% } %>
+                <% tickets.forEach(t => {
+                  const hoursOpen = Math.floor((Date.now() - new Date(t.created_at).getTime()) / 3600000);
+                  const terminalStatuses = setor === 'RETENCAO' ? ['Cancelado','Retido'] : ['Concluído'];
+                  const isTerminal = terminalStatuses.includes(t.status);
+                  const slaClass = hoursOpen >= 72 ? 'sla-expired' : hoursOpen >= 48 ? 'sla-warn' : 'sla-ok';
+                %>
+                <tr>
+                  <td><a href="/pedido/<%= t.order_id || t.tracking_code %>" style="font-family:monospace;font-size:12px;color:var(--brand)"><%= t.tracking_code %></a></td>
+                  <td style="font-weight:600;font-size:12.5px"><%= t.motivo %><% if(t.motivo_cancelamento){%><br><span style="font-size:11px;font-weight:400;color:var(--text-3)"><%= t.motivo_cancelamento %></span><%}%></td>
+                  <td><span class="badge <%= t.status==='Concluído'||t.status==='Retido'||t.status==='Cancelado'?'badge-neutral':t.status==='Aberto'?'badge-warning':'badge-info' %>"><%= t.status %></span></td>
+                  <td class="prio-<%= t.priority || 3 %>"><%= prioLabel[t.priority] || '—' %></td>
+                  <td style="font-size:12px"><%= t.assigned_to || '—' %></td>
+                  <td class="<%= isTerminal ? '' : slaClass %>" style="font-size:12px"><%= isTerminal ? '—' : hoursOpen + 'h' %><% if(!isTerminal && hoursOpen >= 72){%> ⚠️<%}%></td>
+                  <td style="font-size:12px"><%= t.created_by %></td>
+                  <td style="font-size:11.5px;color:var(--gray-500)"><%= fmtDate(t.created_at).slice(0,10) %></td>
+                  <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><%= t.observacao || '—' %></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <% if (pages > 1) { %>
+      <div style="display:flex;justify-content:center;gap:4px;margin-top:16px">
+        <% for (let i=1; i<=pages; i++) { %><a href="?page=<%= i %>" class="btn <%= i===currentPage ? 'btn-primary' : 'btn-ghost' %> btn-sm"><%= i %></a><% } %>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+<script>
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() { const dd=document.getElementById('notifDropdown'); dd.classList.toggle('open'); if(dd.classList.contains('open')) loadNotifs(); }
+async function loadNotifs() { try { const r=await fetch('/api/notifications'); const {notifications,unread}=await r.json(); const b=document.getElementById('notifBadge'); b.style.display=unread>0?'block':'none'; b.textContent=unread; const list=document.getElementById('notifList'); if(!notifications.length){list.innerHTML='<div style="text-align:center;color:var(--text-4);padding:24px;font-size:13px">Nenhuma notificação</div>';return;} list.innerHTML=notifications.map(n=>`<a href="/pedido/${n.order_id||n.tracking_code||''}" class="notif-item${n.is_read?'':' unread'}"><div style="font-size:13px;color:var(--text-2)">${n.message}</div></a>`).join(''); } catch(e){} }
+async function markAllRead() { await fetch('/api/notifications/read',{method:'POST'}); loadNotifs(); }
+document.addEventListener('click',(e)=>{ const dd=document.getElementById('notifDropdown'); const btn=document.getElementById('notifBtn'); if(dd&&btn&&!dd.contains(e.target)&&!btn.contains(e.target))dd.classList.remove('open'); });
+</script>
+<%- include('partials/ai-chat') %>
+</body>
+</html>

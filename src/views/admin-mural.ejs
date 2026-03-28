@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mural de Avisos — Suporte Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+</head>
+<body>
+<div class="app">
+  <%- include('partials/sidebar', { activePage: 'admin-mural' }) %>
+  <div class="main">
+    <%- include('partials/topbar', {
+      pageTitle: 'Mural de Avisos',
+      breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Admin' }, { label: 'Mural de Avisos' }]
+    }) %>
+    <div class="page">
+      <div class="page-header">
+        <h1>Mural de Avisos</h1>
+        <p>Avisos e comunicados para a equipe de suporte</p>
+      </div>
+
+      <% if (saved) { %>
+      <div style="padding:12px 16px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:var(--radius-md);color:var(--success);font-size:13px;font-weight:600;margin-bottom:18px;display:flex;align-items:center;gap:8px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Aviso salvo com sucesso!
+      </div>
+      <% } %>
+
+      <!-- Novo aviso -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <h3>Novo Aviso</h3>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="/admin/mural" style="display:flex;flex-direction:column;gap:12px">
+            <input type="hidden" name="action" value="add">
+            <div class="form-group">
+              <label class="form-label">Título</label>
+              <input type="text" name="title" class="form-input" placeholder="Título do aviso" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mensagem</label>
+              <textarea name="message" class="form-textarea" style="min-height:80px" placeholder="Conteúdo do aviso..." required></textarea>
+            </div>
+            <div style="display:flex;gap:8px">
+              <div class="form-group" style="flex:1">
+                <label class="form-label">Tipo</label>
+                <select name="tipo" class="form-select">
+                  <option value="info">Informativo</option>
+                  <option value="warning">Atenção</option>
+                  <option value="success">Positivo</option>
+                  <option value="danger">Urgente</option>
+                </select>
+              </div>
+            </div>
+            <div><button type="submit" class="btn btn-primary btn-sm">Publicar aviso</button></div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Avisos existentes -->
+      <div class="card">
+        <div class="card-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16h6M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <h3>Avisos publicados</h3>
+          <span class="badge badge-neutral" style="margin-left:auto"><%= notices.length %></span>
+        </div>
+        <div class="card-body">
+          <% if (notices.length === 0) { %>
+          <div class="empty-state" style="padding:30px">
+            <p>Nenhum aviso publicado</p>
+          </div>
+          <% } %>
+          <% notices.forEach((n, idx) => {
+            const typeColors = { info: ['var(--info-bg)','var(--info-border)','var(--info)'], warning: ['var(--warning-bg)','var(--warning-border)','var(--warning)'], success: ['var(--success-bg)','var(--success-border)','var(--success)'], danger: ['var(--danger-bg)','var(--danger-border)','var(--danger)'] };
+            const [bg, border, color] = typeColors[n.tipo] || typeColors.info;
+          %>
+          <div style="background:<%= bg %>;border:1px solid <%= border %>;border-radius:var(--radius-md);padding:14px 16px;margin-bottom:10px;position:relative">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <strong style="font-size:13.5px;color:var(--text)"><%= n.title %></strong>
+              <form method="POST" action="/admin/mural" style="display:inline">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="idx" value="<%= idx %>">
+                <button type="submit" class="btn btn-ghost btn-xs" style="color:var(--danger);padding:2px 6px" title="Remover">✕</button>
+              </form>
+            </div>
+            <p style="font-size:13px;color:var(--text-2);margin:0"><%= n.message %></p>
+            <div style="font-size:11px;color:var(--text-4);margin-top:6px"><%= n.author %> · <%= n.created_at ? new Date(n.created_at).toLocaleDateString('pt-BR') : '' %></div>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() { const dd=document.getElementById('notifDropdown'); dd.classList.toggle('open'); if(dd.classList.contains('open')) loadNotifs(); }
+async function loadNotifs() { try { const r=await fetch('/api/notifications'); const {notifications,unread}=await r.json(); const b=document.getElementById('notifBadge'); b.style.display=unread>0?'block':'none'; b.textContent=unread; const list=document.getElementById('notifList'); list.innerHTML=notifications.map(n=>`<a href="/pedido/${n.order_id||''}" class="notif-item${n.is_read?'':' unread'}"><div style="font-size:13px">${n.message}</div></a>`).join(''); } catch(e){} }
+async function markAllRead() { await fetch('/api/notifications/read',{method:'POST'}); loadNotifs(); }
+document.addEventListener('click',(e)=>{ const dd=document.getElementById('notifDropdown'); const btn=document.getElementById('notifBtn'); if(dd&&btn&&!dd.contains(e.target)&&!btn.contains(e.target))dd.classList.remove('open'); });
+</script>
+<%- include('partials/ai-chat') %>
+</body>
+</html>

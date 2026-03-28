@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cancelamentos — payt Suporte</title>
+  <title>Retenção — payt Suporte</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/css/global.css">
   <style>
@@ -22,10 +22,10 @@
 <body>
 <div class="app">
 
-  <%- include('partials/sidebar', { activePage: 'cancelamentos' }) %>
+  <%- include('partials/sidebar', { activePage: 'retencao' }) %>
 
   <div class="main">
-    <%- include('partials/topbar', { pageTitle: 'Cancelamentos e Reembolsos', breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Cancelamentos' }] }) %>
+    <%- include('partials/topbar', { pageTitle: 'Retenção', breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Retenção' }] }) %>
 
     <div class="page">
 
@@ -61,7 +61,7 @@
         </select>
         <input type="text" name="search" placeholder="Buscar..." value="<%= filters.search || '' %>" class="form-input search-input">
         <button type="submit" class="btn btn-primary">Filtrar</button>
-        <a href="/relatorios/cancelamentos" class="btn btn-secondary">Limpar</a>
+        <a href="/relatorios/retencao" class="btn btn-secondary">Limpar</a>
         <%
         const _qCancel = [
           filters.tipo               ? 'tipo='               + encodeURIComponent(filters.tipo)               : '',
@@ -69,17 +69,17 @@
           filters.search             ? 'search='             + encodeURIComponent(filters.search)             : '',
         ].filter(Boolean).join('&');
         %>
-        <a href="/relatorios/cancelamentos/export?format=xlsx<%= _qCancel ? '&' + _qCancel : '' %>" class="btn btn-ghost btn-sm" title="Baixar Excel">
+        <a href="/relatorios/retencao/export?format=xlsx<%= _qCancel ? '&' + _qCancel : '' %>" class="btn btn-ghost btn-sm" title="Baixar Excel">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           XLSX
         </a>
-        <a href="/relatorios/cancelamentos/export?format=csv<%= _qCancel ? '&' + _qCancel : '' %>" class="btn btn-ghost btn-sm" title="Baixar CSV">
+        <a href="/relatorios/retencao/export?format=csv<%= _qCancel ? '&' + _qCancel : '' %>" class="btn btn-ghost btn-sm" title="Baixar CSV">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           CSV
         </a>
       </form>
 
-      <div style="margin:12px 0;font-size:13px;color:var(--gray-500)"><strong><%= total %></strong> registros</div>
+      <div style="margin:12px 0;font-size:13px;color:var(--gray-500)"><strong><%= total %></strong> registros de retenção</div>
 
       <!-- Tabela -->
       <div class="card">
@@ -176,7 +176,7 @@
 
 <script>
 function updateField(id, field, value) {
-  fetch('/relatorios/cancelamentos/' + id, {
+  fetch('/relatorios/retencao/' + id, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ [field]: value }),

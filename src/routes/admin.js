@@ -251,4 +251,31 @@ router.post('/settings', requireAuth, async (req, res) => {
   res.redirect('/admin/settings?saved=1');
 });
 
+// GET /admin/mural
+router.get('/mural', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).render('error', { message: 'Acesso negado' });
+  const { data } = await db.from('portal_settings').select('value').eq('key', 'mural_notices').maybeSingle();
+  let notices = [];
+  try { notices = JSON.parse(data?.value || '[]'); } catch(e) {}
+  res.render('admin-mural', { notices, saved: req.query.saved });
+});
+
+// POST /admin/mural
+router.post('/mural', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).render('error', { message: 'Acesso negado' });
+  const { data } = await db.from('portal_settings').select('value').eq('key', 'mural_notices').maybeSingle();
+  let notices = [];
+  try { notices = JSON.parse(data?.value || '[]'); } catch(e) {}
+
+  if (req.body.action === 'add') {
+    notices.unshift({ title: req.body.title, message: req.body.message, tipo: req.body.tipo || 'info', author: req.user.name, created_at: new Date().toISOString() });
+  } else if (req.body.action === 'delete') {
+    const idx = parseInt(req.body.idx);
+    if (!isNaN(idx)) notices.splice(idx, 1);
+  }
+
+  await db.from('portal_settings').upsert({ key: 'mural_notices', value: JSON.stringify(notices), updated_at: new Date().toISOString(), updated_by: req.user.name });
+  res.redirect('/admin/mural?saved=1');
+});
+
 module.exports = router;
