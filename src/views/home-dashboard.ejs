@@ -47,6 +47,10 @@
 
       <!-- Stat Cards -->
       <div class="stats-grid">
+        <a href="/rastreios" class="stat-card" style="text-decoration:none;cursor:pointer;border-left:3px solid var(--brand)">
+          <div class="stat-label">Total de Pedidos</div>
+          <div class="stat-value" style="color:var(--brand)"><%= totalOrders.toLocaleString('pt-BR') %></div>
+        </a>
         <a href="/rastreios" class="stat-card" style="text-decoration:none;cursor:pointer">
           <div class="stat-label">Total de Envios</div>
           <div class="stat-value" style="color:var(--gray-900)"><%= stats.total %></div>

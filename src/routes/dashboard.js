@@ -18,14 +18,16 @@ router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req,
   try {
     const { seller_id, date_from, date_to } = req.query;
 
-    const [stats, lastLog, pendingCount, ticketStats, timeSeries, companies] = await Promise.all([
+    const [stats, lastLog, pendingCount, ticketStats, timeSeries, companies, queueCount] = await Promise.all([
       Shipment.getStats(),
       Shipment.getLastSchedulerLog(),
       Shipment.countPendingForRefresh(),
       Shipment.getTicketStats(),
       Shipment.getShipmentsPerDay({ sellerId: seller_id || null, dateFrom: date_from || null, dateTo: date_to || null }),
       Shipment.getCompanies(),
+      db.from('customer_queue').select('*', { count: 'exact', head: true }).then(r => r.count || 0),
     ]);
+    const totalOrders = (stats.total || 0) + queueCount;
 
     const fmtDate = (iso) => iso
       ? new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -33,6 +35,7 @@ router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req,
 
     res.render('home-dashboard', {
       stats,
+      totalOrders,
       lastLog: lastLog ? { ...lastLog, ran_at_fmt: fmtDate(lastLog.ran_at) } : null,
       pendingCount,
       nextWindow: getNextWindow(),
