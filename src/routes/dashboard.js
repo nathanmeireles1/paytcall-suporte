@@ -62,7 +62,7 @@ async function handleRastreios(req, res) {
 
     const [stats, result, companies, lastLog, pendingCount] = await Promise.all([
       Shipment.getStats(),
-      Shipment.findAll({ status, search, seller_id: effectiveSellerId, carrier, product, paid_at_from, paid_at_to, page: parseInt(page) }),
+      Shipment.findAllCombined({ status, search, seller_id: effectiveSellerId, paid_at_from, paid_at_to, page: parseInt(page) }),
       Shipment.getCompanies(),
       Shipment.getLastSchedulerLog(),
       Shipment.countPendingForRefresh(),
@@ -222,7 +222,7 @@ router.get('/api/rastreios/export', requirePermission('dashboard', 'can_view'), 
       }
     }
 
-    const result = await Shipment.findAll({ status, search, seller_id: effectiveSellerId, carrier, product, paid_at_from, paid_at_to, page: 1, limit: 9999 });
+    const result = await Shipment.findAllCombined({ status, search, seller_id: effectiveSellerId, paid_at_from, paid_at_to, page: 1, limit: 9999 });
 
     const STATUS_LABEL = { pending:'Pendente', posted_object:'Obj. Postado', forwarded:'Em Trânsito', delivering:'Saiu p/ Entrega', recipient_not_found:'Dest. não encontrado', delivery_problem:'Prob. Entrega', wrong_address:'End. Incorreto', waiting_client:'Ag. Retirada', delivered:'Entregue', returning:'Devolvendo', returned:'Devolvido', overdue:'Em Atraso', no_tracking:'Sem Rastreio', tracking_delayed:'Rastreio em Atraso' };
     const fmtDt = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
@@ -280,6 +280,30 @@ router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req,
   } catch (err) {
     console.error('[Analytics] Erro:', err.message);
     res.status(500).render('error', { message: 'Erro ao carregar analytics: ' + err.message });
+  }
+});
+
+// POST /api/tickets/bulk — cria tickets em massa
+router.post('/api/tickets/bulk', async (req, res) => {
+  try {
+    const { tracking_codes, tipo, motivo, priority, observacao } = req.body;
+    if (!tracking_codes?.length || !tipo || !motivo) return res.status(400).json({ error: 'Campos obrigatórios ausentes' });
+    const results = [];
+    for (const code of tracking_codes) {
+      const { data, error } = await db.from('tickets').insert({
+        tracking_code: code || null,
+        tipo, motivo, priority: priority || 3,
+        observacao: observacao || null,
+        status: 'Aberto',
+        created_by: req.user.name,
+        assigned_to: null,
+      }).select().single();
+      if (!error) results.push(data);
+    }
+    res.json({ ok: true, created: results.length });
+  } catch (err) {
+    console.error('[Tickets Bulk] Erro:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -224,17 +224,21 @@
             </thead>
             <tbody>
               <% shipments.forEach(s => { %>
-              <tr data-code="<%= s.tracking_code %>" onclick="handleRowClick(event, '<%= s.order_id || s.tracking_code %>')">
+              <tr data-code="<%= s.tracking_code || s.order_id %>" onclick="handleRowClick(event, '<%= s.order_id || s.tracking_code %>')">
                 <td style="padding:11px 10px 11px 16px" onclick="event.stopPropagation()">
-                  <input type="checkbox" class="row-check" value="<%= s.tracking_code %>" onchange="updateBulkBar()" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer">
+                  <input type="checkbox" class="row-check" value="<%= s.tracking_code || s.order_id %>" onchange="updateBulkBar()" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer">
                 </td>
                 <td>
                   <div style="display:flex;flex-direction:column;gap:2px">
                     <div style="display:flex;align-items:center;gap:5px">
+                      <% if (s.tracking_code) { %>
                       <span class="code"><%= s.tracking_code %></span>
                       <button onclick="copyCode(event,'<%= s.tracking_code %>')" title="Copiar código de rastreio" class="copy-btn">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                       </button>
+                      <% } else { %>
+                      <span class="badge badge-neutral" style="font-size:11px">Ag. rastreio</span>
+                      <% } %>
                     </div>
                     <span style="font-size:11px;color:var(--text-4);font-weight:500"><%= s.carrier || '—' %></span>
                   </div>
@@ -335,27 +339,26 @@
           return Array.from(document.querySelectorAll('.row-check:checked')).map(c => c.value);
         }
 
-        function bulkAction(action) {
+        async function bulkAction(action) {
           const codes = getSelectedCodes();
           if (!codes.length) return;
 
           if (action === 'copy') {
-            navigator.clipboard.writeText(codes.join('\n')).then(() => {
-              alert(codes.length + ' código(s) copiado(s) para a área de transferência.');
+            navigator.clipboard.writeText(codes.join(', ')).then(() => {
+              showToast(codes.length + ' código(s) copiado(s).');
             });
           } else if (action === 'update') {
-            if (!confirm('Atualizar rastreio de ' + codes.length + ' pedido(s) agora?')) return;
+            if (!await showConfirm('Atualizar rastreio de ' + codes.length + ' pedido(s) agora?')) return;
             fetch('/api/tracking/refresh-batch', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ codes })
             }).then(r => r.json()).then(data => {
-              alert('Atualização solicitada para ' + codes.length + ' pedido(s).');
+              showToast('Atualização solicitada para ' + codes.length + ' pedido(s).');
               clearSelection();
-            }).catch(() => alert('Erro ao solicitar atualização.'));
+            }).catch(() => showToast('Erro ao solicitar atualização.', 'error'));
           } else if (action === 'ticket') {
-            const codesParam = encodeURIComponent(codes.join(','));
-            window.location = '/shipment/' + codes[0] + '?bulk=' + codesParam;
+            openBulkTicketModal(codes);
           }
         }
         </script>
@@ -641,6 +644,119 @@ document.addEventListener('keydown', (e) => {
     closePedidoModal({ target: document.getElementById('pedidoModal') });
   }
 });
+</script>
+
+<!-- Toast & Confirm System -->
+<div id="toast" style="display:none;position:fixed;bottom:24px;right:24px;background:var(--gray-900);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:320px;line-height:1.4"></div>
+<div id="confirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <p id="confirmMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5"></p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="confirmResolve(false)" class="btn btn-secondary btn-sm">Cancelar</button>
+      <button onclick="confirmResolve(true)" class="btn btn-primary btn-sm">Confirmar</button>
+    </div>
+  </div>
+</div>
+<script>
+let _toastTimer;
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.background = type === 'error' ? 'var(--danger)' : type === 'warning' ? '#92400e' : 'var(--gray-900)';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.style.display = 'none', 3000);
+}
+let confirmResolve;
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    confirmResolve = (v) => {
+      document.getElementById('confirmOverlay').style.display = 'none';
+      resolve(v);
+    };
+    document.getElementById('confirmMsg').textContent = msg;
+    document.getElementById('confirmOverlay').style.display = 'flex';
+  });
+}
+</script>
+
+<div id="bulkTicketModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9997;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:440px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="font-size:15px;font-weight:700;color:var(--text)">Abrir Ticket em Massa</h3>
+      <button onclick="document.getElementById('bulkTicketModal').style.display='none'" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:18px">✕</button>
+    </div>
+    <p id="bulkTicketInfo" style="font-size:12.5px;color:var(--text-3);margin-bottom:14px"></p>
+    <form id="bulkTicketForm" onsubmit="submitBulkTicket(event)">
+      <div style="display:grid;gap:10px">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px">Tipo</label>
+          <select name="tipo" class="form-select" style="width:100%" required>
+            <option value="RETENCAO">Retenção</option>
+            <option value="LOGISTICA">Logística</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px">Motivo</label>
+          <input type="text" name="motivo" class="form-input" style="width:100%" placeholder="Motivo do ticket" required>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px">Prioridade</label>
+          <select name="priority" class="form-select" style="width:100%">
+            <option value="3">Baixa</option>
+            <option value="2" selected>Média</option>
+            <option value="1">Alta</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px">Observação (opcional)</label>
+          <textarea name="observacao" class="form-input" style="width:100%;height:60px;resize:vertical" placeholder="Observação..."></textarea>
+        </div>
+      </div>
+      <input type="hidden" name="tracking_codes" id="bulkTicketCodes">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+        <button type="button" onclick="document.getElementById('bulkTicketModal').style.display='none'" class="btn btn-secondary btn-sm">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-sm">Criar Tickets</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function openBulkTicketModal(codes) {
+  document.getElementById('bulkTicketInfo').textContent = codes.length + ' pedido(s) selecionado(s)';
+  document.getElementById('bulkTicketCodes').value = codes.join(',');
+  document.getElementById('bulkTicketModal').style.display = 'flex';
+}
+async function submitBulkTicket(e) {
+  e.preventDefault();
+  const form = e.target;
+  const codes = form.tracking_codes.value.split(',').filter(Boolean);
+  const btn = form.querySelector('[type=submit]');
+  btn.disabled = true;
+  btn.textContent = 'Criando...';
+  try {
+    const r = await fetch('/api/tickets/bulk', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        tracking_codes: codes,
+        tipo: form.tipo.value,
+        motivo: form.motivo.value,
+        priority: parseInt(form.priority.value),
+        observacao: form.observacao.value || null,
+      })
+    });
+    const d = await r.json();
+    document.getElementById('bulkTicketModal').style.display = 'none';
+    clearSelection();
+    showToast((d.created || codes.length) + ' ticket(s) criado(s) com sucesso.');
+  } catch(err) {
+    showToast('Erro ao criar tickets.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Criar Tickets';
+  }
+}
 </script>
 
 <%- include('partials/ai-chat') %>

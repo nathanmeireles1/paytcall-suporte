@@ -174,22 +174,22 @@
         </div>
       </div>
 
-      <!-- Tickets por tipo -->
-      <div class="card" style="margin-bottom:22px">
-        <div class="card-header">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-          <h3>Tickets por Tipo</h3>
-          <a href="/relatorios/tickets" class="btn btn-ghost btn-xs" style="margin-left:auto">Ver todos</a>
-        </div>
-        <div class="card-body">
-          <canvas id="chartTickets" height="60"></canvas>
-        </div>
-      </div>
-
-      <!-- Grid 2 colunas -->
+      <!-- Grid 2 colunas: Tickets por Tipo + Rastreamento -->
       <div class="grid-2" style="margin-bottom:24px">
 
-        <!-- Última consulta -->
+        <!-- Tickets por Tipo -->
+        <div class="card">
+          <div class="card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <h3>Tickets por Tipo</h3>
+            <a href="/relatorios/tickets" class="btn btn-ghost btn-xs" style="margin-left:auto">Ver todos</a>
+          </div>
+          <div class="card-body" style="padding-top:8px">
+            <canvas id="chartTickets" height="80"></canvas>
+          </div>
+        </div>
+
+        <!-- Rastreamento -->
         <div class="card">
           <div class="card-header">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -224,7 +224,7 @@
                 <span class="fw-600"><%= nextWindow %></span>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <span class="text-muted">Pendentes</span>
+                <span class="text-muted">Ag. rastreio</span>
                 <span class="badge badge-info"><%= pendingCount.toLocaleString('pt-BR') %></span>
               </div>
             </div>
@@ -394,11 +394,11 @@ async function markAllRead() {
   }
 })();
 
-function refreshAll() {
+async function refreshAll() {
   if (!confirm('Atualizar todos os envios ativos via H7?')) return;
   fetch('/api/tracking/refresh', { method: 'POST' })
-    .then(() => alert('Atualização iniciada!'))
-    .catch(() => alert('Erro ao iniciar.'));
+    .then(() => {})
+    .catch(() => {});
 }
 
 // Check unread on load
