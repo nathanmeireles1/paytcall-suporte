@@ -14,6 +14,16 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  // Verificação de segredo no header (se WEBHOOK_SECRET configurado)
+  const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+  if (WEBHOOK_SECRET) {
+    const provided = req.headers['x-webhook-secret'] || req.headers['x-payt-secret'];
+    if (!provided || provided !== WEBHOOK_SECRET) {
+      console.warn('[Webhook] Tentativa sem segredo válido de', req.ip);
+      return res.status(401).json({ error: 'Não autorizado' });
+    }
+  }
+
   const body = req.body;
 
   console.log(`[Webhook] Recebido: status=${body.status} test=${body.test} order=${body.transaction_id || '-'}`);

@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { db } = require('../config/database');
 const { requireAuth, requirePermission, loadPermissions, invalidatePermissionsCache } = require('../middleware/auth');
+const { sendInviteEmail } = require('../services/mailer');
 
 // Módulos disponíveis no sistema
 const MODULES = [
@@ -122,10 +123,21 @@ router.post('/users/invite', requireAuth, requirePermission('admin_usuarios', 'c
       }
     }
 
-    const baseUrl = req.protocol + '://' + req.get('host');
+    const baseUrl = process.env.APP_URL || (req.protocol + '://' + req.get('host'));
     const inviteLink = `${baseUrl}/invite/${invite_token}`;
 
-    res.json({ ok: true, inviteLink });
+    // Tenta enviar email de convite (não bloqueia se SMTP não configurado)
+    const emailSent = await sendInviteEmail({
+      to: email,
+      name,
+      inviteLink,
+      inviterName: req.user.name,
+    }).catch(err => {
+      console.error('[Admin] Erro ao enviar email de convite:', err.message);
+      return false;
+    });
+
+    res.json({ ok: true, inviteLink, emailSent });
   } catch (err) {
     console.error('[Admin] Erro ao convidar:', err.message);
     res.status(500).json({ error: err.message });

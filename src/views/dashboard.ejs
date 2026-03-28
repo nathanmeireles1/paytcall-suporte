@@ -56,7 +56,7 @@
       %>
       <div class="p-summary">
         <% summaries.forEach(s => { %>
-        <a href="/?status=<%= s.key %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-summary-item <%= filters.status === s.key ? 'active' : '' %>" style="text-decoration:none">
+        <a href="/rastreios?status=<%= s.key %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-summary-item <%= filters.status === s.key ? 'active' : '' %>" style="text-decoration:none">
           <div class="p-summary-label"><%= s.label %></div>
           <div class="p-summary-value"><%= (s.value || 0).toLocaleString('pt-BR') %></div>
         </a>
@@ -68,9 +68,9 @@
 
         <!-- Tabs por transportadora -->
         <div class="p-tabs">
-          <a href="/?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.seller_id ? 'seller_id=' + filters.seller_id + '&' : '' %>" class="p-tab <%= !filters.carrier ? 'active' : '' %>">Todas</a>
-          <a href="/?carrier=Loggi<%= filters.status ? '&status=' + filters.status : '' %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-tab <%= filters.carrier === 'Loggi' ? 'active' : '' %>">Loggi</a>
-          <a href="/?carrier=Correios<%= filters.status ? '&status=' + filters.status : '' %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-tab <%= filters.carrier === 'Correios' ? 'active' : '' %>">Correios</a>
+          <a href="/rastreios?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.seller_id ? 'seller_id=' + filters.seller_id + '&' : '' %>" class="p-tab <%= !filters.carrier ? 'active' : '' %>">Todas</a>
+          <a href="/rastreios?carrier=Loggi<%= filters.status ? '&status=' + filters.status : '' %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-tab <%= filters.carrier === 'Loggi' ? 'active' : '' %>">Loggi</a>
+          <a href="/rastreios?carrier=Correios<%= filters.status ? '&status=' + filters.status : '' %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-tab <%= filters.carrier === 'Correios' ? 'active' : '' %>">Correios</a>
         </div>
 
         <!-- Filtros -->
@@ -82,7 +82,7 @@
               <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-4)">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
               </span>
-              <input type="text" name="search" placeholder="Buscar pedido, código ou cliente..." value="<%= filters.search || '' %>" class="form-input" style="font-size:13px;padding:6px 10px 6px 30px;box-shadow:none;width:100%">
+              <input type="text" name="search" placeholder="Pedido, rastreio, cliente, CPF ou produto..." value="<%= filters.search || '' %>" class="form-input" style="font-size:13px;padding:6px 10px 6px 30px;box-shadow:none;width:100%">
             </div>
 
             <select name="seller_id" class="form-select" style="font-size:13px;padding:6px 10px;box-shadow:none" onchange="this.form.submit()">
@@ -109,11 +109,9 @@
               <option value="tracking_delayed"    <%= filters.status==='tracking_delayed' ? 'selected':'' %>>Rastreio em atraso</option>
             </select>
 
-            <input type="text" name="product" placeholder="Produto..." value="<%= filters.product || '' %>" class="form-input" style="font-size:13px;padding:6px 10px;min-width:120px;box-shadow:none">
-
             <div style="display:flex;gap:4px;margin-left:auto">
-              <% if (filters.status || filters.seller_id || filters.product || filters.paid_at_from || filters.paid_at_to) { %>
-              <a href="/<%= filters.carrier ? '?carrier=' + filters.carrier : '' %>" class="btn btn-ghost btn-sm">Limpar filtros</a>
+              <% if (filters.status || filters.seller_id || filters.search || filters.paid_at_from || filters.paid_at_to) { %>
+              <a href="/rastreios<%= filters.carrier ? '?carrier=' + filters.carrier : '' %>" class="btn btn-ghost btn-sm">Limpar filtros</a>
               <% } %>
               <%
               const _qRastreios = Object.entries(filters).filter(([,v]) => v).map(([k,v]) => k+'='+encodeURIComponent(v)).join('&');
@@ -131,14 +129,14 @@
         </div>
 
         <!-- Filter chips (filtros ativos) -->
-        <% const hasActiveFilters = filters.status || filters.seller_id || filters.product || filters.carrier; %>
+        <% const hasActiveFilters = filters.status || filters.seller_id || filters.search || filters.carrier; %>
         <% if (hasActiveFilters) { %>
         <div class="p-filter-chips">
           <span style="font-size:12px;color:var(--gray-400);font-weight:500;margin-right:2px">Filtros:</span>
           <% if (filters.status) { %>
           <span class="p-filter-chip">
             Status: <%= filters.status %>
-            <a href="/?<%= filters.seller_id ? 'seller_id=' + filters.seller_id + '&' : '' %><%= filters.carrier ? 'carrier=' + filters.carrier : '' %>">
+            <a href="/rastreios?<%= filters.seller_id ? 'seller_id=' + filters.seller_id + '&' : '' %><%= filters.carrier ? 'carrier=' + filters.carrier : '' %>">
               <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </a>
           </span>
@@ -146,7 +144,7 @@
           <% if (filters.seller_id) { %>
           <span class="p-filter-chip">
             Empresa: <%= filters.seller_id %>
-            <a href="/?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.carrier ? 'carrier=' + filters.carrier : '' %>">
+            <a href="/rastreios?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.carrier ? 'carrier=' + filters.carrier : '' %>">
               <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </a>
           </span>
@@ -154,7 +152,7 @@
           <% if (filters.carrier) { %>
           <span class="p-filter-chip">
             Transp.: <%= filters.carrier %>
-            <a href="/?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.seller_id ? 'seller_id=' + filters.seller_id : '' %>">
+            <a href="/rastreios?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.seller_id ? 'seller_id=' + filters.seller_id : '' %>">
               <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </a>
           </span>

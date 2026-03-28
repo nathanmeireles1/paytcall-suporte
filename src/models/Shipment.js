@@ -54,7 +54,7 @@ const Shipment = {
     if (paid_at_to)   query = query.lte('paid_at', paid_at_to + 'T23:59:59Z');
     if (search) {
       query = query.or(
-        `tracking_code.ilike.%${search}%,order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%`
+        `tracking_code.ilike.%${search}%,order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%,customer_doc.ilike.%${search}%,product_name.ilike.%${search}%`
       );
     }
 
@@ -77,7 +77,7 @@ const Shipment = {
     if (status === 'no_tracking') {
       let q = db.from('customer_queue').select('*', { count: 'exact' });
       if (seller_id) q = q.eq('seller_id', seller_id);
-      if (search) q = q.or(`order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%,customer_doc.ilike.%${search}%`);
+      if (search) q = q.or(`order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%,customer_doc.ilike.%${search}%,product_name.ilike.%${search}%`);
       const offset = (page - 1) * limit;
       const { data, count, error } = await q.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
       if (error) throw error;
@@ -94,7 +94,7 @@ const Shipment = {
       (async () => {
         let q = db.from('customer_queue').select('*');
         if (seller_id) q = q.eq('seller_id', seller_id);
-        if (search) q = q.or(`order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%,customer_doc.ilike.%${search}%`);
+        if (search) q = q.or(`order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%,customer_doc.ilike.%${search}%,product_name.ilike.%${search}%`);
         const { data, error } = await q.order('created_at', { ascending: false });
         if (error) throw error;
         return (data || []).map(r => ({ ...r, tracking_code: null, status: 'no_tracking', carrier: null, last_event: null, last_event_date: null, updated_at: r.created_at }));

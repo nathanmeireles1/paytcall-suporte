@@ -3,8 +3,12 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 
 const app = express();
+
+// Headers de segurança (sem CSP pois usamos inline scripts/styles e CDNs)
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
 // Necessário para Railway/proxies reversos (rate limit e IPs corretos)
 app.set('trust proxy', 1);
@@ -19,11 +23,22 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Cookie parser
 app.use(cookieParser());
 
-// CORS — permite requisições da payt.com.br e paytcall.com.br
+// CORS — restringe às origens do paytcall
+const ALLOWED_ORIGINS = [
+  'https://suporte.paytcall.com.br',
+  'https://payt.com.br',
+  'https://paytcall.com.br',
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+  }
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
@@ -31,6 +46,16 @@ app.use((req, res, next) => {
 // Body parsing
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+
+// Rate limiting para login — 10 tentativas por 15 min por IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
 
 // Rate limiting para webhook
 const webhookLimiter = rateLimit({
@@ -50,6 +75,7 @@ const apiLimiter = rateLimit({
 const { requireAuth } = require('./middleware/auth');
 
 // Rotas públicas (login, convite) — sem auth
+app.use('/login', loginLimiter);
 app.use('/', require('./routes/auth'));
 
 // Webhook — sem auth (chamado pela Payt)

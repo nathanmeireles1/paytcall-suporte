@@ -46,7 +46,7 @@ router.post('/api/ai/chat', requireAuth, async (req, res) => {
     if (!message || !message.trim()) return res.status(400).json({ error: 'Mensagem vazia' });
 
     const GEMINI_KEY = await getGeminiKey();
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
     if (!GEMINI_KEY) return res.status(500).json({ error: 'API do Gemini não configurada. Acesse Admin → Configurações para adicionar a chave.' });
 
     // Busca contexto relevante

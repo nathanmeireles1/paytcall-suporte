@@ -39,7 +39,7 @@ router.post('/login', async (req, res) => {
     res.cookie('auth_token', data.session.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
     });
 
@@ -85,12 +85,12 @@ router.get('/invite/:token', async (req, res) => {
 // POST /invite/:token — cria conta via convite
 router.post('/invite/:token', async (req, res) => {
   const { password, name } = req.body;
-  if (!password || password.length < 6) {
+  if (!password || password.length < 8) {
     return res.render('invite', {
       token: req.params.token,
       email: req.body.email,
       name: name || '',
-      error: 'Senha deve ter pelo menos 6 caracteres',
+      error: 'Senha deve ter pelo menos 8 caracteres',
     });
   }
 
@@ -137,7 +137,7 @@ router.post('/invite/:token', async (req, res) => {
       res.cookie('auth_token', loginData.session.access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'strict',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
     }

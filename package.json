@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.0",
+    "helmet": "^8.0.0",
     "axios": "^1.7.2",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.5",
