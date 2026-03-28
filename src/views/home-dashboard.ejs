@@ -357,7 +357,7 @@ async function markAllRead() {
       data: {
         labels: <%- JSON.stringify(tsLabels) %>,
         datasets: [
-          <% tsCompanies.forEach(([name, co], i) { %>
+          <% tsCompanies.forEach(([name, co], i) => { %>
           {
             label: '<%= name %>',
             data: <%- JSON.stringify(co.values || []) %>,

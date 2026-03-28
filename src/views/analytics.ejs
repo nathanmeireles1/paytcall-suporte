@@ -272,7 +272,7 @@ function applyAnalyticsDateRange(form) {
       data: {
         labels: <%- JSON.stringify(tsaLabels) %>,
         datasets: [
-          <% tsaCompanies.forEach(([name, co], i) { %>
+          <% tsaCompanies.forEach(([name, co], i) => { %>
           {
             label: '<%= name %>',
             data: <%- JSON.stringify(co.values || []) %>,
