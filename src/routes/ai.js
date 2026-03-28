@@ -58,32 +58,62 @@ router.post('/api/ai/chat', requireAuth, async (req, res) => {
       contextData += `Entregues: ${stats.delivered || 0} | Em trânsito: ${stats.in_transit || 0} | Devolvidos: ${stats.returned || 0}\n`;
       contextData += `Saiu p/ entrega: ${stats.out_for_delivery || 0} | Rastreio em atraso: ${stats.tracking_delayed || 0}\n`;
 
+      // Pedidos aguardando rastreio (customer_queue)
+      const { count: queueCount } = await db.from('customer_queue').select('*', { count: 'exact', head: true });
+      if (queueCount > 0) {
+        contextData += `Aguardando rastreio (fila H7): ${queueCount}\n`;
+      }
+
       // Se a mensagem menciona um código ou ID específico, busca o pedido
-      const codeMatch = message.match(/\b([A-Z]{2}\d{9}[A-Z]{2}|[A-Z0-9]{10,20})\b/i);
+      // Regex: formato Correios (AA999999999AA) OU qualquer ID alfanumérico de 5-25 chars
+      const codeMatch = message.match(/\b([A-Z]{2}\d{9}[A-Z]{2}|[A-Z0-9]{5,25})\b/i);
       if (codeMatch) {
         const code = codeMatch[1].toUpperCase();
+
+        // Busca em shipments primeiro (por código de rastreio e por order_id)
         const [byCode, byOrder] = await Promise.all([
           Shipment.findByCode(code).catch(() => null),
           Shipment.findByOrderId(code).catch(() => null),
         ]);
-        const shipment = byCode || byOrder;
-        if (shipment) {
-          contextData += `\n=== PEDIDO ENCONTRADO: ${shipment.order_id || shipment.tracking_code} ===\n`;
-          contextData += `Cliente: ${shipment.customer_name || '—'} (${shipment.customer_cpf || '—'})\n`;
-          contextData += `Email: ${shipment.customer_email || '—'}\n`;
-          contextData += `Produto: ${shipment.product_name || '—'} (Qtd: ${shipment.product_quantity || 1})\n`;
-          contextData += `Transportadora: ${shipment.carrier || '—'} | Código: ${shipment.tracking_code || '—'}\n`;
-          contextData += `Status: ${shipment.status || '—'}\n`;
-          contextData += `Empresa: ${shipment.company_name || shipment.seller_id || '—'}\n`;
-          contextData += `Pago em: ${shipment.paid_at ? new Date(shipment.paid_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—'}\n`;
-          contextData += `Último evento: ${shipment.last_event || '—'}\n`;
+        let shipment = byCode || byOrder;
 
-          // Busca tickets do pedido
-          const tickets = await Shipment.getTickets(shipment.tracking_code).catch(() => []);
+        // Se não encontrou em shipments, tenta na customer_queue (pedidos sem rastreio)
+        if (!shipment) {
+          const { data: queueItem } = await db
+            .from('customer_queue')
+            .select('*')
+            .eq('order_id', code)
+            .maybeSingle();
+          if (queueItem) {
+            shipment = { ...queueItem, tracking_code: null, status: 'no_tracking', carrier: null, last_event: null };
+          }
+        }
+
+        if (shipment) {
+          const isQueue = !shipment.tracking_code && shipment.status === 'no_tracking';
+          contextData += `\n=== PEDIDO ENCONTRADO: ${shipment.order_id || shipment.tracking_code} ===\n`;
+          if (isQueue) contextData += `⚠️ Pedido aguardando código de rastreio (na fila H7)\n`;
+          contextData += `Cliente: ${shipment.customer_name || '—'} | CPF: ${shipment.customer_doc || '—'}\n`;
+          contextData += `Email: ${shipment.customer_email || '—'} | Tel: ${shipment.customer_phone || '—'}\n`;
+          contextData += `Produto: ${shipment.product_name || '—'} (Qtd: ${shipment.product_quantity || 1})\n`;
+          contextData += `Empresa: ${shipment.company_name || shipment.seller_id || '—'}\n`;
+          contextData += `Transportadora: ${shipment.carrier || '—'} | Código rastreio: ${shipment.tracking_code || 'Ainda não gerado'}\n`;
+          contextData += `Status: ${shipment.status || '—'}\n`;
+          contextData += `Pago em: ${shipment.paid_at ? new Date(shipment.paid_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—'}\n`;
+          if (shipment.last_event) contextData += `Último evento: ${shipment.last_event} (${shipment.last_event_date || '—'})\n`;
+          if (shipment.expected_date) contextData += `Previsão entrega: ${shipment.expected_date}\n`;
+
+          // Tickets do pedido
+          const tickets = await Shipment.getTickets(shipment.tracking_code, shipment.order_id).catch(() => []);
           if (tickets.length > 0) {
             contextData += `Tickets (${tickets.length}): `;
-            contextData += tickets.map(t => `[${t.tipo} - ${t.motivo} - ${t.status}]`).join(', ') + '\n';
+            contextData += tickets.map(t => `[${t.tipo} | ${t.motivo} | ${t.status} | prioridade ${t.priority}]`).join(', ') + '\n';
+          } else {
+            contextData += `Tickets: nenhum\n`;
           }
+        } else {
+          contextData += `\n=== PEDIDO "${code}" NÃO ENCONTRADO ===\n`;
+          contextData += `Nenhum registro com este código ou ID no sistema.\n`;
         }
       }
     } catch (e) {
