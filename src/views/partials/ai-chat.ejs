@@ -186,9 +186,36 @@
 
 <script>
 (function() {
+  const STORAGE_KEY = 'payt_ai_history';
+  const STORAGE_HTML = 'payt_ai_messages_html';
+  const STORAGE_SUSED = 'payt_ai_suggestions_used';
+
   let aiHistory = [];
   let aiOpen = false;
   let suggestionsUsed = false;
+
+  // Restaurar conversa anterior
+  try {
+    const savedHistory = sessionStorage.getItem(STORAGE_KEY);
+    const savedHtml = sessionStorage.getItem(STORAGE_HTML);
+    const savedSugg = sessionStorage.getItem(STORAGE_SUSED);
+    if (savedHistory) aiHistory = JSON.parse(savedHistory);
+    if (savedHtml) {
+      document.getElementById('aiMessages').innerHTML = savedHtml;
+    }
+    if (savedSugg === '1') {
+      suggestionsUsed = true;
+      document.getElementById('aiSuggestions').style.display = 'none';
+    }
+  } catch(e) {}
+
+  function saveState() {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(aiHistory));
+      sessionStorage.setItem(STORAGE_HTML, document.getElementById('aiMessages').innerHTML);
+      sessionStorage.setItem(STORAGE_SUSED, suggestionsUsed ? '1' : '0');
+    } catch(e) {}
+  }
 
   window.toggleAIChat = function() {
     aiOpen = !aiOpen;
@@ -208,6 +235,7 @@
     const msgs = document.getElementById('aiMessages');
     msgs.innerHTML = '<div class="ai-msg bot"><div class="bubble">Conversa reiniciada. Como posso ajudar?</div><div class="time">agora</div></div>';
     document.getElementById('aiSuggestions').style.display = 'flex';
+    saveState();
   };
 
   window.useSuggestion = function(el, text) {
@@ -242,6 +270,7 @@
     div.innerHTML = '<div class="bubble">' + html + '</div><div class="time">' + fmtTime() + '</div>';
     msgs.appendChild(div);
     scrollAI();
+    saveState();
   }
 
   window.sendAIMessage = async function() {
@@ -275,6 +304,7 @@
       } else {
         appendMsg('bot', data.reply);
         aiHistory.push({ role: 'assistant', content: data.reply });
+        saveState();
       }
     } catch (e) {
       typing.classList.remove('visible');
