@@ -336,35 +336,48 @@ async function markAllRead() {
     });
   }
 
-  // Line — pedidos por dia
+  // Line — pedidos por dia (por empresa)
   const ctxTS = document.getElementById('chartTimeSeries');
   if (ctxTS) {
     <%
-    const tsData = typeof timeSeries !== 'undefined' ? timeSeries : [];
-    const tsLabels = tsData.map(d => d.day);
-    const tsValues = tsData.map(d => d.total);
+    const tsObj = typeof timeSeries !== 'undefined' ? timeSeries : { labels: [], byCompany: {} };
+    const tsLabels = tsObj.labels || [];
+    const tsCompanies = Object.entries(tsObj.byCompany || {});
+    const COMPANY_COLORS = [
+      { border: '#e47c24', bg: 'rgba(228,124,36,.08)' },
+      { border: '#2563eb', bg: 'rgba(37,99,235,.07)' },
+      { border: '#16a34a', bg: 'rgba(22,163,74,.07)' },
+      { border: '#7c3aed', bg: 'rgba(124,58,237,.07)' },
+      { border: '#dc2626', bg: 'rgba(220,38,38,.07)' },
+      { border: '#c2800a', bg: 'rgba(194,128,10,.07)' },
+    ];
     %>
     new Chart(ctxTS, {
       type: 'line',
       data: {
         labels: <%- JSON.stringify(tsLabels) %>,
-        datasets: [{
-          data: <%- JSON.stringify(tsValues) %>,
-          borderColor: '#e47c24',
-          backgroundColor: 'rgba(228,124,36,.08)',
-          pointBackgroundColor: '#e47c24',
-          pointRadius: <%= tsLabels.length > 20 ? 0 : 3 %>,
-          pointHoverRadius: 5,
-          tension: 0.4,
-          fill: true,
-          borderWidth: 2,
-        }]
+        datasets: [
+          <% tsCompanies.forEach(([name, co], i) { %>
+          {
+            label: '<%= name %>',
+            data: <%- JSON.stringify(co.values || []) %>,
+            borderColor: '<%= COMPANY_COLORS[i % COMPANY_COLORS.length].border %>',
+            backgroundColor: '<%= COMPANY_COLORS[i % COMPANY_COLORS.length].bg %>',
+            pointBackgroundColor: '<%= COMPANY_COLORS[i % COMPANY_COLORS.length].border %>',
+            pointRadius: <%= tsLabels.length > 20 ? 0 : 3 %>,
+            pointHoverRadius: 5,
+            tension: 0.4,
+            fill: <%= tsCompanies.length === 1 ? 'true' : 'false' %>,
+            borderWidth: 2,
+          },
+          <% }) %>
+        ]
       },
       options: {
         responsive: true,
         plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: (ctx) => ' ' + ctx.parsed.y + ' pedidos' } }
+          legend: { display: <%= tsCompanies.length > 1 ? 'true' : 'false' %>, position: 'bottom', labels: { color: textColor, font: { size: 11 }, boxWidth: 10, padding: 12 } },
+          tooltip: { callbacks: { label: (ctx) => ' ' + ctx.dataset.label + ': ' + ctx.parsed.y + ' pedidos' } }
         },
         scales: {
           x: { grid: { display: false }, ticks: { color: textColor, font: { size: 10 }, maxTicksLimit: 8, maxRotation: 0 } },

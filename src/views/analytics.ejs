@@ -262,25 +262,36 @@ function applyAnalyticsDateRange(form) {
   const ctxTSA = document.getElementById('chartTimeSeriesAnalytics');
   if (ctxTSA) {
     <%
-    const tsaData = typeof timeSeries !== 'undefined' ? timeSeries : [];
+    const tsaObj = typeof timeSeries !== 'undefined' ? timeSeries : { labels: [], byCompany: {} };
+    const tsaLabels = tsaObj.labels || [];
+    const tsaCompanies = Object.entries(tsaObj.byCompany || {});
+    const TSA_COLORS = ['#e47c24','#2563eb','#16a34a','#7c3aed','#dc2626','#c2800a'];
     %>
     new Chart(ctxTSA, {
       type: 'line',
       data: {
-        labels: <%- JSON.stringify(tsaData.map(d => d.day)) %>,
-        datasets: [{
-          data: <%- JSON.stringify(tsaData.map(d => d.total)) %>,
-          borderColor: '#e47c24',
-          backgroundColor: 'rgba(228,124,36,.07)',
-          pointBackgroundColor: '#e47c24',
-          pointRadius: <%= tsaData.length > 20 ? 0 : 3 %>,
-          pointHoverRadius: 5,
-          tension: 0.4, fill: true, borderWidth: 2,
-        }]
+        labels: <%- JSON.stringify(tsaLabels) %>,
+        datasets: [
+          <% tsaCompanies.forEach(([name, co], i) { %>
+          {
+            label: '<%= name %>',
+            data: <%- JSON.stringify(co.values || []) %>,
+            borderColor: '<%= TSA_COLORS[i % TSA_COLORS.length] %>',
+            backgroundColor: 'rgba(228,124,36,.07)',
+            pointBackgroundColor: '<%= TSA_COLORS[i % TSA_COLORS.length] %>',
+            pointRadius: <%= tsaLabels.length > 20 ? 0 : 3 %>,
+            pointHoverRadius: 5,
+            tension: 0.4, fill: <%= tsaCompanies.length === 1 ? 'true' : 'false' %>, borderWidth: 2,
+          },
+          <% }) %>
+        ]
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ' ' + ctx.parsed.y + ' pedidos' } } },
+        plugins: {
+          legend: { display: <%= tsaCompanies.length > 1 ? 'true' : 'false' %>, position: 'bottom', labels: { color: textColor, font: { size: 11 }, boxWidth: 10, padding: 12 } },
+          tooltip: { callbacks: { label: (ctx) => ' ' + ctx.dataset.label + ': ' + ctx.parsed.y + ' pedidos' } }
+        },
         scales: {
           x: { grid: { display: false }, ticks: { color: textColor, font: { size: 10 }, maxTicksLimit: 10, maxRotation: 0 } },
           y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, precision: 0 }, beginAtZero: true }

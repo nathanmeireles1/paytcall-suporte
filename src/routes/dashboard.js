@@ -314,7 +314,7 @@ router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req,
   try {
     const { seller_id, date_from, date_to, carrier, status } = req.query;
     const [stats, analytics, timeSeries, companies] = await Promise.all([
-      Shipment.getStats(),
+      Shipment.getStats({ seller_id: seller_id || null, date_from: date_from || null, date_to: date_to || null }),
       Shipment.getAnalytics(),
       Shipment.getShipmentsPerDay({ sellerId: seller_id || null, dateFrom: date_from || null, dateTo: date_to || null }),
       Shipment.getCompanies(),

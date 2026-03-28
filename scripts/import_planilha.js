@@ -1,10 +1,14 @@
 /**
  * Importação de pedidos da planilha Paytcall para o banco.
- * Uso: node scripts/import_planilha.js <caminho_para_planilha.xlsx>
+ * Uso: node scripts/import_planilha.js <arquivo.xlsx> "<Empresa>" [SELLER_ID]
  *
- * - Upsert em shipments (se tem rastreio) ou customer_queue (sem rastreio)
- * - Conflito resolvido por order_id (nunca duplica)
- * - Upsells linkados ao pedido pai por CPF + pedido VD mais próximo no tempo
+ * Exemplos:
+ *   node scripts/import_planilha.js vendas.xlsx "Nutravita" NUTRAVITA
+ *   node scripts/import_planilha.js vendas.xlsx "Fly Now" FLYNOW
+ *
+ * - Upsert em shipments (com rastreio) ou customer_queue (sem rastreio)
+ * - Conflito por order_id — nunca duplica
+ * - Upsells/Upsell Manual linkados ao pedido pai por CPF + VD mais próximo no tempo
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
@@ -22,13 +26,17 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const FILE_PATH = process.argv[2];
+const FILE_PATH    = process.argv[2];
+const COMPANY_NAME = process.argv[3] || 'Desconhecida';
+const SELLER_ID    = process.argv[4] || COMPANY_NAME.toUpperCase().replace(/\s+/g, '_');
+
 if (!FILE_PATH) {
-  console.error('Uso: node scripts/import_planilha.js <arquivo.xlsx>');
+  console.error('Uso: node scripts/import_planilha.js <arquivo.xlsx> "<Empresa>" [SELLER_ID]');
   process.exit(1);
 }
 
-// --- Status mapping ---
+// --- Helpers ---
+
 function mapStatus(statusCompra) {
   const s = (statusCompra || '').toLowerCase();
   if (s.includes('transport'))   return 'in_transit';
@@ -39,99 +47,113 @@ function mapStatus(statusCompra) {
   return 'pending';
 }
 
-// --- Carrier detection ---
 function detectCarrier(trackingCode) {
   if (!trackingCode) return null;
   return /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(trackingCode) ? 'Correios' : 'Loggi';
 }
 
-// --- Parse price: "127,00" or "R$ 99,92" → number ---
 function parsePrice(val) {
   if (!val) return null;
   const cleaned = String(val).replace(/[R$\s]/g, '').replace(',', '.');
   const n = parseFloat(cleaned);
-  return isNaN(n) ? null : Math.round(n * 100); // store in cents
+  return isNaN(n) ? null : Math.round(n * 100);
 }
 
-// --- Parse date: "27/03/2026 23:38:36" → ISO ---
 function parseDate(val) {
   if (!val) return null;
-  // Excel may return a Date object
   if (val instanceof Date) return val.toISOString();
   const [datePart, timePart] = String(val).split(' ');
   const [d, m, y] = datePart.split('/');
+  if (!y) return null;
   return `${y}-${m}-${d}T${timePart || '00:00:00'}.000Z`;
 }
 
+function getSaleType(tipoVenda) {
+  const t = (tipoVenda || '').toLowerCase();
+  if (t === 'upsell manual') return 'upsell_manual';
+  if (t === 'upsell')        return 'upsell';
+  if (t === 'venda manual')  return 'venda_manual';
+  return 'venda_direta';
+}
+
+function isUpsellType(saleType) {
+  return saleType === 'upsell' || saleType === 'upsell_manual';
+}
+
+async function upsertBatch(table, batch, conflictCol, stats) {
+  const { error } = await db.from(table).upsert(batch, {
+    onConflict: conflictCol,
+    ignoreDuplicates: false,
+  });
+  if (error) {
+    console.error(`\nErro no upsert (${table}):`, error.message);
+    stats.errors += batch.length;
+  } else {
+    if (table === 'shipments') stats.shipments += batch.length;
+    else stats.queue += batch.length;
+  }
+}
+
 async function main() {
-  console.log(`Lendo arquivo: ${FILE_PATH}`);
+  console.log(`Arquivo:  ${FILE_PATH}`);
+  console.log(`Empresa:  ${COMPANY_NAME}`);
+  console.log(`SellerID: ${SELLER_ID}`);
+  console.log('---');
+
   const wb = XLSX.readFile(FILE_PATH, { cellDates: true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, { defval: null });
 
   console.log(`Total de linhas: ${rows.length}`);
 
-  // Separate VD and upsells
-  const vdRows = rows.filter(r => (r['Tipo Venda'] || '') !== 'Upsell');
-  const upsellRows = rows.filter(r => (r['Tipo Venda'] || '') === 'Upsell');
+  // Categorize rows
+  const vdRows     = rows.filter(r => !isUpsellType(getSaleType(r['Tipo Venda'])));
+  const upsellRows = rows.filter(r =>  isUpsellType(getSaleType(r['Tipo Venda'])));
 
-  console.log(`Venda Direta: ${vdRows.length} | Upsell: ${upsellRows.length}`);
+  const typeCounts = {};
+  rows.forEach(r => { const t = r['Tipo Venda'] || 'null'; typeCounts[t] = (typeCounts[t]||0)+1; });
+  console.log('Tipos:', JSON.stringify(typeCounts));
 
-  // Build CPF → [VD orders sorted by date asc] map for upsell matching
+  // Build CPF → [VD/Manual orders] map for upsell parent matching
   const vdByCpf = {};
   for (const row of vdRows) {
-    const cpf = row['Documento'];
+    const cpf = row['Documento'] ? String(row['Documento']).replace(/\D/g, '') : null;
     if (!cpf) continue;
     if (!vdByCpf[cpf]) vdByCpf[cpf] = [];
     vdByCpf[cpf].push({ code: row['Código'], date: parseDate(row['Data']) });
   }
 
-  // Find parent VD for an upsell: same CPF, latest VD before or at upsell time
   function findParentId(cpf, upsellDateStr) {
     const candidates = vdByCpf[cpf];
     if (!candidates) return null;
-    const upsellTs = new Date(upsellDateStr).getTime();
-    // Get latest VD that happened before this upsell
+    const upsellTs = upsellDateStr ? new Date(upsellDateStr).getTime() : Infinity;
     const before = candidates
       .filter(c => c.date && new Date(c.date).getTime() <= upsellTs)
       .sort((a, b) => new Date(b.date) - new Date(a.date));
     return before[0]?.code || candidates[0]?.code || null;
   }
 
-  let insertedShipments = 0, insertedQueue = 0, errors = 0;
+  const stats = { shipments: 0, queue: 0, errors: 0 };
   const BATCH = 50;
-
-  async function upsertBatch(table, batch, conflictCol) {
-    const { error } = await db.from(table).upsert(batch, {
-      onConflict: conflictCol,
-      ignoreDuplicates: false,
-    });
-    if (error) {
-      console.error(`Erro no upsert (${table}):`, error.message);
-      errors += batch.length;
-    } else {
-      if (table === 'shipments') insertedShipments += batch.length;
-      else insertedQueue += batch.length;
-    }
-  }
+  let shipmentsBatch = [], queueBatch = [];
+  const now = new Date().toISOString();
 
   const allRows = [...vdRows, ...upsellRows];
-  let shipmentsBatch = [], queueBatch = [];
 
   for (const row of allRows) {
-    const orderId     = row['Código'];
+    const orderId    = row['Código'] || null;
     const trackingRaw = row['Código de Rastreio'];
-    const tracking    = trackingRaw ? String(trackingRaw).trim().toUpperCase() : null;
-    const cpf         = row['Documento'] ? String(row['Documento']).replace(/\D/g, '') : null;
-    const dateStr     = parseDate(row['Data']);
-    const isUpsell    = (row['Tipo Venda'] || '') === 'Upsell';
-    const parentId    = isUpsell && cpf ? findParentId(cpf, dateStr) : null;
+    const tracking   = trackingRaw ? String(trackingRaw).trim().toUpperCase() : null;
+    const cpf        = row['Documento'] ? String(row['Documento']).replace(/\D/g, '') : null;
+    const dateStr    = parseDate(row['Data']);
+    const saleType   = getSaleType(row['Tipo Venda']);
+    const parentId   = isUpsellType(saleType) && cpf ? findParentId(cpf, dateStr) : null;
 
     const base = {
-      order_id:         orderId || null,
-      seller_id:        null, // planilha não tem seller_id
+      order_id:         orderId,
+      seller_id:        SELLER_ID,
       seller_email:     null,
-      company_name:     'Nutravita',
+      company_name:     COMPANY_NAME,
       customer_name:    row['Cliente']   || null,
       customer_email:   row['Email']     || null,
       customer_phone:   row['Telefone']  ? String(row['Telefone']) : null,
@@ -143,17 +165,17 @@ async function main() {
       payment_status:   row['Status Pagamento']   || null,
       total_price:      parsePrice(row['Valor da Venda']),
       shipping_address: row['Rua'] ? JSON.stringify({
-        street:       row['Rua'],
+        street:        row['Rua'],
         street_number: row['Número'] ? String(row['Número']) : null,
-        complement:   row['Complemento'] || null,
-        district:     row['Bairro']      || null,
-        city:         row['Cidade']      || null,
-        state:        row['Estado']      || null,
-        zipcode:      row['CEP'] ? String(row['CEP']).replace(/\D/g, '') : null,
+        complement:    row['Complemento'] || null,
+        district:      row['Bairro']     || null,
+        city:          row['Cidade']     || null,
+        state:         row['Estado']     || null,
+        zipcode:       row['CEP'] ? String(row['CEP']).replace(/\D/g, '') : null,
       }) : null,
       tracking_url:     row['Url de Acompanhamento'] || null,
       paid_at:          dateStr,
-      sale_type:        isUpsell ? 'upsell' : 'venda_direta',
+      sale_type:        saleType,
       parent_order_id:  parentId,
     };
 
@@ -163,32 +185,30 @@ async function main() {
         tracking_code: tracking,
         carrier:       detectCarrier(tracking),
         status:        mapStatus(row['Status Compra']),
-        updated_at:    new Date().toISOString(),
+        updated_at:    now,
       });
       if (shipmentsBatch.length >= BATCH) {
-        await upsertBatch('shipments', shipmentsBatch, 'order_id');
+        await upsertBatch('shipments', shipmentsBatch, 'order_id', stats);
         shipmentsBatch = [];
-        process.stdout.write(`\rProcessados: ${insertedShipments} shipments, ${insertedQueue} queue...`);
+        process.stdout.write(`\r  shipments: ${stats.shipments}  queue: ${stats.queue}  erros: ${stats.errors}   `);
       }
     } else {
       queueBatch.push(base);
       if (queueBatch.length >= BATCH) {
-        await upsertBatch('customer_queue', queueBatch, 'order_id');
+        await upsertBatch('customer_queue', queueBatch, 'order_id', stats);
         queueBatch = [];
-        process.stdout.write(`\rProcessados: ${insertedShipments} shipments, ${insertedQueue} queue...`);
+        process.stdout.write(`\r  shipments: ${stats.shipments}  queue: ${stats.queue}  erros: ${stats.errors}   `);
       }
     }
   }
 
-  // flush remaining
-  if (shipmentsBatch.length) await upsertBatch('shipments', shipmentsBatch, 'order_id');
-  if (queueBatch.length)     await upsertBatch('customer_queue', queueBatch, 'order_id');
+  if (shipmentsBatch.length) await upsertBatch('shipments', shipmentsBatch, 'order_id', stats);
+  if (queueBatch.length)     await upsertBatch('customer_queue', queueBatch, 'order_id', stats);
 
   console.log(`\n\nConcluído:`);
-  console.log(`  shipments:      ${insertedShipments}`);
-  console.log(`  customer_queue: ${insertedQueue}`);
-  console.log(`  erros:          ${errors}`);
-  console.log(`  upsells linkados por CPF: ${upsellRows.length}`);
+  console.log(`  shipments:      ${stats.shipments}`);
+  console.log(`  customer_queue: ${stats.queue}`);
+  console.log(`  erros:          ${stats.errors}`);
 }
 
 main().catch(err => {

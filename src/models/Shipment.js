@@ -560,17 +560,33 @@ const Shipment = {
   },
 
   async getShipmentsPerDay({ days = 30, sellerId = null, dateFrom = null, dateTo = null } = {}) {
-    const { data, error } = await db.rpc('get_shipments_per_day', {
+    const { data, error } = await db.rpc('get_shipments_per_day_by_company', {
       p_days: days,
       p_seller_id: sellerId || null,
       p_date_from: dateFrom || null,
-      p_date_to: dateTo || null,
+      p_date_to:   dateTo   || null,
     });
-    if (error) return [];
-    return (data || []).map(r => ({
-      day: new Date(r.day).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit' }),
-      total: r.total,
-    }));
+    if (error) return { byCompany: {}, labels: [] };
+
+    const rows = data || [];
+    // Collect all unique days (sorted)
+    const daySet = [...new Set(rows.map(r => r.day))].sort();
+    const labels = daySet.map(d => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+
+    // Group by company
+    const byCompany = {};
+    for (const r of rows) {
+      const key = r.company_name || r.seller_id || 'Desconhecida';
+      if (!byCompany[key]) byCompany[key] = { seller_id: r.seller_id, totals: {} };
+      byCompany[key].totals[r.day] = r.total;
+    }
+
+    // Fill missing days with 0
+    for (const co of Object.values(byCompany)) {
+      co.values = daySet.map(d => co.totals[d] || 0);
+    }
+
+    return { byCompany, labels };
   },
 
   async getAnalytics() {
