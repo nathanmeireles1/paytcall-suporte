@@ -82,12 +82,6 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
                   </button>
                 </div>
               </div>
-              <% if (shipment.loggi_code && shipment.loggi_code !== shipment.tracking_code) { %>
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-                <span class="text-muted">Cód. Loggi</span>
-                <span class="fw-600 font-mono" style="font-family:monospace;font-size:12px"><%= shipment.loggi_code %></span>
-              </div>
-              <% } %>
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
                 <span class="text-muted">Transportadora</span>
                 <span class="fw-600"><%= shipment.carrier || '—' %></span>

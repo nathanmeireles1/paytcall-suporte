@@ -7,6 +7,15 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/css/global.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    @media print {
+      .no-print, .sidebar, .topbar, #ai-chat-container { display: none !important; }
+      .main { margin: 0 !important; padding: 0 !important; }
+      .app { display: block !important; }
+      .page { padding: 12px !important; }
+      body { background: #fff !important; }
+    }
+  </style>
 </head>
 <body>
 <div class="app">
@@ -21,9 +30,15 @@
 
     <div class="page">
 
-      <div class="page-header">
-        <h1>Análises</h1>
-        <p>Performance de entregas, transportadoras e atendimento</p>
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <h1>Análises</h1>
+          <p>Performance de entregas, transportadoras e atendimento</p>
+        </div>
+        <button onclick="window.print()" class="btn btn-ghost btn-sm no-print" style="display:flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Baixar PDF
+        </button>
       </div>
 
       <!-- Filtros -->

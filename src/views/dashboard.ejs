@@ -115,6 +115,17 @@
               <% if (filters.status || filters.seller_id || filters.product || filters.paid_at_from || filters.paid_at_to) { %>
               <a href="/<%= filters.carrier ? '?carrier=' + filters.carrier : '' %>" class="btn btn-ghost btn-sm">Limpar filtros</a>
               <% } %>
+              <%
+              const _qRastreios = Object.entries(filters).filter(([,v]) => v).map(([k,v]) => k+'='+encodeURIComponent(v)).join('&');
+              %>
+              <a href="/api/rastreios/export?format=xlsx<%= _qRastreios ? '&' + _qRastreios : '' %>" class="btn btn-ghost btn-sm" title="Baixar Excel">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                XLSX
+              </a>
+              <a href="/api/rastreios/export?format=csv<%= _qRastreios ? '&' + _qRastreios : '' %>" class="btn btn-ghost btn-sm" title="Baixar CSV">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                CSV
+              </a>
             </div>
           </form>
         </div>

@@ -208,6 +208,60 @@ router.get('/api/pedido/:orderId', requirePermission('dashboard', 'can_view'), a
   }
 });
 
+// GET /api/rastreios/export — Download XLSX ou CSV com filtros atuais
+router.get('/api/rastreios/export', requirePermission('dashboard', 'can_view'), async (req, res) => {
+  try {
+    const XLSX = require('xlsx');
+    const { status, search, seller_id, carrier, product, paid_at_from, paid_at_to, format = 'xlsx' } = req.query;
+
+    let effectiveSellerId = seller_id;
+    if (req.user.role === 'terceiros') {
+      if (!seller_id || !req.user.seller_ids.includes(seller_id)) {
+        effectiveSellerId = req.user.seller_ids[0] || '__none__';
+      }
+    }
+
+    const result = await Shipment.findAll({ status, search, seller_id: effectiveSellerId, carrier, product, paid_at_from, paid_at_to, page: 1, limit: 9999 });
+
+    const STATUS_LABEL = { pending:'Pendente', posted_object:'Obj. Postado', forwarded:'Em Trânsito', delivering:'Saiu p/ Entrega', recipient_not_found:'Dest. não encontrado', delivery_problem:'Prob. Entrega', wrong_address:'End. Incorreto', waiting_client:'Ag. Retirada', delivered:'Entregue', returning:'Devolvendo', returned:'Devolvido', overdue:'Em Atraso', no_tracking:'Sem Rastreio', tracking_delayed:'Rastreio em Atraso' };
+    const fmtDt = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
+
+    const rows = result.rows.map(s => ({
+      'ID Pedido':         s.order_id || '',
+      'Código Rastreio':   s.tracking_code || '',
+      'Cliente':           s.customer_name || '',
+      'Email':             s.customer_email || '',
+      'CPF':               s.customer_cpf || s.customer_doc || '',
+      'Produto':           s.product_name || '',
+      'Empresa':           s.company_name || s.seller_id || '',
+      'Transportadora':    s.carrier || '',
+      'Status':            STATUS_LABEL[s.status] || s.status || '',
+      'Pago em':           fmtDt(s.paid_at),
+      'Último evento':     s.last_event || '',
+    }));
+
+    const filename = `rastreios-${new Date().toISOString().slice(0,10)}`;
+
+    if (format === 'csv') {
+      const header = Object.keys(rows[0] || {}).join(';');
+      const lines = rows.map(r => Object.values(r).map(v => `"${String(v).replace(/"/g,'""')}"`).join(';'));
+      res.setHeader('Content-Type', 'text/csv;charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment;filename=${filename}.csv`);
+      return res.send('\uFEFF' + [header, ...lines].join('\r\n'));
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Rastreios');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment;filename=${filename}.xlsx`);
+    res.send(buf);
+  } catch (err) {
+    console.error('[Export] Erro rastreios:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /analytics — página de KPIs e gráficos analíticos
 router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {

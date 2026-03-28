@@ -47,6 +47,107 @@ router.get('/cancelamentos', requirePermission('relatorio_cancelamentos', 'can_v
   }
 });
 
+// GET /relatorios/tickets/export — Download XLSX ou CSV
+router.get('/tickets/export', requirePermission('relatorio_tickets', 'can_view'), async (req, res) => {
+  try {
+    const XLSX = require('xlsx');
+    const { tipo, status, assigned_to, priority, search, format = 'xlsx' } = req.query;
+    const result = await Shipment.getAllTickets({ tipo, status, assigned_to, priority, search, page: 1, limit: 9999 });
+
+    const PRIO = {1:'Alta', 2:'Média', 3:'Baixa'};
+    const fmtDt = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
+
+    const rows = result.rows.map(t => ({
+      'ID':              t.id || '',
+      'Tipo':            t.tipo || '',
+      'Motivo':          t.motivo || '',
+      'Status':          t.status || '',
+      'Prioridade':      PRIO[t.priority] || '',
+      'Responsável':     t.assigned_to || '',
+      'Criado por':      t.created_by || '',
+      'Rastreio':        t.tracking_code || '',
+      'ID Pedido':       t.order_id || '',
+      'Cliente':         t.shipments?.customer_name || '',
+      'Empresa':         t.shipments?.company_name || '',
+      'Criado em':       fmtDt(t.created_at),
+      'Encerrado em':    fmtDt(t.closed_at),
+      'Observação':      t.observacao || '',
+    }));
+
+    const filename = `tickets-${new Date().toISOString().slice(0,10)}`;
+
+    if (format === 'csv') {
+      const header = Object.keys(rows[0] || {}).join(';');
+      const lines = rows.map(r => Object.values(r).map(v => `"${String(v).replace(/"/g,'""')}"`).join(';'));
+      res.setHeader('Content-Type', 'text/csv;charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment;filename=${filename}.csv`);
+      return res.send('\uFEFF' + [header, ...lines].join('\r\n'));
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Tickets');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment;filename=${filename}.xlsx`);
+    res.send(buf);
+  } catch (err) {
+    console.error('[Export] Erro tickets:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /relatorios/cancelamentos/export — Download XLSX ou CSV
+router.get('/cancelamentos/export', requirePermission('relatorio_cancelamentos', 'can_view'), async (req, res) => {
+  try {
+    const XLSX = require('xlsx');
+    const { tipo, payment_status, status_atendimento, search, format = 'xlsx' } = req.query;
+    const result = await Shipment.getCancelamentos({ tipo, payment_status, status_atendimento, search, page: 1, limit: 9999 });
+
+    const fmtDt = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
+    const fmtMoney = (v) => v ? 'R$ ' + (v/100).toFixed(2).replace('.',',') : '';
+
+    const rows = result.rows.map(c => ({
+      'ID':                   c.id || '',
+      'Tipo':                 c.tipo || '',
+      'ID Pedido':            c.order_id || '',
+      'Cliente':              c.customer_name || '',
+      'CPF':                  c.customer_doc || '',
+      'Email':                c.customer_email || '',
+      'Produto':              c.product_name || '',
+      'Valor':                fmtMoney(c.total_price),
+      'Status Pagamento':     c.payment_status || '',
+      'Status Atendimento':   c.status_atendimento || '',
+      'Rastreio':             c.tracking_code || '',
+      'Transportadora':       c.carrier || '',
+      'Status Entrega':       c.status_entrega || '',
+      'Status NF':            c.nf_status || '',
+      'Contestar até':        fmtDt(c.contestar_ate),
+      'Criado em':            fmtDt(c.created_at),
+      'Observação':           c.observacao || '',
+    }));
+
+    const filename = `cancelamentos-${new Date().toISOString().slice(0,10)}`;
+
+    if (format === 'csv') {
+      const header = Object.keys(rows[0] || {}).join(';');
+      const lines = rows.map(r => Object.values(r).map(v => `"${String(v).replace(/"/g,'""')}"`).join(';'));
+      res.setHeader('Content-Type', 'text/csv;charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment;filename=${filename}.csv`);
+      return res.send('\uFEFF' + [header, ...lines].join('\r\n'));
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Cancelamentos');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment;filename=${filename}.xlsx`);
+    res.send(buf);
+  } catch (err) {
+    console.error('[Export] Erro cancelamentos:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /relatorios/cancelamentos/:id — Atualiza campos manuais de um cancelamento
 router.post('/cancelamentos/:id', requirePermission('relatorio_cancelamentos', 'can_edit'), async (req, res) => {
   try {

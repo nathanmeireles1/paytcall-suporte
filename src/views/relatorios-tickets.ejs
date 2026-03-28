@@ -64,6 +64,23 @@
         <input type="text" name="search" placeholder="Buscar..." value="<%= filters.search || '' %>" class="form-input search-input">
         <button type="submit" class="btn btn-primary">Filtrar</button>
         <a href="/relatorios/tickets" class="btn btn-secondary">Limpar</a>
+        <%
+        const _qTickets = [
+          filters.tipo        ? 'tipo='        + encodeURIComponent(filters.tipo)        : '',
+          filters.status      ? 'status='      + encodeURIComponent(filters.status)      : '',
+          filters.assigned_to ? 'assigned_to=' + encodeURIComponent(filters.assigned_to) : '',
+          filters.priority    ? 'priority='    + encodeURIComponent(filters.priority)    : '',
+          filters.search      ? 'search='      + encodeURIComponent(filters.search)      : '',
+        ].filter(Boolean).join('&');
+        %>
+        <a href="/relatorios/tickets/export?format=xlsx<%= _qTickets ? '&' + _qTickets : '' %>" class="btn btn-ghost btn-sm" title="Baixar Excel">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          XLSX
+        </a>
+        <a href="/relatorios/tickets/export?format=csv<%= _qTickets ? '&' + _qTickets : '' %>" class="btn btn-ghost btn-sm" title="Baixar CSV">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          CSV
+        </a>
       </form>
 
       <div style="margin:12px 0;font-size:13px;color:var(--gray-500)"><strong><%= total %></strong> tickets encontrados</div>
