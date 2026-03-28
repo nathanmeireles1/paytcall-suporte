@@ -1,0 +1,55 @@
+name: Backup Banco de Dados
+
+on:
+  schedule:
+    # Toda segunda e quinta às 03:00 BRT (06:00 UTC)
+    - cron: '0 6 * * 1,4'
+  workflow_dispatch:
+    # Permite rodar manualmente pelo GitHub Actions
+
+jobs:
+  backup:
+    name: pg_dump → artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Instalar PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+
+      - name: Gerar dump do banco
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%d_%H-%M")
+          FILENAME="paytcall-suporte_${TIMESTAMP}.sql.gz"
+
+          pg_dump \
+            --host=db.mckldrujoktkhjzgdded.supabase.co \
+            --port=5432 \
+            --username=postgres \
+            --dbname=postgres \
+            --no-owner \
+            --no-acl \
+            --schema=public \
+            | gzip > "$FILENAME"
+
+          echo "BACKUP_FILE=$FILENAME" >> $GITHUB_ENV
+          echo "Backup gerado: $FILENAME ($(du -sh $FILENAME | cut -f1))"
+
+      - name: Salvar backup como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Resumo
+        run: |
+          echo "### Backup concluído" >> $GITHUB_STEP_SUMMARY
+          echo "**Arquivo:** ${{ env.BACKUP_FILE }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Retenção:** 90 dias" >> $GITHUB_STEP_SUMMARY
+          echo "**Próximo:** em 3-4 dias" >> $GITHUB_STEP_SUMMARY

@@ -65,8 +65,9 @@ router.post('/api/ai/chat', requireAuth, async (req, res) => {
       }
 
       // Se a mensagem menciona um código ou ID específico, busca o pedido
-      // Regex: formato Correios (AA999999999AA) OU qualquer ID alfanumérico de 5-25 chars
-      const codeMatch = message.match(/\b([A-Z]{2}\d{9}[A-Z]{2}|[A-Z0-9]{5,25})\b/i);
+      // Regex: formato Correios (AA999999999AA) OU ID alfanumérico com pelo menos 1 letra E 1 número
+      // (evita capturar palavras comuns como "status", "pedido", "rastreio")
+      const codeMatch = message.match(/\b([A-Z]{2}\d{9}[A-Z]{2}|(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*[0-9])[A-Z0-9]{4,25})\b/i);
       if (codeMatch) {
         const code = codeMatch[1].toUpperCase();
 
