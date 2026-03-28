@@ -76,7 +76,7 @@
           <div class="stat-value" style="color:#854d0e"><%= stats.waiting_client %></div>
         </a>
         <a href="/rastreios?status=tracking_delayed" class="stat-card" style="text-decoration:none;cursor:pointer">
-          <div class="stat-label">Rastreio em Atraso</div>
+          <div class="stat-label">Em Atraso</div>
           <div class="stat-value" style="color:var(--danger)"><%= stats.tracking_delayed || 0 %></div>
         </a>
       </div>
@@ -90,9 +90,9 @@
           <% }) %>
         </select>
         <div style="display:flex;align-items:center;gap:4px">
-          <input type="date" name="date_from" value="<%= (typeof filters !== 'undefined' && filters.date_from) ? filters.date_from : '' %>" class="form-input" style="font-size:13px;padding:6px 9px;width:140px" onchange="this.form.submit()">
+          <input type="date" name="date_from" value="<%= (typeof filters !== 'undefined' && filters.date_from) ? filters.date_from : '' %>" class="form-input" style="font-size:13px;padding:6px 9px;width:140px" onchange="applyDashDateRange(this.form)">
           <span style="font-size:12px;color:var(--text-3)">até</span>
-          <input type="date" name="date_to" value="<%= (typeof filters !== 'undefined' && filters.date_to) ? filters.date_to : '' %>" class="form-input" style="font-size:13px;padding:6px 9px;width:140px" onchange="this.form.submit()">
+          <input type="date" name="date_to" value="<%= (typeof filters !== 'undefined' && filters.date_to) ? filters.date_to : '' %>" class="form-input" style="font-size:13px;padding:6px 9px;width:140px" onchange="applyDashDateRange(this.form)">
         </div>
         <% if (typeof filters !== 'undefined' && (filters.seller_id || filters.date_from || filters.date_to)) { %>
         <a href="/dashboard" class="btn btn-ghost btn-sm">Limpar</a>
@@ -270,6 +270,12 @@
 </div>
 
 <script>
+function applyDashDateRange(form) {
+  const from = form.date_from?.value;
+  const to = form.date_to?.value;
+  if (from && to) form.submit();
+}
+
 const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
 
 function toggleNotifs() {

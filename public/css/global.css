@@ -70,20 +70,20 @@
 
 /* ===== Dark theme ===== */
 html.dark {
-  --bg:           #0c0c0c;
-  --bg-2:         #141414;
-  --surface:      #1a1a1a;
-  --surface-2:    #222222;
-  --surface-3:    #2a2a2a;
+  --bg:           #1c1c1e;
+  --bg-2:         #242426;
+  --surface:      #2c2c2e;
+  --surface-2:    #363638;
+  --surface-3:    #424244;
 
-  --border:       rgba(255,255,255,.07);
-  --border-2:     rgba(255,255,255,.12);
-  --border-3:     rgba(255,255,255,.18);
+  --border:       rgba(255,255,255,.13);
+  --border-2:     rgba(255,255,255,.20);
+  --border-3:     rgba(255,255,255,.28);
 
-  --text:         #ededed;
-  --text-2:       #a8a8a8;
-  --text-3:       #707070;
-  --text-4:       #404040;
+  --text:         #f2f2f2;
+  --text-2:       #d0d0d0;
+  --text-3:       #a0a0a0;
+  --text-4:       #686868;
 
   --success:         #4ade80;
   --success-bg:      rgba(74,222,128,.1);

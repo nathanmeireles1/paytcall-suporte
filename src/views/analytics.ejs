@@ -53,9 +53,9 @@
         </select>
 
         <div style="display:flex;align-items:center;gap:4px">
-          <input type="date" name="date_from" value="<%= filters.date_from || '' %>" class="form-input" style="font-size:12.5px;padding:5px 9px;width:140px" onchange="this.form.submit()">
+          <input type="date" name="date_from" value="<%= filters.date_from || '' %>" class="form-input" style="font-size:12.5px;padding:5px 9px;width:140px" onchange="applyAnalyticsDateRange(this.form)">
           <span style="font-size:11px;color:var(--text-3)">até</span>
-          <input type="date" name="date_to" value="<%= filters.date_to || '' %>" class="form-input" style="font-size:12.5px;padding:5px 9px;width:140px" onchange="this.form.submit()">
+          <input type="date" name="date_to" value="<%= filters.date_to || '' %>" class="form-input" style="font-size:12.5px;padding:5px 9px;width:140px" onchange="applyAnalyticsDateRange(this.form)">
         </div>
 
         <select name="carrier" class="form-select" style="font-size:12.5px;padding:5px 9px" onchange="this.form.submit()">
@@ -247,6 +247,12 @@
 </div>
 
 <script>
+function applyAnalyticsDateRange(form) {
+  const from = form.date_from?.value;
+  const to = form.date_to?.value;
+  if (from && to) form.submit();
+}
+
 (function() {
   const isDark = document.documentElement.classList.contains('dark');
   const textColor = isDark ? '#a8a8a8' : '#8a7a6a';
