@@ -194,15 +194,25 @@ router.post('/api/notifications/read', async (req, res) => {
 // GET /api/pedido/:orderId — JSON para modal de detalhe
 router.get('/api/pedido/:orderId', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {
-    const shipment = await Shipment.findByOrderId(req.params.orderId.trim());
-    if (!shipment) return res.status(404).json({ error: 'Pedido não encontrado' });
+    const id = req.params.orderId.trim();
+    let shipment = await Shipment.findByOrderId(id);
+    let events = [], tickets = [];
+
+    if (!shipment) {
+      // Busca também na fila (pedidos sem rastreio ainda)
+      const { data: queued } = await db.from('customer_queue').select('*').eq('order_id', id).maybeSingle();
+      if (!queued) return res.status(404).json({ error: 'Pedido não encontrado' });
+      shipment = { ...queued, tracking_code: null, status: 'no_tracking', carrier: null, last_event: 'Aguardando código de rastreio', last_event_date: null };
+    } else {
+      [events, tickets] = await Promise.all([
+        Shipment.getEvents(shipment.tracking_code),
+        Shipment.getTickets(shipment.tracking_code),
+      ]);
+    }
+
     if (req.user.role === 'terceiros' && !req.user.seller_ids.includes(shipment.seller_id)) {
       return res.status(403).json({ error: 'Acesso negado' });
     }
-    const [events, tickets] = await Promise.all([
-      Shipment.getEvents(shipment.tracking_code),
-      Shipment.getTickets(shipment.tracking_code),
-    ]);
     res.json({ shipment, events, tickets });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -286,17 +296,21 @@ router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req,
 // POST /api/tickets/bulk — cria tickets em massa
 router.post('/api/tickets/bulk', async (req, res) => {
   try {
-    const { tracking_codes, tipo, motivo, priority, observacao } = req.body;
+    const { tracking_codes, tipo, motivo, observacao } = req.body;
     if (!tracking_codes?.length || !tipo || !motivo) return res.status(400).json({ error: 'Campos obrigatórios ausentes' });
+    const { TICKET_CONFIG } = require('../models/Shipment');
+    const config = TICKET_CONFIG[tipo] || {};
+    const priority = (config.priorities || {})[motivo] || 2;
+    const assigned_to = config.assignedTo || null;
     const results = [];
     for (const code of tracking_codes) {
       const { data, error } = await db.from('tickets').insert({
         tracking_code: code || null,
-        tipo, motivo, priority: priority || 3,
+        tipo, motivo, priority,
         observacao: observacao || null,
         status: 'Aberto',
         created_by: req.user.name,
-        assigned_to: null,
+        assigned_to,
       }).select().single();
       if (!error) results.push(data);
     }

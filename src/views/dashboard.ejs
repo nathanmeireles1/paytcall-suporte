@@ -647,7 +647,7 @@ document.addEventListener('keydown', (e) => {
 </script>
 
 <!-- Toast & Confirm System -->
-<div id="toast" style="display:none;position:fixed;bottom:24px;right:24px;background:var(--gray-900);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:320px;line-height:1.4"></div>
+<div id="toast" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#fff;padding:13px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.22);min-width:220px;max-width:400px;line-height:1.4;text-align:center;pointer-events:none"></div>
 <div id="confirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
     <p id="confirmMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5"></p>
@@ -661,11 +661,13 @@ document.addEventListener('keydown', (e) => {
 let _toastTimer;
 function showToast(msg, type='success') {
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  const icon = type === 'error' ? '✕' : type === 'warning' ? '⚠' : '✓';
+  t.innerHTML = `<span style="font-size:16px;margin-right:8px">${icon}</span>${msg}`;
+  t.style.background = type === 'error' ? '#dc2626' : type === 'warning' ? '#c2800a' : '#16a34a';
   t.style.display = 'block';
-  t.style.background = type === 'error' ? 'var(--danger)' : type === 'warning' ? '#92400e' : 'var(--gray-900)';
+  t.style.opacity = '1';
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.style.display = 'none', 3000);
+  _toastTimer = setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.style.display = 'none', 200); }, 3000);
 }
 let confirmResolve;
 function showConfirm(msg) {
@@ -691,21 +693,17 @@ function showConfirm(msg) {
       <div style="display:grid;gap:10px">
         <div>
           <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px">Tipo</label>
-          <select name="tipo" class="form-select" style="width:100%" required>
+          <select name="tipo" class="form-select" style="width:100%" required onchange="updateBulkMotivos(this.value)">
             <option value="RETENCAO">Retenção</option>
             <option value="LOGISTICA">Logística</option>
           </select>
         </div>
         <div>
           <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px">Motivo</label>
-          <input type="text" name="motivo" class="form-input" style="width:100%" placeholder="Motivo do ticket" required>
-        </div>
-        <div>
-          <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px">Prioridade</label>
-          <select name="priority" class="form-select" style="width:100%">
-            <option value="3">Baixa</option>
-            <option value="2" selected>Média</option>
-            <option value="1">Alta</option>
+          <select name="motivo" id="bulkMotivoSelect" class="form-select" style="width:100%" required>
+            <option value="Cancelamento">Cancelamento</option>
+            <option value="Desconto">Desconto</option>
+            <option value="Devolução">Devolução</option>
           </select>
         </div>
         <div>
@@ -722,9 +720,18 @@ function showConfirm(msg) {
   </div>
 </div>
 <script>
+const BULK_MOTIVOS = {
+  RETENCAO: ['Cancelamento','Desconto','Devolução'],
+  LOGISTICA: ['Reenvio','Alteração de pedido','Nota fiscal','Envio'],
+};
+function updateBulkMotivos(tipo) {
+  const sel = document.getElementById('bulkMotivoSelect');
+  sel.innerHTML = (BULK_MOTIVOS[tipo] || []).map(m => `<option value="${m}">${m}</option>`).join('');
+}
 function openBulkTicketModal(codes) {
   document.getElementById('bulkTicketInfo').textContent = codes.length + ' pedido(s) selecionado(s)';
   document.getElementById('bulkTicketCodes').value = codes.join(',');
+  updateBulkMotivos('RETENCAO');
   document.getElementById('bulkTicketModal').style.display = 'flex';
 }
 async function submitBulkTicket(e) {
@@ -742,7 +749,6 @@ async function submitBulkTicket(e) {
         tracking_codes: codes,
         tipo: form.tipo.value,
         motivo: form.motivo.value,
-        priority: parseInt(form.priority.value),
         observacao: form.observacao.value || null,
       })
     });
