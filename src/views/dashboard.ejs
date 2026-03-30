@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rastreios — payt Suporte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'rastreios' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', {
+      pageTitle: 'Rastreios',
+      breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Rastreios' }]
+    }) %>
+
+    <div class="p-page">
+
+      <!-- Page Header -->
+      <div class="p-page-header">
+        <div class="p-page-header-left">
+          <h1>Rastreios</h1>
+          <p class="p-subtitle">
+            <%= stats.total.toLocaleString('pt-BR') %> envios
+            <% if (lastLog) { %> · Atualizado <%= lastLog.ran_at_fmt %><% } %>
+            · Próxima consulta: <strong><%= nextWindow %></strong>
+          </p>
+        </div>
+        <div class="p-page-header-right">
+          <span class="badge badge-neutral"><%= pendingCount.toLocaleString('pt-BR') %> pendentes</span>
+          <% if (lastLog && lastLog.updated > 0) { %>
+          <span class="badge badge-success"><%= lastLog.updated %> atualizados</span>
+          <% } %>
+          <% if (lastLog && lastLog.errors > 0) { %>
+          <span class="badge badge-danger"><%= lastLog.errors %> erros</span>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Summary bar (Polaris style — stat row dentro do card) -->
+      <%
+      const summaries = [
+        { label: 'Total',       value: stats.total,                 key: '' },
+        { label: 'Entregues',  value: stats.delivered,             key: 'delivered' },
+        { label: 'Em trânsito',value: stats.in_transit,            key: 'forwarded' },
+        { label: 'Saiu p/ent.',value: stats.out_for_delivery,      key: 'delivering' },
+        { label: 'Tentativa',  value: stats.delivery_attempt,      key: 'recipient_not_found' },
+        { label: 'Devolvidos', value: stats.returned,              key: 'returned' },
+        { label: 'Ag. ret.',   value: stats.waiting_client,        key: 'waiting_client' },
+        { label: 'Em atraso',  value: stats.tracking_delayed || 0, key: 'tracking_delayed' },
+      ];
+      %>
+      <div class="p-summary">
+        <% summaries.forEach(s => { %>
+        <a href="/rastreios?status=<%= s.key %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-summary-item <%= filters.status === s.key ? 'active' : '' %>" style="text-decoration:none">
+          <div class="p-summary-label"><%= s.label %></div>
+          <div class="p-summary-value"><%= (s.value || 0).toLocaleString('pt-BR') %></div>
+        </a>
+        <% }) %>
+      </div>
+
+      <!-- Card com filtros + tabela -->
+      <div class="p-card">
+
+        <!-- Tabs por transportadora -->
+        <div class="p-tabs">
+          <a href="/rastreios?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.seller_id ? 'seller_id=' + filters.seller_id + '&' : '' %>" class="p-tab <%= !filters.carrier ? 'active' : '' %>">Todas</a>
+          <a href="/rastreios?carrier=Loggi<%= filters.status ? '&status=' + filters.status : '' %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-tab <%= filters.carrier === 'Loggi' ? 'active' : '' %>">Loggi</a>
+          <a href="/rastreios?carrier=Correios<%= filters.status ? '&status=' + filters.status : '' %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-tab <%= filters.carrier === 'Correios' ? 'active' : '' %>">Correios</a>
+        </div>
+
+        <!-- Filtros -->
+        <div class="p-filters">
+          <form method="GET" action="/rastreios" style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap">
+            <% if (filters.carrier) { %><input type="hidden" name="carrier" value="<%= filters.carrier %>"><% } %>
+
+            <div style="position:relative;flex:1;min-width:180px">
+              <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-4)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              </span>
+              <input type="text" name="search" placeholder="Pedido, rastreio, cliente, CPF ou produto..." value="<%= filters.search || '' %>" class="form-input" style="font-size:13px;padding:6px 10px 6px 30px;box-shadow:none;width:100%">
+            </div>
+
+            <select name="seller_id" class="form-select" style="font-size:13px;padding:6px 10px;box-shadow:none">
+              <option value="">Todas as empresas</option>
+              <% companies.forEach(c => { %>
+                <option value="<%= c.seller_id %>" <%= filters.seller_id === c.seller_id ? 'selected' : '' %>><%= c.company_name || c.seller_id %> (<%= c.total %>)</option>
+              <% }) %>
+            </select>
+
+            <select name="status" class="form-select" style="font-size:13px;padding:6px 10px;box-shadow:none">
+              <option value="">Todos os status</option>
+              <option value="pending"             <%= filters.status==='pending' ? 'selected':'' %>>Pendente</option>
+              <option value="posted_object"       <%= filters.status==='posted_object' ? 'selected':'' %>>Obj. Postado</option>
+              <option value="forwarded"           <%= filters.status==='forwarded' ? 'selected':'' %>>Em Trânsito</option>
+              <option value="delivering"          <%= filters.status==='delivering' ? 'selected':'' %>>Saiu p/ entrega</option>
+              <option value="recipient_not_found" <%= filters.status==='recipient_not_found' ? 'selected':'' %>>Dest. não encontrado</option>
+              <option value="delivery_problem"    <%= filters.status==='delivery_problem' ? 'selected':'' %>>Prob. entrega</option>
+              <option value="wrong_address"       <%= filters.status==='wrong_address' ? 'selected':'' %>>End. incorreto</option>
+              <option value="waiting_client"      <%= filters.status==='waiting_client' ? 'selected':'' %>>Ag. retirada</option>
+              <option value="delivered"           <%= filters.status==='delivered' ? 'selected':'' %>>Entregue</option>
+              <option value="returning"           <%= filters.status==='returning' ? 'selected':'' %>>Devolvendo</option>
+              <option value="returned"            <%= filters.status==='returned' ? 'selected':'' %>>Devolvido</option>
+              <option value="no_tracking"         <%= filters.status==='no_tracking' ? 'selected':'' %>>Sem rastreio</option>
+              <option value="tracking_delayed"    <%= filters.status==='tracking_delayed' ? 'selected':'' %>>Rastreio em atraso</option>
+            </select>
+
+            <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              Filtrar
+            </button>
+
+            <div style="display:flex;gap:4px;margin-left:auto">
+              <% if (filters.status || filters.seller_id || filters.search || filters.paid_at_from || filters.paid_at_to) { %>
+              <a href="/rastreios<%= filters.carrier ? '?carrier=' + filters.carrier : '' %>" class="btn btn-ghost btn-sm">Limpar filtros</a>
+              <% } %>
+              <%
+              const _qRastreios = Object.entries(filters).filter(([,v]) => v).map(([k,v]) => k+'='+encodeURIComponent(v)).join('&');
+              %>
+              <a href="/api/rastreios/export?format=xlsx<%= _qRastreios ? '&' + _qRastreios : '' %>" class="btn btn-ghost btn-sm" title="Baixar Excel">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                XLSX
+              </a>
+              <a href="/api/rastreios/export?format=csv<%= _qRastreios ? '&' + _qRastreios : '' %>" class="btn btn-ghost btn-sm" title="Baixar CSV">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                CSV
+              </a>
+            </div>
+          </form>
+        </div>
+
+        <!-- Filter chips (filtros ativos) -->
+        <%
+        const STATUS_LABELS_EJS = {
+          pending:'Pendente', posted_object:'Obj. Postado', forwarded:'Em Trânsito',
+          in_transit:'Em Trânsito', delivering:'Saiu p/ Entrega', out_for_delivery:'Saiu p/ Entrega',
+          recipient_not_found:'Dest. não encontrado', delivery_attempt:'Tentativa',
+          delivery_problem:'Prob. de entrega', wrong_address:'End. incorreto',
+          waiting_client:'Ag. retirada', delivered:'Entregue',
+          returning:'Devolvendo', returned:'Devolvido',
+          overdue:'Em atraso', no_tracking:'Sem rastreio', tracking_delayed:'Rastreio em atraso',
+        };
+        const sellerLabel = filters.seller_id
+          ? ((typeof companies !== 'undefined' ? companies : []).find(c => c.seller_id === filters.seller_id)?.company_name || filters.seller_id)
+          : '';
+        const hasActiveFilters = filters.status || filters.seller_id || filters.search || filters.carrier;
+        %>
+        <% if (hasActiveFilters) { %>
+        <div class="p-filter-chips">
+          <span style="font-size:12px;color:var(--gray-400);font-weight:500;margin-right:2px">Filtros:</span>
+          <% if (filters.status) { %>
+          <span class="p-filter-chip">
+            Status: <%= STATUS_LABELS_EJS[filters.status] || filters.status %>
+            <a href="/rastreios?<%= filters.seller_id ? 'seller_id=' + filters.seller_id + '&' : '' %><%= filters.carrier ? 'carrier=' + filters.carrier : '' %>">
+              <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </a>
+          </span>
+          <% } %>
+          <% if (filters.seller_id) { %>
+          <span class="p-filter-chip">
+            Empresa: <%= sellerLabel %>
+            <a href="/rastreios?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.carrier ? 'carrier=' + filters.carrier : '' %>">
+              <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </a>
+          </span>
+          <% } %>
+          <% if (filters.carrier) { %>
+          <span class="p-filter-chip">
+            Transp.: <%= filters.carrier %>
+            <a href="/rastreios?<%= filters.status ? 'status=' + filters.status + '&' : '' %><%= filters.seller_id ? 'seller_id=' + filters.seller_id : '' %>">
+              <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </a>
+          </span>
+          <% } %>
+        </div>
+        <% } %>
+
+        <!-- Table meta -->
+        <div class="p-table-meta">
+          <strong><%= total.toLocaleString('pt-BR') %></strong> envios encontrados
+          <% if (pages > 1) { %> · Página <%= currentPage %> de <%= pages %><% } %>
+        </div>
+
+        <!-- IndexTable -->
+        <% if (shipments.length === 0) { %>
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/></svg>
+            <p>Nenhum envio encontrado</p>
+            <div class="empty-sub">Tente ajustar os filtros ou buscar por outro termo</div>
+          </div>
+        <% } else { %>
+        <%
+        const sLabel = {
+          pending:'Pendente', posted_object:'Obj. Postado', forwarded:'Em Trânsito',
+          in_transit:'Em Trânsito', delivering:'Saiu p/ Entrega', out_for_delivery:'Saiu p/ Entrega',
+          delivery_attempt:'Tentativa de Entrega', recipient_not_found:'Dest. não encontrado',
+          delivery_problem:'Prob. Entrega', wrong_address:'End. Incorreto',
+          waiting_client:'Ag. Retirada', delivered:'Entregue',
+          returning:'Devolvendo', returned:'Devolvido', overdue:'Em Atraso',
+          no_tracking:'Sem Rastreio', tracking_delayed:'Rastreio em Atraso',
+        };
+        %>
+        <!-- Bulk action bar -->
+        <div id="bulkBar" style="display:none;padding:10px 16px;background:var(--brand-dim);border-bottom:1px solid var(--brand-border);display:none;align-items:center;gap:10px;flex-wrap:wrap">
+          <span id="bulkCount" style="font-size:13px;font-weight:600;color:var(--brand-dark)">0 selecionados</span>
+          <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+            <button onclick="bulkAction('update')" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Atualizar selecionados
+            </button>
+            <button onclick="bulkAction('ticket')" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+              Abrir Ticket
+            </button>
+            <button onclick="bulkAction('copy')" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copiar códigos
+            </button>
+            <button onclick="clearSelection()" class="btn btn-ghost btn-sm">Cancelar</button>
+          </div>
+        </div>
+
+        <div class="p-index-table-wrap">
+          <table class="p-index-table" id="rastreiosTable">
+            <thead>
+              <tr>
+                <th style="width:36px;padding:9px 10px 9px 16px">
+                  <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer">
+                </th>
+                <th>Código</th>
+                <th>Empresa</th>
+                <th>Pedido / Produto</th>
+                <th>Cliente</th>
+                <th>Status</th>
+                <th>Último evento</th>
+                <th>Atualizado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% shipments.forEach(s => { %>
+              <tr data-code="<%= s.tracking_code || s.order_id %>" onclick="handleRowClick(event, '<%= s.order_id || s.tracking_code %>')">
+                <td style="padding:11px 10px 11px 16px" onclick="event.stopPropagation()">
+                  <input type="checkbox" class="row-check" value="<%= s.tracking_code || s.order_id %>" onchange="updateBulkBar()" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer">
+                </td>
+                <td>
+                  <div style="display:flex;flex-direction:column;gap:2px">
+                    <div style="display:flex;align-items:center;gap:5px">
+                      <% if (s.tracking_code) { %>
+                      <span class="code"><%= s.tracking_code %></span>
+                      <button onclick="copyCode(event,'<%= s.tracking_code %>')" title="Copiar código de rastreio" class="copy-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                      </button>
+                      <% } else { %>
+                      <span class="badge badge-neutral" style="font-size:11px">Ag. rastreio</span>
+                      <% } %>
+                    </div>
+                    <span style="font-size:11px;color:var(--text-4);font-weight:500"><%= s.carrier || '—' %></span>
+                  </div>
+                </td>
+                <td>
+                  <% if (s.company_name) { %>
+                    <div style="font-weight:600;font-size:13px;color:var(--gray-800)"><%= s.company_name %></div>
+                    <div style="font-size:11px;color:var(--gray-400)"><%= s.seller_id %></div>
+                  <% } else { %>
+                    <span style="color:var(--gray-400)"><%= s.seller_id || '—' %></span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (s.order_id) { %>
+                  <div style="display:flex;align-items:center;gap:5px">
+                    <span style="font-weight:500;color:var(--text-2)">#<%= s.order_id %></span>
+                    <button onclick="copyCode(event,'<%= s.order_id %>')" title="Copiar ID do pedido" class="copy-btn">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    </button>
+                  </div>
+                  <% } %>
+                  <% if (s.product_name) { %>
+                    <div style="font-size:12px;color:var(--text-4)"><%= s.product_name %><% if (s.product_quantity > 1) { %> ×<%= s.product_quantity %><% } %></div>
+                  <% } %>
+                  <% if (!s.order_id && !s.product_name) { %><span style="color:var(--text-4)">—</span><% } %>
+                </td>
+                <td>
+                  <% if (s.customer_name) { %>
+                    <div style="font-weight:500;color:var(--gray-800)"><%= s.customer_name %></div>
+                    <% if (s.customer_email) { %><div style="font-size:11px;color:var(--gray-400)"><%= s.customer_email %></div><% } %>
+                  <% } else { %><span style="color:var(--gray-300)">—</span><% } %>
+                </td>
+                <td><span class="badge badge-<%= s.status %>"><%= sLabel[s.status] || s.status %></span></td>
+                <td>
+                  <% if (s.last_event) { %>
+                    <div style="font-size:12.5px;color:var(--gray-700)"><%= s.last_event %></div>
+                    <% if (s.last_event_date) { %><div style="font-size:11px;color:var(--gray-400)"><%= s.last_event_date %></div><% } %>
+                  <% } else { %><span style="color:var(--gray-300)">—</span><% } %>
+                </td>
+                <td style="white-space:nowrap">
+                  <span style="font-size:12px;color:var(--gray-400)"><%= s.updated_at ? new Date(s.updated_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—' %></span>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+
+        <script>
+        // Cópia de código individual
+        function copyCode(e, code) {
+          e.stopPropagation();
+          navigator.clipboard.writeText(code).then(() => {
+            const btn = e.currentTarget;
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+            setTimeout(() => { btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>'; }, 1200);
+          });
+        }
+
+        // Abre modal ao clicar na linha
+        function handleRowClick(e, orderId) {
+          if (e.target.type === 'checkbox' || e.target.closest('.copy-btn')) return;
+          openPedidoModal(orderId);
+        }
+
+        // Bulk selection
+        function toggleSelectAll(cb) {
+          document.querySelectorAll('.row-check').forEach(c => c.checked = cb.checked);
+          updateBulkBar();
+        }
+
+        function updateBulkBar() {
+          const checked = document.querySelectorAll('.row-check:checked');
+          const bar = document.getElementById('bulkBar');
+          const countEl = document.getElementById('bulkCount');
+          const selectAll = document.getElementById('selectAll');
+          const all = document.querySelectorAll('.row-check');
+
+          if (checked.length > 0) {
+            bar.style.display = 'flex';
+            countEl.textContent = checked.length + (checked.length === 1 ? ' selecionado' : ' selecionados');
+          } else {
+            bar.style.display = 'none';
+          }
+          selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+          selectAll.checked = all.length > 0 && checked.length === all.length;
+        }
+
+        function clearSelection() {
+          document.querySelectorAll('.row-check').forEach(c => c.checked = false);
+          document.getElementById('selectAll').checked = false;
+          document.getElementById('selectAll').indeterminate = false;
+          updateBulkBar();
+        }
+
+        function getSelectedCodes() {
+          return Array.from(document.querySelectorAll('.row-check:checked')).map(c => c.value);
+        }
+
+        async function bulkAction(action) {
+          const codes = getSelectedCodes();
+          if (!codes.length) return;
+
+          if (action === 'copy') {
+            navigator.clipboard.writeText(codes.join(', ')).then(() => {
+              showToast(codes.length + ' código(s) copiado(s).');
+            });
+          } else if (action === 'update') {
+            if (!await showConfirm('Atualizar rastreio de ' + codes.length + ' pedido(s) agora?')) return;
+            fetch('/api/tracking/refresh-batch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ codes })
+            }).then(r => r.json()).then(data => {
+              showToast('Atualização solicitada para ' + codes.length + ' pedido(s).');
+              clearSelection();
+            }).catch(() => showToast('Erro ao solicitar atualização.', 'error'));
+          } else if (action === 'ticket') {
+            openBulkTicketModal(codes);
+          }
+        }
+        </script>
+
+        <!-- Paginação -->
+        <% if (pages > 1) { %>
+        <%
+          const qs = (filters.status ? '&status=' + filters.status : '')
+            + (filters.seller_id ? '&seller_id=' + filters.seller_id : '')
+            + (filters.carrier ? '&carrier=' + filters.carrier : '')
+            + (filters.product ? '&product=' + encodeURIComponent(filters.product) : '')
+            + (filters.search ? '&search=' + encodeURIComponent(filters.search) : '');
+          const pUrl = (p) => '?page=' + p + qs;
+          const showPage = (p) => p === 1 || p === pages || (p >= currentPage - 2 && p <= currentPage + 2);
+        %>
+        <div style="padding:14px 20px;border-top:1px solid var(--gray-100);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12.5px;color:var(--gray-400)">
+            Mostrando <%= ((currentPage-1)*50)+1 %>–<%= Math.min(currentPage*50, total) %> de <%= total.toLocaleString('pt-BR') %>
+          </span>
+          <div class="pagination" style="margin:0">
+            <% if (currentPage > 1) { %><a href="<%= pUrl(currentPage - 1) %>">‹</a><% } %>
+            <% let lastShown = 0; for (let i = 1; i <= pages; i++) { %>
+              <% if (showPage(i)) { %>
+                <% if (lastShown && i - lastShown > 1) { %><span class="ellipsis">…</span><% } %>
+                <a href="<%= pUrl(i) %>" class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
+                <% lastShown = i; %>
+              <% } %>
+            <% } %>
+            <% if (currentPage < pages) { %><a href="<%= pUrl(currentPage + 1) %>">›</a><% } %>
+          </div>
+        </div>
+        <% } %>
+
+      </div><!-- /p-card -->
+
+    </div><!-- /p-page -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+
+function toggleNotifs() {
+  const dd = document.getElementById('notifDropdown');
+  dd.classList.toggle('open');
+  if (dd.classList.contains('open') && NOTIF_USER) loadNotifs();
+}
+async function loadNotifs() {
+  if (!NOTIF_USER) return;
+  try {
+    const r = await fetch('/api/notifications');
+    const { notifications, unread } = await r.json();
+    const badge = document.getElementById('notifBadge');
+    badge.style.display = unread > 0 ? 'block' : 'none';
+    badge.textContent = unread;
+    const list = document.getElementById('notifList');
+    if (!notifications.length) { list.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:24px;font-size:13px">Nenhuma notificação</div>'; return; }
+    list.innerHTML = notifications.map(n => {
+      const date = new Date(n.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      return '<a href="/shipment/' + (n.tracking_code||'') + '" class="notif-item' + (n.is_read ? '' : ' unread') + '"><div style="font-size:13px;color:var(--gray-700)">' + n.message + '</div><div style="font-size:11px;color:var(--gray-400);margin-top:2px">' + date + '</div></a>';
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+async function markAllRead() {
+  if (!NOTIF_USER) return;
+  await fetch('/api/notifications/read', { method: 'POST' });
+  loadNotifs();
+}
+if (NOTIF_USER) {
+  fetch('/api/notifications').then(r => r.json()).then(({ unread }) => {
+    const b = document.getElementById('notifBadge');
+    b.style.display = unread > 0 ? 'block' : 'none';
+    b.textContent = unread;
+  }).catch(() => {});
+}
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('notifDropdown');
+  const btn = document.getElementById('notifBtn');
+  if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
+});
+</script>
+<!-- Modal de detalhe do pedido -->
+<div id="pedidoModal" style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;padding:20px" onclick="closePedidoModal(event)">
+  <!-- Backdrop com blur -->
+  <div style="position:absolute;inset:0;background:rgba(15,10,5,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)"></div>
+  <!-- Painel centralizado -->
+  <div id="pedidoModalPanel" style="position:relative;width:100%;max-width:660px;max-height:calc(100vh - 40px);background:var(--surface);border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.22),0 8px 24px rgba(0,0,0,.12);display:flex;flex-direction:column;transform:scale(.95) translateY(12px);opacity:0;transition:transform .25s cubic-bezier(.32,.72,0,1),opacity .25s;overflow:hidden">
+
+    <!-- Header -->
+    <div id="pedidoModalHeader" style="padding:14px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;font-weight:700;color:var(--text)" id="modalTitle">Carregando…</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:2px" id="modalSubtitle"></div>
+      </div>
+      <a id="modalOpenBtn" href="#" target="_blank" style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--brand);font-weight:600;text-decoration:none;padding:5px 10px;border:1px solid var(--brand-border);border-radius:6px;background:var(--brand-dim);flex-shrink:0">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Abrir página
+      </a>
+      <button onclick="closePedidoModal()" style="width:28px;height:28px;border-radius:6px;border:none;background:var(--surface-2);color:var(--text-3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div id="pedidoModalBody" style="flex:1;overflow-y:auto;padding:0">
+      <!-- loading -->
+      <div id="modalLoading" style="padding:48px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--text-3);font-size:13px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 11-6.22-8.56"/></svg>
+        Carregando pedido…
+      </div>
+      <!-- content (populated by JS) -->
+      <div id="modalContent" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+.modal-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.modal-section:last-child { border-bottom: none; }
+.modal-section h4 { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 12px; }
+.modal-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; font-size: 13px; }
+.modal-row:last-child { margin-bottom: 0; }
+.modal-row .lbl { color: var(--text-3); flex-shrink: 0; }
+.modal-row .val { color: var(--text); font-weight: 500; text-align: right; word-break: break-all; }
+.modal-event { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.modal-event:last-child { border-bottom: none; }
+.modal-event-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--brand); flex-shrink: 0; margin-top: 4px; }
+.modal-ticket { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; font-size: 12.5px; }
+.modal-ticket:last-child { margin-bottom: 0; }
+</style>
+
+<script>
+const STATUS_LABELS = {
+  pending:'Pendente', posted_object:'Obj. Postado',
+  forwarded:'Em Trânsito', in_transit:'Em Trânsito',
+  delivering:'Saiu p/ Entrega', out_for_delivery:'Saiu p/ Entrega',
+  recipient_not_found:'Dest. não encontrado', delivery_attempt:'Tentativa',
+  delivery_problem:'Prob. de entrega', wrong_address:'End. incorreto',
+  waiting_client:'Ag. retirada', delivered:'Entregue',
+  returning:'Devolvendo', returned:'Devolvido',
+  overdue:'Em atraso', no_tracking:'Sem rastreio', tracking_delayed:'Rastreio em atraso',
+};
+const PAYMENT_LABELS = {
+  paid:'Pago', waiting_payment:'Aguardando pagamento',
+  refused:'Recusado', chargedback:'Chargeback',
+  chargeback:'Chargeback', chargeback_presented:'Chargeback apresentado',
+  refunded:'Reembolsado', refunded_partial:'Reembolso parcial',
+  one_click_buy_refunded:'Upsell estornado', one_click_buy_refunded_partial:'Upsell reembolso parcial',
+  canceled:'Cancelado', expired:'Expirado',
+};
+const PAYMENT_METHOD_LABELS = {
+  pix:'PIX', credit_card:'Cartão de crédito', boleto:'Boleto',
+  debit_card:'Cartão de débito', free:'Gratuito',
+};
+
+function openPedidoModal(orderId) {
+  const modal = document.getElementById('pedidoModal');
+  const panel = document.getElementById('pedidoModalPanel');
+  const loading = document.getElementById('modalLoading');
+  const content = document.getElementById('modalContent');
+
+  // Reset
+  loading.style.display = 'flex';
+  content.style.display = 'none';
+  content.innerHTML = '';
+  document.getElementById('modalTitle').textContent = 'Carregando…';
+  document.getElementById('modalSubtitle').textContent = '';
+  document.getElementById('modalOpenBtn').href = '/pedido/' + orderId;
+
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => {
+    panel.style.transform = 'scale(1) translateY(0)';
+    panel.style.opacity = '1';
+  });
+  document.body.style.overflow = 'hidden';
+
+  fetch('/api/pedido/' + encodeURIComponent(orderId))
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { loading.innerHTML = '⚠️ ' + data.error; return; }
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      content.innerHTML = buildModalContent(data);
+      document.getElementById('modalTitle').textContent = '#' + (data.shipment.order_id || data.shipment.tracking_code);
+      document.getElementById('modalSubtitle').textContent = (data.shipment.customer_name || '') + (data.shipment.company_name ? ' · ' + data.shipment.company_name : '');
+    })
+    .catch(() => { loading.innerHTML = '⚠️ Erro ao carregar pedido.'; });
+}
+
+function closePedidoModal(e) {
+  if (e && e.target !== document.getElementById('pedidoModal') && !e.target.closest('[onclick="closePedidoModal()"]')) return;
+  const panel = document.getElementById('pedidoModalPanel');
+  panel.style.transform = 'scale(.95) translateY(12px)';
+  panel.style.opacity = '0';
+  setTimeout(() => {
+    document.getElementById('pedidoModal').style.display = 'none';
+    document.body.style.overflow = '';
+  }, 250);
+}
+
+function fmtDt(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function badgeColor(status) {
+  const map = { delivered:'#16a34a', forwarded:'#2563eb', delivering:'#7c3aed', returned:'#dc2626', tracking_delayed:'#e47c24', recipient_not_found:'#c2800a', waiting_client:'#854d0e' };
+  return map[status] || 'var(--text-3)';
+}
+
+function buildModalContent(data) {
+  const s = data.shipment;
+  const events = data.events || [];
+  const tickets = data.tickets || [];
+  const statusLabel = STATUS_LABELS[s.status] || s.status || '—';
+  const statusColor = badgeColor(s.status);
+
+  let html = '';
+
+  // Status badge grande
+  html += `<div style="padding:16px 20px;display:flex;align-items:center;gap:10px;background:var(--surface-2);border-bottom:1px solid var(--border)">
+    <span style="padding:5px 12px;border-radius:99px;font-size:12px;font-weight:700;color:#fff;background:${statusColor}">${statusLabel}</span>
+    <span style="font-size:12px;color:var(--text-3)">${s.carrier || '—'}</span>
+    <span style="font-size:12px;color:var(--text-4);margin-left:auto">Atualizado: ${fmtDt(s.updated_at)}</span>
+  </div>`;
+
+  // Dados do pedido
+  html += `<div class="modal-section">
+    <h4>Pedido</h4>
+    <div class="modal-row"><span class="lbl">ID do Pedido</span><span class="val" style="display:flex;align-items:center;gap:6px">${s.order_id || '—'} <button onclick="navigator.clipboard.writeText('${s.order_id||''}');this.textContent='✓'" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;color:var(--text-3)">copiar</button></span></div>
+    <div class="modal-row"><span class="lbl">Código de Rastreio</span><span class="val" style="display:flex;align-items:center;gap:6px"><code style="font-family:monospace;font-size:13px;background:var(--surface-2);border:1px solid var(--border);padding:2px 8px;border-radius:5px;letter-spacing:.5px;color:var(--text)">${s.tracking_code || '—'}</code> <button onclick="navigator.clipboard.writeText('${s.tracking_code||''}');this.textContent='✓';setTimeout(()=>this.textContent='copiar',1500)" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;color:var(--text-3)">copiar</button></span></div>
+    <div class="modal-row"><span class="lbl">Produto</span><span class="val">${s.product_name || '—'}${s.product_quantity > 1 ? ' ×' + s.product_quantity : ''}</span></div>
+    <div class="modal-row"><span class="lbl">Empresa</span><span class="val">${s.company_name || s.seller_id || '—'}</span></div>
+    <div class="modal-row"><span class="lbl">Pago em</span><span class="val">${fmtDt(s.paid_at)}</span></div>
+    ${s.payment_method ? `<div class="modal-row"><span class="lbl">Forma de pag.</span><span class="val">${PAYMENT_METHOD_LABELS[s.payment_method] || s.payment_method}</span></div>` : ''}
+    ${s.payment_status ? `<div class="modal-row"><span class="lbl">Status pag.</span><span class="val">${PAYMENT_LABELS[s.payment_status] || s.payment_status}</span></div>` : ''}
+  </div>`;
+
+  // Dados do cliente
+  html += `<div class="modal-section">
+    <h4>Cliente</h4>
+    <div class="modal-row"><span class="lbl">Nome</span><span class="val">${s.customer_name || '—'}</span></div>
+    <div class="modal-row"><span class="lbl">Email</span><span class="val">${s.customer_email || '—'}</span></div>
+    <div class="modal-row"><span class="lbl">CPF</span><span class="val">${s.customer_doc || s.customer_cpf || '—'}</span></div>
+  </div>`;
+
+  // Último evento
+  if (s.last_event) {
+    html += `<div class="modal-section">
+      <h4>Último Evento</h4>
+      <div style="font-size:13px;color:var(--text)">${s.last_event}</div>
+      ${s.last_event_date ? `<div style="font-size:11px;color:var(--text-4);margin-top:3px">${s.last_event_date}</div>` : ''}
+    </div>`;
+  }
+
+  // Histórico de eventos
+  if (events.length > 0) {
+    html += `<div class="modal-section">
+      <h4>Histórico (${events.length})</h4>
+      <div style="max-height:200px;overflow-y:auto">`;
+    events.slice(0, 20).forEach(ev => {
+      html += `<div class="modal-event">
+        <div class="modal-event-dot"></div>
+        <div style="flex:1">
+          <div style="color:var(--text)">${ev.description || ev.event || '—'}</div>
+          <div style="color:var(--text-4);margin-top:1px">${fmtDt(ev.event_date || ev.created_at)} ${ev.location ? '· ' + ev.location : ''}</div>
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // Tickets
+  if (tickets.length > 0) {
+    html += `<div class="modal-section">
+      <h4>Tickets (${tickets.length})</h4>`;
+    tickets.forEach(t => {
+      const tColor = t.priority === 1 ? 'var(--danger)' : t.priority === 2 ? 'var(--warning)' : 'var(--text-3)';
+      html += `<div class="modal-ticket">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-weight:700;font-size:11px;text-transform:uppercase;color:var(--brand)">${t.tipo || '—'}</span>
+          <span style="font-size:11px;color:var(--text-3)">${t.motivo || '—'}</span>
+          <span style="margin-left:auto;font-size:11px;padding:2px 7px;border-radius:99px;background:var(--surface-3);color:var(--text-2)">${t.status || '—'}</span>
+        </div>
+        ${t.observacao ? `<div style="font-size:12px;color:var(--text-2);border-top:1px solid var(--border);padding-top:6px;margin-top:2px">${t.observacao}</div>` : ''}
+        <div style="font-size:11px;color:var(--text-4);margin-top:4px">${t.assigned_to ? 'Atribuído: ' + t.assigned_to + ' · ' : ''}${fmtDt(t.created_at)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  return html;
+}
+
+// Fechar com ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('pedidoModal').style.display === 'flex') {
+    closePedidoModal({ target: document.getElementById('pedidoModal') });
+  }
+});
+</script>
+
+<!-- Toast & Confirm System -->
+<div id="toast" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#fff;padding:13px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.22);min-width:220px;max-width:400px;line-height:1.4;text-align:center;pointer-events:none"></div>
+<div id="confirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <p id="confirmMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5"></p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="confirmResolve(false)" class="btn btn-secondary btn-sm">Cancelar</button>
+      <button onclick="confirmResolve(true)" class="btn btn-primary btn-sm">Confirmar</button>
+    </div>
+  </div>
+</div>
+<script>
+let _toastTimer;
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  const icon = type === 'error' ? '✕' : type === 'warning' ? '⚠' : '✓';
+  t.innerHTML = `<span style="font-size:16px;margin-right:8px">${icon}</span>${msg}`;
+  t.style.background = type === 'error' ? '#dc2626' : type === 'warning' ? '#c2800a' : '#16a34a';
+  t.style.display = 'block';
+  t.style.opacity = '1';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.style.display = 'none', 200); }, 3000);
+}
+let confirmResolve;
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    confirmResolve = (v) => {
+      document.getElementById('confirmOverlay').style.display = 'none';
+      resolve(v);
+    };
+    document.getElementById('confirmMsg').textContent = msg;
+    document.getElementById('confirmOverlay').style.display = 'flex';
+  });
+}
+</script>
+
+<div id="bulkTicketModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9997;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:440px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="font-size:15px;font-weight:700;color:var(--text)">Abrir Ticket em Massa</h3>
+      <button onclick="document.getElementById('bulkTicketModal').style.display='none'" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:18px">✕</button>
+    </div>
+    <p id="bulkTicketInfo" style="font-size:12.5px;color:var(--text-3);margin-bottom:14px"></p>
+    <form id="bulkTicketForm" onsubmit="submitBulkTicket(event)">
+      <div style="display:grid;gap:10px">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px">Tipo</label>
+          <select name="tipo" class="form-select" style="width:100%" required onchange="updateBulkMotivos(this.value)">
+            <option value="RETENCAO">Retenção</option>
+            <option value="LOGISTICA">Logística</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px">Motivo</label>
+          <select name="motivo" id="bulkMotivoSelect" class="form-select" style="width:100%" required>
+            <option value="Cancelamento">Cancelamento</option>
+            <option value="Desconto">Desconto</option>
+            <option value="Devolução">Devolução</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px">Observação (opcional)</label>
+          <textarea name="observacao" class="form-input" style="width:100%;height:60px;resize:vertical" placeholder="Observação..."></textarea>
+        </div>
+      </div>
+      <input type="hidden" name="tracking_codes" id="bulkTicketCodes">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+        <button type="button" onclick="document.getElementById('bulkTicketModal').style.display='none'" class="btn btn-secondary btn-sm">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-sm">Criar Tickets</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+const BULK_MOTIVOS = {
+  RETENCAO: ['Cancelamento','Desconto','Devolução'],
+  LOGISTICA: ['Reenvio','Alteração de pedido','Nota fiscal','Envio'],
+};
+function updateBulkMotivos(tipo) {
+  const sel = document.getElementById('bulkMotivoSelect');
+  sel.innerHTML = (BULK_MOTIVOS[tipo] || []).map(m => `<option value="${m}">${m}</option>`).join('');
+}
+function openBulkTicketModal(codes) {
+  document.getElementById('bulkTicketInfo').textContent = codes.length + ' pedido(s) selecionado(s)';
+  document.getElementById('bulkTicketCodes').value = codes.join(',');
+  updateBulkMotivos('RETENCAO');
+  document.getElementById('bulkTicketModal').style.display = 'flex';
+}
+async function submitBulkTicket(e) {
+  e.preventDefault();
+  const form = e.target;
+  const codes = form.tracking_codes.value.split(',').filter(Boolean);
+  const btn = form.querySelector('[type=submit]');
+  btn.disabled = true;
+  btn.textContent = 'Criando...';
+  try {
+    const r = await fetch('/api/tickets/bulk', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        tracking_codes: codes,
+        tipo: form.tipo.value,
+        motivo: form.motivo.value,
+        observacao: form.observacao.value || null,
+      })
+    });
+    const d = await r.json();
+    document.getElementById('bulkTicketModal').style.display = 'none';
+    clearSelection();
+    if (d.created > 0) {
+      const msg = d.created + ' ticket(s) criado(s)' + (d.errors > 0 ? ' (' + d.errors + ' com erro)' : '') + '.';
+      showToast(msg, d.errors > 0 ? 'warning' : 'success');
+    } else {
+      showToast('Nenhum ticket criado. Verifique os pedidos selecionados.', 'error');
+    }
+  } catch(err) {
+    showToast('Erro ao criar tickets.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Criar Tickets';
+  }
+}
+</script>
+
+<%- include('partials/ai-chat') %>
+</body>
+</html>

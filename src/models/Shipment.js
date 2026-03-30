@@ -1,0 +1,626 @@
+const { db } = require('../config/database');
+
+// Terminal = entrega definitivamente encerrada (parar de consultar H7)
+// 'overdue' NÃO é terminal: etiqueta expirada pode ser atualizada pela H7
+const TERMINAL_STATUSES = ['delivered', 'returned'];
+
+// --- Configuração de Tickets ---
+const TICKET_CONFIG = {
+  RETENCAO: {
+    motivos: ['Cancelamento', 'Desconto', 'Devolução'],
+    statuses: ['Aberto', 'Em andamento', 'Cancelado', 'Retido'],
+    terminalStatuses: ['Cancelado', 'Retido'],
+    assignedTo: 'Flaviany',
+    priorities: { 'Cancelamento': 1, 'Desconto': 2, 'Devolução': 3 },
+  },
+  LOGISTICA: {
+    motivos: ['Reenvio', 'Alteração de pedido', 'Nota fiscal', 'Envio'],
+    statuses: ['Aberto', 'Em andamento', 'Aguardando estoque', 'Concluído'],
+    terminalStatuses: ['Concluído'],
+    assignedTo: 'Shelida',
+    priorities: { 'Alteração de pedido': 1, 'Envio': 1, 'Reenvio': 2, 'Nota fiscal': 3 },
+  },
+};
+
+const MOTIVOS_CANCELAMENTO = [
+  'Compra duplicada', 'Não autorizou upsell/order bump',
+  'Forma de pagamento incorreta', 'Não sentiu efeito', 'Alergia',
+  'Valor', 'Demora no envio', 'Fraude', 'Informação do rótulo',
+  'Quantidade incorreta enviada', 'Produto incorreto enviado',
+  'Orientação médica', 'Desistência', 'Sem motivo', 'Outros',
+];
+
+const Shipment = {
+  async findByCode(trackingCode) {
+    const { data, error } = await db
+      .from('shipments')
+      .select('*')
+      .eq('tracking_code', trackingCode)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  },
+
+  async findAll({ page = 1, limit = 50, status, search, seller_id, carrier, product, paid_at_from, paid_at_to } = {}) {
+    const offset = (page - 1) * limit;
+
+    let query = db.from('shipments').select('*', { count: 'exact' });
+
+    if (status)       query = query.eq('status', status);
+    if (seller_id)    query = query.eq('seller_id', seller_id);
+    if (carrier)      query = query.eq('carrier', carrier);
+    if (product)      query = query.ilike('product_name', `%${product}%`);
+    if (paid_at_from) query = query.gte('paid_at', paid_at_from);
+    if (paid_at_to)   query = query.lte('paid_at', paid_at_to + 'T23:59:59Z');
+    if (search) {
+      query = query.or(
+        `tracking_code.ilike.%${search}%,order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%,customer_doc.ilike.%${search}%,product_name.ilike.%${search}%`
+      );
+    }
+
+    const { data, error, count } = await query
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    const total = count || 0;
+    return { rows: data || [], total, page, pages: Math.ceil(total / limit) };
+  },
+
+  async findAllCombined({ page = 1, limit = 50, status, search, seller_id, paid_at_from, paid_at_to } = {}) {
+    const offset = (page - 1) * limit;
+
+    let query = db.from('all_orders').select('*', { count: 'exact' });
+
+    if (status)       query = query.eq('status', status);
+    if (seller_id)    query = query.eq('seller_id', seller_id);
+    if (paid_at_from) query = query.gte('paid_at', paid_at_from);
+    if (paid_at_to)   query = query.lte('paid_at', paid_at_to + 'T23:59:59Z');
+    if (search) {
+      query = query.or(
+        `tracking_code.ilike.%${search}%,order_id.ilike.%${search}%,customer_name.ilike.%${search}%,company_name.ilike.%${search}%,customer_doc.ilike.%${search}%,product_name.ilike.%${search}%`
+      );
+    }
+
+    const { data, error, count } = await query
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    const total = count || 0;
+    return { rows: data || [], total, page, pages: Math.ceil(total / limit) };
+  },
+
+  async upsertFromPaytcall(data) {
+    const existing = await this.findByCode(data.tracking_code);
+
+    const fields = {
+      carrier:          data.carrier          || null,
+      order_id:         data.order_id         || null,
+      seller_id:        data.seller_id        || null,
+      seller_email:     data.seller_email     || null,
+      company_name:     data.company_name     || null,
+      customer_name:    data.customer_name    || null,
+      customer_email:   data.customer_email   || null,
+      customer_phone:   data.customer_phone   || null,
+      customer_doc:     data.customer_doc     || null,
+      product_name:     data.product_name     || null,
+      product_price:    data.product_price    || null,
+      product_quantity: data.product_quantity || null,
+      payment_method:   data.payment_method   || null,
+      payment_status:   data.payment_status   || null,
+      total_price:      data.total_price      || null,
+      shipping_address: data.shipping_address || null,
+      tracking_url:     data.tracking_url     || null,
+      paid_at:          data.paid_at          || null,
+      sale_type:        data.sale_type        || 'venda_direta',
+      parent_order_id:  data.parent_order_id  || null,
+      updated_at:       new Date().toISOString(),
+    };
+
+    if (!existing) {
+      const { error } = await db.from('shipments').insert({
+        tracking_code: data.tracking_code,
+        status: data.status || 'pending',
+        ...fields,
+      });
+      if (error) throw error;
+    } else {
+      // Preserva campos H7 (status, last_event, expected_date, loggi_code)
+      const update = {};
+      for (const [k, v] of Object.entries(fields)) {
+        update[k] = v || existing[k];
+      }
+      const { error } = await db.from('shipments').update(update).eq('tracking_code', data.tracking_code);
+      if (error) throw error;
+    }
+
+    return this.findByCode(data.tracking_code);
+  },
+
+  async upsert(data) {
+    const payload = {
+      tracking_code:    data.tracking_code,
+      order_id:         data.order_id      || null,
+      seller_id:        data.seller_id     || null,
+      seller_email:     data.seller_email  || null,
+      company_name:     data.company_name  || null,
+      customer_name:    data.customer_name || null,
+      customer_email:   data.customer_email || null,
+      customer_phone:   data.customer_phone || null,
+      status:           data.status        || 'pending',
+      last_event:       data.last_event    || null,
+      last_event_date:  data.last_event_date || null,
+      expected_date:    data.expected_date || null,
+      loggi_code:       data.loggi_code   || null,
+      last_queried_at:  new Date().toISOString(),
+      updated_at:       new Date().toISOString(),
+    };
+
+    const { error } = await db
+      .from('shipments')
+      .upsert(payload, { onConflict: 'tracking_code', ignoreDuplicates: false });
+
+    if (error) throw error;
+    return this.findByCode(data.tracking_code);
+  },
+
+  async saveEvents(trackingCode, events) {
+    const rows = events.map(ev => ({
+      tracking_code: trackingCode,
+      event_date:    ev.date,
+      description:   ev.description,
+      location:      ev.location,
+      status_code:   ev.status_code,
+    }));
+
+    const { error } = await db
+      .from('tracking_events')
+      .upsert(rows, { onConflict: 'tracking_code,event_date,description', ignoreDuplicates: true });
+
+    if (error && error.code !== '23505') throw error;
+  },
+
+  async getEvents(trackingCode) {
+    const { data, error } = await db
+      .from('tracking_events')
+      .select('*')
+      .eq('tracking_code', trackingCode)
+      .order('event_date', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getStats({ seller_id, date_from, date_to } = {}) {
+    const { data, error } = await db.rpc('get_shipment_stats', {
+      p_seller_id: seller_id || null,
+      p_date_from: date_from || null,
+      p_date_to:   date_to   || null,
+    });
+    if (error) {
+      const { count } = await db.from('shipments').select('*', { count: 'exact', head: true });
+      return { total: count || 0, delivered: 0, in_transit: 0, out_for_delivery: 0, delivery_attempt: 0, returned: 0, waiting_client: 0 };
+    }
+    return data?.[0] || {};
+  },
+
+  async getCompanies() {
+    const [{ data: shipData, error: e1 }, { data: queueData, error: e2 }] = await Promise.all([
+      db.from('shipments').select('seller_id, company_name').not('seller_id', 'is', null),
+      db.from('customer_queue').select('seller_id, company_name').not('seller_id', 'is', null),
+    ]);
+    if (e1) throw e1;
+    if (e2) throw e2;
+
+    const map = {};
+    for (const row of [...(shipData || []), ...(queueData || [])]) {
+      const key = row.seller_id;
+      if (!map[key]) map[key] = { seller_id: key, company_name: row.company_name, total: 0 };
+      map[key].total++;
+    }
+    return Object.values(map).sort((a, b) => (a.company_name || '').localeCompare(b.company_name || ''));
+  },
+
+  async getPendingForRefresh() {
+    const { data, error } = await db
+      .from('shipments')
+      .select('*')
+      .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
+      .not('customer_doc', 'is', null)
+      .order('updated_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  async countPendingForRefresh() {
+    const { count, error } = await db
+      .from('shipments')
+      .select('*', { count: 'exact', head: true })
+      .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
+      .not('customer_doc', 'is', null);
+    if (error) return 0;
+    return count || 0;
+  },
+
+  async getShipmentsWithoutMovement() {
+    // Busca shipments que não estão em status terminal e não tiveram movimentação física
+    const NON_MOVEMENT = ['pending', 'no_tracking', 'tracking_delayed'];
+    const { data, error } = await db
+      .from('shipments')
+      .select('*')
+      .in('status', NON_MOVEMENT)
+      .not('paid_at', 'is', null);
+    if (error) throw error;
+    return data || [];
+  },
+
+  async updateTrackingDelayed(trackingCode) {
+    const { error } = await db
+      .from('shipments')
+      .update({ status: 'tracking_delayed', updated_at: new Date().toISOString() })
+      .eq('tracking_code', trackingCode);
+    if (error) throw error;
+  },
+
+  async findByOrderId(orderId) {
+    if (!orderId) return null;
+    const { data, error } = await db
+      .from('shipments')
+      .select('*')
+      .eq('order_id', orderId)
+      .maybeSingle();
+    if (error) return null;
+    return data;
+  },
+
+  async updatePaymentStatus(orderId, paymentStatus) {
+    if (!orderId) return;
+    const { error } = await db
+      .from('shipments')
+      .update({ payment_status: paymentStatus, updated_at: new Date().toISOString() })
+      .eq('order_id', orderId);
+    if (error) throw error;
+  },
+
+  // --- Cancelamentos / Chargebacks ---
+
+  async upsertCancelamento(data) {
+    const { error } = await db.from('cancelamentos').upsert(
+      { ...data, updated_at: new Date().toISOString() },
+      { onConflict: 'order_id', ignoreDuplicates: false }
+    );
+    if (error) throw error;
+  },
+
+  async getCancelamentos({ tipo, payment_status, status_atendimento, search, page = 1, limit = 50 } = {}) {
+    const offset = (page - 1) * limit;
+    let query = db.from('cancelamentos').select('*', { count: 'exact' });
+
+    if (tipo)               query = query.eq('tipo', tipo);
+    if (payment_status)     query = query.eq('payment_status', payment_status);
+    if (status_atendimento) query = query.eq('status_atendimento', status_atendimento);
+    if (search) {
+      query = query.or(
+        `order_id.ilike.%${search}%,customer_name.ilike.%${search}%,customer_doc.ilike.%${search}%,product_name.ilike.%${search}%`
+      );
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    return { rows: data || [], total: count || 0, page, pages: Math.ceil((count || 0) / limit) };
+  },
+
+  async updateCancelamento(id, fields) {
+    const { error } = await db
+      .from('cancelamentos')
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  // --- Stats de Tickets (para dashboard) ---
+  async getTicketStats() {
+    try {
+      const { data, error } = await db.from('tickets').select('tipo, status, created_at');
+      if (error) throw error;
+      const tickets = data || [];
+      const now = Date.now();
+      const SLA_MS = 72 * 3600000;
+      let open = 0, in_progress = 0, sla_expired = 0, retencao = 0, logistica = 0;
+      for (const t of tickets) {
+        const isTerminal = ['Cancelado', 'Retido', 'Concluído'].includes(t.status);
+        if (isTerminal) continue;
+        if (t.status === 'Aberto') open++;
+        if (t.status === 'Em andamento' || t.status === 'Aguardando estoque') in_progress++;
+        if (now - new Date(t.created_at).getTime() > SLA_MS) sla_expired++;
+        if (t.tipo === 'RETENCAO') retencao++;
+        if (t.tipo === 'LOGISTICA') logistica++;
+      }
+      return { open, in_progress, sla_expired, retencao, logistica };
+    } catch (err) {
+      console.error('[Shipment] Erro getTicketStats:', err.message);
+      return { open: 0, in_progress: 0, sla_expired: 0, retencao: 0, logistica: 0 };
+    }
+  },
+
+  // --- Relatório de Tickets ---
+
+  async getAllTickets({ tipo, status, assigned_to, priority, motivo, search, page = 1, limit = 50 } = {}) {
+    const offset = (page - 1) * limit;
+    let query = db.from('tickets').select('*, shipments(customer_name, customer_doc, order_id, company_name, tracking_code, status)', { count: 'exact' });
+
+    if (tipo)        query = query.eq('tipo', tipo);
+    if (status)      query = query.eq('status', status);
+    if (assigned_to) query = query.eq('assigned_to', assigned_to);
+    if (priority)    query = query.eq('priority', parseInt(priority));
+    if (motivo)      query = query.eq('motivo', motivo);
+    if (search) {
+      query = query.or(
+        `tracking_code.ilike.%${search}%,order_id.ilike.%${search}%,created_by.ilike.%${search}%`
+      );
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    return { rows: data || [], total: count || 0, page, pages: Math.ceil((count || 0) / limit) };
+  },
+
+  // --- Notificações ---
+
+  async createNotification({ user_name, ticket_id, tracking_code, message }) {
+    const { error } = await db.from('notifications').insert({
+      user_name, ticket_id, tracking_code, message,
+    });
+    if (error) console.error('[Notif] Erro:', error.message);
+  },
+
+  async getNotifications(userName, limit = 20) {
+    const { data, error } = await db
+      .from('notifications')
+      .select('*')
+      .eq('user_name', userName)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) return [];
+    return data || [];
+  },
+
+  async getUnreadCount(userName) {
+    const { count, error } = await db
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_name', userName)
+      .eq('is_read', false);
+    if (error) return 0;
+    return count || 0;
+  },
+
+  async markNotificationsRead(userName) {
+    const { error } = await db
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_name', userName)
+      .eq('is_read', false);
+    if (error) console.error('[Notif] Erro ao marcar lidas:', error.message);
+  },
+
+  // --- Scheduler logs ---
+
+  async saveSchedulerLog({ total_cpfs, updated, promoted, errors, pending_after, started_at, finished_at, origin = 'agendado', status_breakdown = null, tickets_closed = 0 }) {
+    const { error } = await db.from('scheduler_logs').insert({
+      ran_at: new Date().toISOString(),
+      started_at: started_at || new Date().toISOString(),
+      finished_at: finished_at || new Date().toISOString(),
+      total_cpfs, updated, promoted, errors, pending_after, origin,
+      status_breakdown: status_breakdown && Object.keys(status_breakdown).length ? status_breakdown : null,
+      tickets_closed,
+    });
+    if (error) console.error('[Scheduler] Erro ao salvar log:', error.message);
+  },
+
+  async getLastSchedulerLog() {
+    const { data, error } = await db
+      .from('scheduler_logs')
+      .select('*')
+      .order('ran_at', { ascending: false })
+      .limit(1);
+    if (error || !data?.length) return null;
+    return data[0];
+  },
+
+  async getSchedulerLogs({ page = 1, limit = 50, origin = null } = {}) {
+    const from = (page - 1) * limit;
+    let query = db
+      .from('scheduler_logs')
+      .select('*', { count: 'exact' })
+      .order('ran_at', { ascending: false })
+      .range(from, from + limit - 1);
+    if (origin) query = query.eq('origin', origin);
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { rows: data || [], total: count || 0, pages: Math.ceil((count || 0) / limit) };
+  },
+
+  // --- customer_queue ---
+
+  async enqueueCustomer(data) {
+    const { error } = await db.from('customer_queue').upsert(
+      {
+        order_id:         data.order_id,
+        seller_id:        data.seller_id        || null,
+        seller_email:     data.seller_email     || null,
+        company_name:     data.company_name     || null,
+        customer_name:    data.customer_name    || null,
+        customer_email:   data.customer_email   || null,
+        customer_phone:   data.customer_phone   || null,
+        customer_doc:     data.customer_doc,
+        product_name:     data.product_name     || null,
+        product_price:    data.product_price    || null,
+        product_quantity: data.product_quantity || null,
+        payment_method:   data.payment_method   || null,
+        payment_status:   data.payment_status   || null,
+        total_price:      data.total_price      || null,
+        shipping_address: data.shipping_address || null,
+        paid_at:          data.paid_at          || null,
+        sale_type:        data.sale_type        || 'venda_direta',
+        parent_order_id:  data.parent_order_id  || null,
+      },
+      { onConflict: 'order_id', ignoreDuplicates: false }
+    );
+    if (error) throw error;
+  },
+
+  async getCustomerQueue() {
+    const { data, error } = await db
+      .from('customer_queue')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async dequeueCustomer(orderId) {
+    const { error } = await db.from('customer_queue').delete().eq('order_id', orderId);
+    if (error) throw error;
+  },
+
+  // --- Tickets ---
+
+  async getTickets(trackingCode, orderId = null) {
+    if (!trackingCode && !orderId) return [];
+    let query = db.from('tickets').select('*').order('created_at', { ascending: false });
+    if (trackingCode) {
+      query = query.eq('tracking_code', trackingCode);
+    } else {
+      query = query.eq('order_id', orderId);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async createTicket({ tracking_code, order_id, tipo, motivo, motivo_cancelamento, observacao, created_by }) {
+    const config = TICKET_CONFIG[tipo];
+    if (!config) throw new Error('Tipo inválido');
+    if (!config.motivos.includes(motivo)) throw new Error('Motivo inválido para este tipo');
+
+    const priority = config.priorities[motivo] || 2;
+    const assigned_to = config.assignedTo;
+
+    const payload = {
+      tracking_code,
+      order_id,
+      tipo,
+      motivo,
+      observacao: observacao || null,
+      status: 'Aberto',
+      priority,
+      assigned_to,
+      created_by: created_by || 'Suporte',
+      sla_hours: 72,
+    };
+
+    if (tipo === 'RETENCAO' && motivo === 'Cancelamento' && motivo_cancelamento) {
+      payload.motivo_cancelamento = motivo_cancelamento;
+    }
+
+    const { data, error } = await db.from('tickets').insert(payload).select().single();
+    if (error) throw error;
+
+    // Notifica o responsável
+    const tipoLabel = tipo === 'RETENCAO' ? 'Retenção' : 'Logística';
+    await this.createNotification({
+      user_name: assigned_to,
+      ticket_id: data.id,
+      tracking_code,
+      message: `Novo ticket de ${tipoLabel}: ${motivo} (por ${payload.created_by})`,
+    });
+
+    return data;
+  },
+
+  async updateTicketStatus(id, newStatus) {
+    const { data: ticket, error: fetchErr } = await db
+      .from('tickets').select('*').eq('id', id).single();
+    if (fetchErr) throw fetchErr;
+
+    const config = TICKET_CONFIG[ticket.tipo];
+    if (!config.statuses.includes(newStatus)) throw new Error('Status inválido para este tipo de ticket');
+
+    const update = { status: newStatus, updated_at: new Date().toISOString() };
+    if (config.terminalStatuses.includes(newStatus)) {
+      update.closed_at = new Date().toISOString();
+    } else {
+      update.closed_at = null;
+    }
+
+    const { error } = await db.from('tickets').update(update).eq('id', id);
+    if (error) throw error;
+
+    // Notifica criador e responsável
+    const tipoLabel = ticket.tipo === 'RETENCAO' ? 'Retenção' : 'Logística';
+    const msg = `Ticket ${tipoLabel} alterado: ${ticket.status} → ${newStatus}`;
+    const notify = new Set([ticket.created_by, ticket.assigned_to]);
+    for (const user of notify) {
+      if (user && user !== 'Sistema') {
+        await this.createNotification({
+          user_name: user, ticket_id: id, tracking_code: ticket.tracking_code, message: msg,
+        });
+      }
+    }
+  },
+
+  async getShipmentsPerDay({ days = 30, sellerId = null, dateFrom = null, dateTo = null } = {}) {
+    const { data, error } = await db.rpc('get_shipments_per_day_by_company', {
+      p_days: days,
+      p_seller_id: sellerId || null,
+      p_date_from: dateFrom || null,
+      p_date_to:   dateTo   || null,
+    });
+    if (error) return { byCompany: {}, labels: [] };
+
+    const rows = data || [];
+    // Collect all unique days (sorted)
+    const daySet = [...new Set(rows.map(r => r.day))].sort();
+    const labels = daySet.map(d => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+
+    // Group by company
+    const byCompany = {};
+    for (const r of rows) {
+      const key = r.company_name || r.seller_id || 'Desconhecida';
+      if (!byCompany[key]) byCompany[key] = { seller_id: r.seller_id, totals: {} };
+      byCompany[key].totals[r.day] = r.total;
+    }
+
+    // Fill missing days with 0
+    for (const co of Object.values(byCompany)) {
+      co.values = daySet.map(d => co.totals[d] || 0);
+    }
+
+    return { byCompany, labels };
+  },
+
+  async getAnalytics() {
+    const [produtos, transportadoras, ticketsMotivo] = await Promise.all([
+      db.rpc('get_analytics_produtos'),
+      db.rpc('get_analytics_transportadoras'),
+      db.rpc('get_analytics_tickets'),
+    ]);
+    return {
+      produtos: produtos.data || [],
+      transportadoras: transportadoras.data || [],
+      ticketsMotivo: ticketsMotivo.data || [],
+    };
+  },
+};
+
+module.exports = Shipment;
+module.exports.TICKET_CONFIG = TICKET_CONFIG;
+module.exports.MOTIVOS_CANCELAMENTO = MOTIVOS_CANCELAMENTO;

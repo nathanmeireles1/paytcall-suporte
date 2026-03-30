@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retenção — payt Suporte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+  <style>
+    table { min-width: 1800px; }
+    .group-header { background: var(--gray-200) !important; font-weight: 700 !important; color: var(--gray-700) !important; text-align: center !important; font-size: 11px !important; text-transform: uppercase; letter-spacing: .5px; }
+    .editable { cursor: pointer; border-bottom: 1px dashed var(--gray-300); }
+    .editable:hover { background: var(--warning-bg); }
+    .inline-select { padding: 3px 4px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; max-width: 130px; background: var(--surface); }
+    .inline-select:focus { border-color: var(--brand); outline: none; }
+    .inline-input { padding: 3px 6px; border: 1px solid var(--gray-200); border-radius: 4px; font-size: 11px; max-width: 100px; }
+    .inline-input:focus { border-color: var(--brand); outline: none; }
+    .badge-chargeback { background: var(--danger-bg); color: var(--danger); }
+    .badge-reembolso { background: var(--warning-bg); color: var(--warning); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'retencao' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Retenção', breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Retenção' }] }) %>
+
+    <div class="page">
+
+      <%
+      const fmtDate = (iso) => {
+        if (!iso) return '';
+        try { return new Date(String(iso).replace(' ','T')).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch(e) { return iso; }
+      };
+      const fmtMoney = (v) => v ? 'R$ ' + (v/100).toFixed(2).replace('.',',') : '';
+      const fmtCpf = (d) => d ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '';
+      const paymentLabels = {
+        paid:'Pago', chargeback_presented:'Chargeback Apresentado', chargeback:'Chargeback',
+        refunded:'Reembolsado', one_click_buy_refunded:'Upsell Reembolsado',
+        refunded_partial:'Reembolso Parcial', one_click_buy_refunded_partial:'Upsell Reembolso Parcial',
+      };
+      const STATUS_ATEND = ['A contatar','Sem contato','Sem retorno','Em contato','Aguardando retorno','Concluído'];
+      const STATUS_ENTREGA = ['Trânsito','Entregue','Retornou','Ag. retirada','Sem envio','Em devolução','Aguardando postagem','Envio suspenso','Etiqueta emitida','Etiqueta expirada','Postado','Tentativa de entrega'];
+      const STATUS_NF = ['Sem NF','Pendente','Cancelada','Sem alteração','Alterada'];
+      %>
+
+      <!-- Filtros -->
+      <form method="GET" class="toolbar">
+        <select name="tipo" class="form-select">
+          <option value="">Tipo</option>
+          <option value="chargeback" <%= filters.tipo==='chargeback'?'selected':'' %>>Chargeback</option>
+          <option value="reembolso" <%= filters.tipo==='reembolso'?'selected':'' %>>Reembolso</option>
+        </select>
+        <select name="status_atendimento" class="form-select">
+          <option value="">Atendimento</option>
+          <% STATUS_ATEND.forEach(s => { %>
+          <option value="<%= s %>" <%= filters.status_atendimento===s?'selected':'' %>><%= s %></option>
+          <% }) %>
+        </select>
+        <input type="text" name="search" placeholder="Buscar..." value="<%= filters.search || '' %>" class="form-input search-input">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="/relatorios/retencao" class="btn btn-secondary">Limpar</a>
+        <%
+        const _qCancel = [
+          filters.tipo               ? 'tipo='               + encodeURIComponent(filters.tipo)               : '',
+          filters.status_atendimento ? 'status_atendimento=' + encodeURIComponent(filters.status_atendimento) : '',
+          filters.search             ? 'search='             + encodeURIComponent(filters.search)             : '',
+        ].filter(Boolean).join('&');
+        %>
+        <a href="/relatorios/retencao/export?format=xlsx<%= _qCancel ? '&' + _qCancel : '' %>" class="btn btn-ghost btn-sm" title="Baixar Excel">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          XLSX
+        </a>
+        <a href="/relatorios/retencao/export?format=csv<%= _qCancel ? '&' + _qCancel : '' %>" class="btn btn-ghost btn-sm" title="Baixar CSV">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          CSV
+        </a>
+      </form>
+
+      <div style="margin:12px 0;font-size:13px;color:var(--gray-500)"><strong><%= total %></strong> registros de retenção</div>
+
+      <!-- Tabela -->
+      <div class="card">
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="group-header" colspan="6">Controle</th>
+                  <th class="group-header" colspan="10">Dados da Compra</th>
+                  <th class="group-header" colspan="3">Logística</th>
+                  <th class="group-header" colspan="4">Devolução</th>
+                </tr>
+                <tr>
+                  <th>Tipo</th><th>Atendimento</th><th>Status Pgto.</th><th>Status Entrega</th>
+                  <th>Rastreio</th><th>Suspenso?</th>
+                  <th>Data Compra</th><th>ID</th><th>SRC</th><th>Cliente</th><th>CPF</th>
+                  <th>Produto</th><th>Qtd</th><th>Valor</th><th>Motivo</th><th>Obs</th>
+                  <th>NF ID</th><th>NF Status</th><th>NF Data</th>
+                  <th>Postagem</th><th>Reverso?</th><th>Rastreio</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (items.length === 0) { %>
+                <tr><td colspan="23" class="empty-state" style="padding:40px">Nenhum registro encontrado</td></tr>
+                <% } %>
+                <% items.forEach(r => { %>
+                <tr data-id="<%= r.id %>">
+                  <td><span class="badge badge-<%= r.tipo %>"><%= r.tipo === 'chargeback' ? 'CB' : 'Reemb.' %></span></td>
+                  <td>
+                    <select class="inline-select" onchange="updateField('<%= r.id %>','status_atendimento',this.value)">
+                      <% STATUS_ATEND.forEach(s => { %>
+                      <option value="<%= s %>" <%= r.status_atendimento===s?'selected':'' %>><%= s %></option>
+                      <% }) %>
+                    </select>
+                  </td>
+                  <td style="font-size:11px"><%= paymentLabels[r.payment_status] || r.payment_status %></td>
+                  <td style="font-size:11px"><%= r.status_entrega || '—' %></td>
+                  <td><span class="code" style="font-size:11px"><%= r.tracking_code || '—' %></span></td>
+                  <td>
+                    <select class="inline-select" onchange="updateField('<%= r.id %>','pedido_suspenso',this.value)">
+                      <option value="Não" <%= r.pedido_suspenso==='Não'?'selected':'' %>>Não</option>
+                      <option value="Sim" <%= r.pedido_suspenso==='Sim'?'selected':'' %>>Sim</option>
+                      <option value="Produto digital" <%= r.pedido_suspenso==='Produto digital'?'selected':'' %>>Digital</option>
+                    </select>
+                  </td>
+                  <td style="font-size:11px"><%= fmtDate(r.data_compra) %></td>
+                  <td><span class="code" style="font-size:11px" title="<%= r.order_id || '' %>"><%= r.order_id ? r.order_id.slice(0,10) : '—' %></span></td>
+                  <td class="text-sm" title="<%= r.seller_email || '' %>"><%= r.seller_email ? r.seller_email.split('@')[0] : '—' %></td>
+                  <td><%= r.customer_name || '—' %></td>
+                  <td class="text-sm"><%= fmtCpf(r.customer_doc) %></td>
+                  <td title="<%= r.product_name || '' %>"><%= r.product_name ? r.product_name.slice(0,20) : '—' %></td>
+                  <td><%= r.product_quantity || '—' %></td>
+                  <td><%= fmtMoney(r.total_price) %></td>
+                  <td><input class="inline-input" value="<%= r.motivo || '' %>" onchange="updateField('<%= r.id %>','motivo',this.value)" placeholder="—"></td>
+                  <td><input class="inline-input" value="<%= r.observacao || '' %>" onchange="updateField('<%= r.id %>','observacao',this.value)" placeholder="—"></td>
+                  <td><input class="inline-input" value="<%= r.nf_id || '' %>" onchange="updateField('<%= r.id %>','nf_id',this.value)" placeholder="—" style="width:70px"></td>
+                  <td>
+                    <select class="inline-select" onchange="updateField('<%= r.id %>','nf_status',this.value)" style="width:90px">
+                      <% STATUS_NF.forEach(s => { %>
+                      <option value="<%= s %>" <%= r.nf_status===s?'selected':'' %>><%= s %></option>
+                      <% }) %>
+                    </select>
+                  </td>
+                  <td><input class="inline-input" type="date" value="<%= r.nf_data || '' %>" onchange="updateField('<%= r.id %>','nf_data',this.value)" style="width:110px"></td>
+                  <td><input class="inline-input" type="date" value="<%= r.devolucao_data_postagem || '' %>" onchange="updateField('<%= r.id %>','devolucao_data_postagem',this.value)" style="width:110px"></td>
+                  <td>
+                    <select class="inline-select" onchange="updateField('<%= r.id %>','devolucao_reverso',this.value)" style="width:60px">
+                      <option value="Não" <%= r.devolucao_reverso==='Não'?'selected':'' %>>Não</option>
+                      <option value="Sim" <%= r.devolucao_reverso==='Sim'?'selected':'' %>>Sim</option>
+                    </select>
+                  </td>
+                  <td><input class="inline-input" value="<%= r.devolucao_rastreio || '' %>" onchange="updateField('<%= r.id %>','devolucao_rastreio',this.value)" placeholder="—" style="width:90px"></td>
+                  <td class="text-sm"><%= r.devolucao_status || '—' %></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <% if (pages > 1) { %>
+      <div class="pagination">
+        <% for (let p = 1; p <= Math.min(pages, 20); p++) { %>
+        <a href="?<%= Object.entries({...filters, page: p}).filter(([,v])=>v).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&') %>" class="<%= p === currentPage ? 'active' : '' %>"><%= p %></a>
+        <% } %>
+      </div>
+      <% } %>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function updateField(id, field, value) {
+  fetch('/relatorios/retencao/' + id, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [field]: value }),
+  })
+  .then(r => r.json())
+  .then(d => { if (!d.ok) alert(d.error || 'Erro'); })
+  .catch(() => alert('Erro ao salvar'));
+}
+
+// Notificações (compartilhado)
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() { document.getElementById('notifDropdown').classList.toggle('open'); if (document.getElementById('notifDropdown').classList.contains('open') && NOTIF_USER) loadNotifs(); }
+async function loadNotifs() { if (!NOTIF_USER) return; try { const r = await fetch('/api/notifications'); const { notifications, unread } = await r.json(); document.getElementById('notifBadge').style.display = unread > 0 ? 'block' : 'none'; document.getElementById('notifBadge').textContent = unread; const list = document.getElementById('notifList'); if (!notifications.length) { list.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:24px;font-size:13px">Nenhuma notificação</div>'; return; } list.innerHTML = notifications.map(n => '<a href="/shipment/' + (n.tracking_code||'') + '" class="notif-item' + (n.is_read ? '' : ' unread') + '"><div style="font-size:13px;color:var(--gray-700)">' + n.message + '</div><div style="font-size:11px;color:var(--gray-400);margin-top:2px">' + new Date(n.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) + '</div></a>').join(''); } catch(e) {} }
+async function markAllRead() { if (!NOTIF_USER) return; await fetch('/api/notifications/read', { method: 'POST' }); loadNotifs(); }
+if (NOTIF_USER) { fetch('/api/notifications').then(r=>r.json()).then(({unread})=>{const b=document.getElementById('notifBadge');b.style.display=unread>0?'block':'none';b.textContent=unread}).catch(()=>{}); }
+document.addEventListener('click', e => { const dd=document.getElementById('notifDropdown'),btn=document.getElementById('notifBtn'); if(!dd.contains(e.target)&&!btn.contains(e.target)) dd.classList.remove('open'); });
+</script>
+<%- include('partials/ai-chat') %>
+</body>
+</html>

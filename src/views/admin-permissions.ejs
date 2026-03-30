@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Permissões — payt Suporte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+  <style>
+    .perm-table th:first-child { text-align: left; min-width: 180px; }
+    .perm-table th { text-align: center; padding: 8px 6px; }
+    .perm-table td { text-align: center; padding: 8px 6px; }
+    .perm-table td:first-child { text-align: left; font-weight: 500; color: var(--gray-700); padding-left: 16px; cursor: pointer; }
+    .perm-table td:first-child:hover { color: var(--brand); }
+    .perm-table input[type=checkbox] { width: 17px; height: 17px; cursor: pointer; accent-color: var(--brand); }
+    .role-col { border-left: 3px solid var(--border-2); }
+    .role-head-first { border-left: 3px solid var(--border-2); background: var(--surface-2); }
+    .action-head { font-size: 10px !important; color: var(--gray-400) !important; font-weight: 500 !important; }
+    .perm-table tbody tr:hover td { background: var(--surface-2); }
+    .perm-table tbody tr td.role-col { border-left: 3px solid var(--border-2); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'admin-permissions' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Permissões por Módulo', breadcrumb: [{ label: 'Admin' }, { label: 'Permissões' }] }) %>
+
+    <div class="page">
+
+      <script>
+        if (new URLSearchParams(window.location.search).get('saved')) {
+          document.addEventListener('DOMContentLoaded', () => {
+            const d = document.createElement('div');
+            d.className = 'alert alert-success';
+            d.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Permissões salvas com sucesso!';
+            document.querySelector('.page').prepend(d);
+            setTimeout(() => d.remove(), 4000);
+          });
+        }
+      </script>
+
+      <!-- Legenda -->
+      <div style="display:flex;gap:20px;margin-bottom:16px;font-size:12px;color:var(--gray-500)">
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:var(--info-bg);display:inline-block"></span> Ver</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:var(--success-bg);display:inline-block"></span> Criar</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:var(--warning-bg);display:inline-block"></span> Editar</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:var(--danger-bg);display:inline-block"></span> Excluir</span>
+        <span style="margin-left:auto;color:var(--gray-400)">Clique no nome do módulo para selecionar/deselecionar toda a linha</span>
+      </div>
+
+      <form method="POST" action="/admin/permissions">
+        <div class="card">
+          <div class="card-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            <h3>Matriz de Permissões</h3>
+            <span class="text-muted" style="margin-left:auto">Defina o que cada papel pode fazer em cada módulo</span>
+          </div>
+          <div class="card-body no-pad">
+            <div class="table-wrap">
+              <table class="perm-table">
+                <thead>
+                  <tr>
+                    <th>Módulo</th>
+                    <% ROLES.forEach((role, i) => { %>
+                    <th colspan="4" class="role-col" style="color:var(--text);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface-2)"><%= ROLE_LABELS[role] %></th>
+                    <% }) %>
+                  </tr>
+                  <tr>
+                    <th></th>
+                    <% ROLES.forEach(() => { %>
+                    <th class="role-col action-head">Ver</th>
+                    <th class="action-head">Criar</th>
+                    <th class="action-head">Editar</th>
+                    <th class="action-head">Excluir</th>
+                    <% }) %>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% MODULES.forEach(mod => { %>
+                  <tr>
+                    <td title="Clique para selecionar tudo"><%= mod.label %></td>
+                    <% ROLES.forEach(role => {
+                      const p = (permissions[role] && permissions[role][mod.key]) || {};
+                    %>
+                    <td class="role-col">
+                      <input type="checkbox" name="<%= role %>|<%= mod.key %>|can_view" <%= p.can_view ? 'checked' : '' %>>
+                    </td>
+                    <td>
+                      <input type="checkbox" name="<%= role %>|<%= mod.key %>|can_create" <%= p.can_create ? 'checked' : '' %>>
+                    </td>
+                    <td>
+                      <input type="checkbox" name="<%= role %>|<%= mod.key %>|can_edit" <%= p.can_edit ? 'checked' : '' %>>
+                    </td>
+                    <td>
+                      <input type="checkbox" name="<%= role %>|<%= mod.key %>|can_delete" <%= p.can_delete ? 'checked' : '' %>>
+                    </td>
+                    <% }) %>
+                  </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card-footer" style="display:flex;align-items:center;gap:12px">
+            <button type="submit" class="btn btn-primary">Salvar Permissões</button>
+            <a href="/admin/users" class="btn btn-secondary">Voltar</a>
+            <span style="margin-left:auto;font-size:12px;color:var(--gray-400)">Alterações entram em vigor imediatamente</span>
+          </div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// Toggle row
+document.querySelectorAll('.perm-table td:first-child').forEach(td => {
+  td.addEventListener('click', () => {
+    const checks = td.parentElement.querySelectorAll('input[type=checkbox]');
+    const allChecked = [...checks].every(c => c.checked);
+    checks.forEach(c => c.checked = !allChecked);
+  });
+});
+
+// Notificações
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() { document.getElementById('notifDropdown').classList.toggle('open'); }
+async function markAllRead() {}
+if (NOTIF_USER) { fetch('/api/notifications').then(r=>r.json()).then(({unread})=>{const b=document.getElementById('notifBadge');b.style.display=unread>0?'block':'none';b.textContent=unread}).catch(()=>{}); }
+document.addEventListener('click', e => { const dd=document.getElementById('notifDropdown'),btn=document.getElementById('notifBtn'); if(dd && btn && !dd.contains(e.target)&&!btn.contains(e.target)) dd.classList.remove('open'); });
+</script>
+<%- include('partials/ai-chat') %>
+</body>
+</html>

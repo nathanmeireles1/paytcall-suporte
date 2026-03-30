@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logs de rastreios — Paytcall Operações</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+</head>
+<body>
+<div class="app">
+  <%- include('partials/sidebar', { activePage: 'rastreio-log' }) %>
+  <div class="main">
+    <%- include('partials/topbar', {
+      pageTitle: 'Logs de rastreios',
+      breadcrumb: [
+        { label: 'Paytcall', href: '/dashboard' },
+        { label: 'Logs de rastreios' }
+      ]
+    }) %>
+    <div class="page">
+      <%
+      const fmtDt = (iso) => {
+        if (!iso) return '—';
+        try {
+          return new Date(iso).toLocaleString('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            day:'2-digit', month:'2-digit', year:'numeric',
+            hour:'2-digit', minute:'2-digit', second:'2-digit'
+          });
+        } catch(e) { return iso; }
+      };
+
+      const calcDuration = (start, end) => {
+        if (!start || !end) return '—';
+        const ms = new Date(end) - new Date(start);
+        if (ms < 0) return '—';
+        const s = Math.floor(ms / 1000);
+        if (s < 60) return s + 's';
+        const m = Math.floor(s / 60);
+        const rs = s % 60;
+        return m + 'min ' + rs + 's';
+      };
+
+      const originLabel = (o) => o === 'manual' ? 'Manual' : 'Agendado';
+      const originColor = (o) => o === 'manual' ? 'var(--info)' : 'var(--text-3)';
+      %>
+
+      <!-- Resumo do último run -->
+      <% if (logs.length > 0) {
+        const last = logs[0];
+      %>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+        <div class="card" style="padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Última execução</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-2)"><%= fmtDt(last.started_at || last.ran_at) %></div>
+          <div style="margin-top:4px"><span style="font-size:11px;font-weight:700;color:<%= originColor(last.origin) %>"><%= originLabel(last.origin) %></span></div>
+        </div>
+        <div class="card" style="padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">CPFs consultados</div>
+          <div style="font-size:22px;font-weight:800;color:var(--text)"><%= last.total_cpfs || 0 %></div>
+        </div>
+        <div class="card" style="padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Atualizados</div>
+          <div style="font-size:22px;font-weight:800;color:var(--info)"><%= last.updated || 0 %></div>
+        </div>
+        <div class="card" style="padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Promovidos (fila→rastreio)</div>
+          <div style="font-size:22px;font-weight:800;color:var(--success)"><%= last.promoted || 0 %></div>
+        </div>
+        <div class="card" style="padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Ainda pendentes</div>
+          <div style="font-size:22px;font-weight:800;color:var(--warning)"><%= last.pending_after || 0 %></div>
+        </div>
+        <div class="card" style="padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Erros</div>
+          <div style="font-size:22px;font-weight:800;color:<%= (last.errors||0) > 0 ? 'var(--danger)' : 'var(--text-4)' %>"><%= last.errors || 0 %></div>
+        </div>
+        <div class="card" style="padding:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Duração</div>
+          <div style="font-size:22px;font-weight:800;color:var(--text)"><%= calcDuration(last.started_at, last.finished_at) %></div>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Filtros -->
+      <form method="GET" action="/relatorios/rastreio-log" class="toolbar">
+        <select name="origin" class="form-select">
+          <option value="" <%= !filters.origin ? 'selected' : '' %>>Origem</option>
+          <option value="agendado" <%= filters.origin==='agendado' ? 'selected' : '' %>>Agendado</option>
+          <option value="manual"   <%= filters.origin==='manual'   ? 'selected' : '' %>>Manual</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="/relatorios/rastreio-log" class="btn btn-secondary">Limpar</a>
+        <span style="font-size:13px;color:var(--text-4);margin-left:auto">
+          <strong><%= total %></strong> registros · Scheduler roda às <strong>08:00</strong> e <strong>14:00</strong> (BRT)
+        </span>
+      </form>
+
+      <div class="card">
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Origem</th>
+                  <th>Início</th>
+                  <th>Término</th>
+                  <th>Duração</th>
+                  <th style="text-align:right">CPFs</th>
+                  <th style="text-align:right">Atualizados</th>
+                  <th style="text-align:right">Promovidos</th>
+                  <th style="text-align:right">Pendentes após</th>
+                  <th style="text-align:right">Erros</th>
+                  <th style="text-align:center">Detalhes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (logs.length === 0) { %>
+                <tr><td colspan="10" style="text-align:center;color:var(--text-4);padding:40px">Nenhuma execução registrada ainda</td></tr>
+                <% } %>
+                <% logs.forEach(log => { %>
+                <tr>
+                  <td>
+                    <span style="font-size:11px;font-weight:700;color:<%= originColor(log.origin) %>;text-transform:uppercase;letter-spacing:.5px">
+                      <%= originLabel(log.origin) %>
+                    </span>
+                  </td>
+                  <td style="font-size:12px;white-space:nowrap"><%= fmtDt(log.started_at || log.ran_at) %></td>
+                  <td style="font-size:12px;white-space:nowrap;color:var(--text-3)"><%= fmtDt(log.finished_at) %></td>
+                  <td style="font-size:12px;color:var(--text-3)"><%= calcDuration(log.started_at, log.finished_at) %></td>
+                  <td style="text-align:right;font-weight:600"><%= log.total_cpfs || 0 %></td>
+                  <td style="text-align:right;color:var(--info);font-weight:600"><%= log.updated || 0 %></td>
+                  <td style="text-align:right;color:var(--success);font-weight:600"><%= log.promoted || 0 %></td>
+                  <td style="text-align:right;color:var(--warning);font-weight:600"><%= log.pending_after || 0 %></td>
+                  <td style="text-align:right">
+                    <% if ((log.errors || 0) > 0) { %>
+                    <span style="color:var(--danger);font-weight:700"><%= log.errors %></span>
+                    <% } else { %>
+                    <span style="color:var(--text-4)">—</span>
+                    <% } %>
+                  </td>
+                  <td style="text-align:center">
+                    <button
+                      class="btn btn-secondary"
+                      style="padding:4px 10px;font-size:12px"
+                      onclick='openLogModal(<%- JSON.stringify(log) %>)'
+                    >Ver</button>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <% if (pages > 1) { %>
+      <div class="pagination">
+        <% for (let p=1; p<=Math.min(pages,20); p++) { %>
+        <a href="?page=<%= p %><%= filters.origin ? '&origin=' + filters.origin : '' %>" class="<%= p===currentPage ? 'active' : '' %>"><%= p %></a>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de detalhes do log -->
+<div id="logModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="width:540px;max-width:94vw;max-height:90vh;padding:0;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;overflow:hidden">
+    <div class="card-header" style="padding:16px 20px;flex-shrink:0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <div>
+        <h3 style="font-size:14px;margin:0">Detalhes da execução</h3>
+        <div id="modalSubtitle" style="font-size:11px;color:var(--text-4);margin-top:2px;font-weight:400"></div>
+      </div>
+      <button onclick="closeLogModal()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-3);font-size:18px;line-height:1">×</button>
+    </div>
+    <div class="card-body" id="modalBody" style="padding:16px 20px;overflow-y:auto;flex:1"></div>
+    <div class="card-footer" style="display:flex;justify-content:flex-end">
+      <button onclick="closeLogModal()" class="btn btn-secondary">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STATUS_LABELS_MAP = {
+  pending: 'Pendente', posted: 'Postado', posted_object: 'Objeto postado',
+  forwarded: 'Em transferência', delivering: 'Em entrega', delivered: 'Entregue',
+  recipient_not_found: 'Destinatário ausente', returning: 'Em devolução',
+  returned: 'Devolvido', waiting_client: 'Aguardando retirada',
+  wrong_address: 'Endereço incorreto', delivery_problem: 'Problema na entrega',
+  tracking_delayed: 'Rastreio em atraso', unknown: 'Desconhecido',
+};
+const STATUS_COLORS_MAP = {
+  delivered: 'var(--success)', delivering: 'var(--info)', forwarded: 'var(--info)',
+  posted_object: 'var(--info)', posted: 'var(--text-3)',
+  returning: 'var(--warning)', returned: 'var(--warning)', recipient_not_found: 'var(--warning)',
+  wrong_address: 'var(--danger)', delivery_problem: 'var(--danger)',
+  tracking_delayed: 'var(--danger)', pending: 'var(--text-4)', unknown: 'var(--text-4)',
+};
+
+function fmtDtJs(iso) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric',
+      hour:'2-digit', minute:'2-digit', second:'2-digit'
+    });
+  } catch(e) { return iso; }
+}
+function calcDurJs(start, end) {
+  if (!start || !end) return '—';
+  const ms = new Date(end) - new Date(start);
+  if (ms < 0) return '—';
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return s + 's';
+  return Math.floor(s / 60) + 'min ' + (s % 60) + 's';
+}
+
+function openLogModal(log) {
+  const originLabel = log.origin === 'manual' ? 'Manual' : 'Agendado';
+  const originColor = log.origin === 'manual' ? 'var(--info)' : 'var(--text-3)';
+
+  document.getElementById('modalSubtitle').innerHTML =
+    fmtDtJs(log.started_at || log.ran_at) +
+    ' &nbsp;·&nbsp; <span style="font-weight:700;color:' + originColor + '">' + originLabel + '</span>';
+
+  const ticketsClosed = log.tickets_closed || 0;
+  const breakdown = log.status_breakdown || {};
+  const breakdownEntries = Object.entries(breakdown).sort((a,b) => b[1]-a[1]);
+  const total = breakdownEntries.reduce((s,[,v]) => s+v, 0);
+
+  let html = '';
+
+  // KPIs — mesma estrutura dos cards de resumo da página
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">';
+  [
+    { label: 'CPFs consultados', value: log.total_cpfs || 0, color: 'var(--text)' },
+    { label: 'Atualizados', value: log.updated || 0, color: 'var(--info)' },
+    { label: 'Promovidos', value: log.promoted || 0, color: 'var(--success)' },
+    { label: 'Pendentes após', value: log.pending_after || 0, color: 'var(--warning)' },
+    { label: 'Tickets fechados', value: ticketsClosed, color: ticketsClosed > 0 ? 'var(--success)' : 'var(--text-4)' },
+    { label: 'Erros', value: log.errors || 0, color: (log.errors||0) > 0 ? 'var(--danger)' : 'var(--text-4)' },
+  ].forEach(k => {
+    html += `<div class="card" style="padding:12px 14px;margin:0">
+      <div style="font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px">${k.label}</div>
+      <div style="font-size:20px;font-weight:800;color:${k.color}">${k.value}</div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Período + duração — linha de metadados
+  html += `<div style="margin-bottom:16px;font-size:12px;color:var(--text-3);display:flex;gap:16px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:8px">
+    <span>⏱ <strong style="color:var(--text)">${calcDurJs(log.started_at, log.finished_at)}</strong></span>
+    <span>Início: <strong style="color:var(--text)">${fmtDtJs(log.started_at || log.ran_at)}</strong></span>
+    <span>Término: <strong style="color:var(--text)">${fmtDtJs(log.finished_at)}</strong></span>
+  </div>`;
+
+  // Seção: breakdown por status
+  html += `<div style="font-size:11px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">Distribuição por status</div>`;
+  if (breakdownEntries.length > 0) {
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    breakdownEntries.forEach(([status, count]) => {
+      const label = STATUS_LABELS_MAP[status] || status;
+      const color = STATUS_COLORS_MAP[status] || 'var(--text-3)';
+      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+      html += `<div style="display:flex;align-items:center;gap:10px">
+        <div style="width:150px;font-size:12px;color:var(--text-2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${label}">${label}</div>
+        <div style="flex:1;background:var(--border);border-radius:99px;height:6px;overflow:hidden">
+          <div style="width:${pct}%;background:${color};height:100%;border-radius:99px"></div>
+        </div>
+        <div style="width:32px;text-align:right;font-size:13px;font-weight:700;color:${color}">${count}</div>
+        <div style="width:36px;text-align:right;font-size:11px;color:var(--text-4)">${pct}%</div>
+      </div>`;
+    });
+    html += '</div>';
+  } else {
+    html += `<div style="text-align:center;padding:24px 0;color:var(--text-4);font-size:13px">Breakdown disponível a partir da próxima execução</div>`;
+  }
+
+  document.getElementById('modalBody').innerHTML = html;
+  const modal = document.getElementById('logModal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLogModal() {
+  document.getElementById('logModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.getElementById('logModal').addEventListener('click', function(e) {
+  if (e.target === this) closeLogModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLogModal(); });
+</script>
+
+<script>
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() { const dd=document.getElementById('notifDropdown'); dd.classList.toggle('open'); if(dd.classList.contains('open')) loadNotifs(); }
+async function loadNotifs() { try { const r=await fetch('/api/notifications'); const {notifications,unread}=await r.json(); const b=document.getElementById('notifBadge'); b.style.display=unread>0?'block':'none'; b.textContent=unread; const list=document.getElementById('notifList'); if(!notifications.length){list.innerHTML='<div style="text-align:center;color:var(--text-4);padding:24px;font-size:13px">Nenhuma notificação</div>';return;} list.innerHTML=notifications.map(n=>`<a href="/pedido/${n.order_id||n.tracking_code||''}" class="notif-item${n.is_read?'':' unread'}"><div style="font-size:13px;color:var(--text-2)">${n.message}</div></a>`).join(''); } catch(e){} }
+async function markAllRead() { await fetch('/api/notifications/read',{method:'POST'}); loadNotifs(); }
+document.addEventListener('click',(e)=>{ const dd=document.getElementById('notifDropdown'); const btn=document.getElementById('notifBtn'); if(dd&&btn&&!dd.contains(e.target)&&!btn.contains(e.target))dd.classList.remove('open'); });
+</script>
+<%- include('partials/ai-chat') %>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tickets — payt Suporte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+  <style>
+    .prio-1 { color: var(--danger); font-weight: 700; }
+    .prio-2 { color: var(--warning); font-weight: 600; }
+    .prio-3 { color: var(--gray-500); }
+    .sla-ok { color: var(--success); }
+    .sla-warn { color: var(--warning); }
+    .sla-expired { color: var(--danger); font-weight: 700; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'tickets' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Tickets', breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Tickets' }] }) %>
+
+    <div class="page">
+
+      <%
+      const fmtDate = (iso) => {
+        if (!iso) return '—';
+        try { return new Date(String(iso).replace(' ','T')).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch(e) { return iso; }
+      };
+      const prioLabel = {1:'ALTA',2:'MÉDIA',3:'BAIXA'};
+      %>
+
+      <!-- Filtros -->
+      <form method="GET" class="toolbar">
+        <select name="tipo" id="filterTipo" class="form-select" onchange="updateMotivoOptions()">
+          <option value="">Tipo</option>
+          <option value="RETENCAO" <%= filters.tipo==='RETENCAO'?'selected':'' %>>Retenção</option>
+          <option value="LOGISTICA" <%= filters.tipo==='LOGISTICA'?'selected':'' %>>Logística</option>
+        </select>
+        <select name="status" class="form-select">
+          <option value="">Status</option>
+          <option value="Aberto" <%= filters.status==='Aberto'?'selected':'' %>>Aberto</option>
+          <option value="Em andamento" <%= filters.status==='Em andamento'?'selected':'' %>>Em andamento</option>
+          <option value="Aguardando estoque" <%= filters.status==='Aguardando estoque'?'selected':'' %>>Ag. estoque</option>
+          <option value="Cancelado" <%= filters.status==='Cancelado'?'selected':'' %>>Cancelado</option>
+          <option value="Retido" <%= filters.status==='Retido'?'selected':'' %>>Retido</option>
+          <option value="Concluído" <%= filters.status==='Concluído'?'selected':'' %>>Concluído</option>
+        </select>
+        <select name="motivo" id="filterMotivo" class="form-select">
+          <option value="">Motivo</option>
+          <option value="Cancelamento" <%= filters.motivo==='Cancelamento'?'selected':'' %>>Cancelamento</option>
+          <option value="Desconto" <%= filters.motivo==='Desconto'?'selected':'' %>>Desconto</option>
+          <option value="Devolução" <%= filters.motivo==='Devolução'?'selected':'' %>>Devolução</option>
+          <option value="Reenvio" <%= filters.motivo==='Reenvio'?'selected':'' %>>Reenvio</option>
+          <option value="Alteração de pedido" <%= filters.motivo==='Alteração de pedido'?'selected':'' %>>Alteração de pedido</option>
+          <option value="Nota fiscal" <%= filters.motivo==='Nota fiscal'?'selected':'' %>>Nota fiscal</option>
+          <option value="Envio" <%= filters.motivo==='Envio'?'selected':'' %>>Envio</option>
+        </select>
+        <% if (!isSuporte) { %>
+        <select name="assigned_to" class="form-select">
+          <option value="">Responsável</option>
+          <option value="Flaviany" <%= filters.assigned_to==='Flaviany'?'selected':'' %>>Flaviany</option>
+          <option value="Shelida" <%= filters.assigned_to==='Shelida'?'selected':'' %>>Shelida</option>
+          <option value="Sistema" <%= filters.assigned_to==='Sistema'?'selected':'' %>>Sistema</option>
+        </select>
+        <% } %>
+        <select name="priority" class="form-select">
+          <option value="">Prioridade</option>
+          <option value="1" <%= filters.priority==='1'?'selected':'' %>>Alta</option>
+          <option value="2" <%= filters.priority==='2'?'selected':'' %>>Média</option>
+          <option value="3" <%= filters.priority==='3'?'selected':'' %>>Baixa</option>
+        </select>
+        <input type="text" name="search" placeholder="Buscar..." value="<%= filters.search || '' %>" class="form-input search-input">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="/relatorios/tickets" class="btn btn-secondary">Limpar</a>
+        <%
+        const _qTickets = [
+          filters.tipo        ? 'tipo='        + encodeURIComponent(filters.tipo)        : '',
+          filters.status      ? 'status='      + encodeURIComponent(filters.status)      : '',
+          filters.motivo      ? 'motivo='      + encodeURIComponent(filters.motivo)      : '',
+          filters.assigned_to ? 'assigned_to=' + encodeURIComponent(filters.assigned_to) : '',
+          filters.priority    ? 'priority='    + encodeURIComponent(filters.priority)    : '',
+          filters.search      ? 'search='      + encodeURIComponent(filters.search)      : '',
+        ].filter(Boolean).join('&');
+        %>
+        <a href="/relatorios/tickets/export?format=xlsx<%= _qTickets ? '&' + _qTickets : '' %>" class="btn btn-ghost btn-sm" title="Baixar Excel">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          XLSX
+        </a>
+        <a href="/relatorios/tickets/export?format=csv<%= _qTickets ? '&' + _qTickets : '' %>" class="btn btn-ghost btn-sm" title="Baixar CSV">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          CSV
+        </a>
+      </form>
+
+      <div style="margin:12px 0;font-size:13px;color:var(--gray-500)"><strong><%= total %></strong> tickets encontrados</div>
+
+      <div id="bulkBarTix" style="display:none;padding:10px 16px;background:var(--brand-dim);border:1px solid var(--brand-border);border-radius:8px;margin-bottom:12px;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="bulkCountTix" style="font-size:13px;font-weight:600;color:var(--brand-dark)">0 selecionados</span>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button onclick="bulkRefreshTracking()" class="btn btn-secondary btn-sm">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Atualizar Rastreios
+          </button>
+          <button onclick="bulkResolveTix('Concluído')" class="btn btn-primary btn-sm">Marcar Concluído</button>
+          <button onclick="bulkResolveTix('Em andamento')" class="btn btn-secondary btn-sm">Em andamento</button>
+          <button onclick="clearSelTix()" class="btn btn-ghost btn-sm">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Tabela -->
+      <div class="card">
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table>
+              <colgroup>
+                <col style="width:36px"><col style="width:100px"><col style="width:80px"><col style="width:140px">
+                <col style="width:130px"><col style="width:100px"><col style="width:100px">
+                <col style="width:100px"><col style="width:90px"><col style="width:70px"><col style="width:100px">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th style="width:36px;padding:9px 10px 9px 14px"><input type="checkbox" id="selAllTix" onchange="toggleAllTix(this)" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer"></th>
+                  <th>ID Payt</th><th>Tipo</th><th>Cliente</th><th>CPF</th>
+                  <th>Status</th><th>Motivo</th><th>Rastreio</th><th>Responsável</th><th>Prio</th><th>Tempo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (tickets.length === 0) { %>
+                <tr><td colspan="11" class="empty-state" style="padding:40px">Nenhum ticket encontrado</td></tr>
+                <% } %>
+                <% tickets.forEach(t => {
+                  const s = t.shipments || {};
+                  const isTerminal = ['Cancelado','Retido','Concluído'].includes(t.status);
+                  const hoursOpen = isTerminal && t.closed_at
+                    ? Math.floor((new Date(t.closed_at).getTime() - new Date(t.created_at).getTime()) / 3600000)
+                    : Math.floor((Date.now() - new Date(t.created_at).getTime()) / 3600000);
+                  const slaClass = isTerminal ? 'sla-ok' : (hoursOpen >= 72 ? 'sla-expired' : hoursOpen >= 48 ? 'sla-warn' : 'sla-ok');
+                  const tipoBg = t.tipo === 'RETENCAO' ? 'badge-warning' : 'badge-info';
+                  const tipoLabel = t.tipo === 'RETENCAO' ? 'Retenção' : 'Logística';
+                  const rowHref = t.order_id ? '/pedido/' + t.order_id : (s.order_id ? '/pedido/' + s.order_id : '/shipment/' + t.tracking_code);
+                  const shipStatus = t.shipments?.status;
+                  const shipStatusMap = {
+                    delivered: 'Entregue', forwarded: 'Em Trânsito', delivering: 'Saiu p/ Entrega',
+                    posted_object: 'Obj. Postado', pending: 'Pendente', returning: 'Devolvendo',
+                    returned: 'Devolvido', no_tracking: 'Sem rastreio', tracking_delayed: 'Rastreio atrasado'
+                  };
+                  const shipStatusLabel = shipStatus ? (shipStatusMap[shipStatus] || shipStatus) : '—';
+                %>
+                <tr style="cursor:pointer">
+                  <td style="padding:9px 10px 9px 14px" onclick="event.stopPropagation()"><input type="checkbox" class="row-chk-t" value="<%= t.id %>" data-tracking="<%= t.tracking_code || (t.shipments && t.shipments.tracking_code) || '' %>" onchange="updateBulkTix()" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer"></td>
+                  <td onclick="window.location='<%= rowHref %>'"><span class="code"><%= s.order_id || t.order_id || '—' %></span></td>
+                  <td onclick="window.location='<%= rowHref %>'"><span class="badge <%= tipoBg %>"><%= tipoLabel %></span></td>
+                  <td onclick="window.location='<%= rowHref %>'"><%= s.customer_name || '—' %></td>
+                  <td onclick="window.location='<%= rowHref %>'" class="text-sm"><%= s.customer_doc ? s.customer_doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—' %></td>
+                  <td onclick="window.location='<%= rowHref %>'"><span class="badge badge-neutral"><%= t.status %></span></td>
+                  <td onclick="window.location='<%= rowHref %>'" title="<%= t.motivo_cancelamento || '' %>"><%= t.motivo %></td>
+                  <td onclick="window.location='<%= rowHref %>'" class="text-sm"><%= shipStatusLabel %></td>
+                  <td onclick="window.location='<%= rowHref %>'"><%= t.assigned_to %></td>
+                  <td onclick="window.location='<%= rowHref %>'" class="prio-<%= t.priority %>"><%= prioLabel[t.priority] || t.priority %></td>
+                  <td onclick="window.location='<%= rowHref %>'" class="<%= slaClass %>"><%= hoursOpen %>h<%= isTerminal ? '' : (hoursOpen >= 72 ? ' SLA!' : '') %></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <% if (pages > 1) { %>
+      <div class="pagination">
+        <% for (let p = 1; p <= pages; p++) { %>
+        <a href="?<%= Object.entries({...filters, page: p}).filter(([,v])=>v).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&') %>" class="<%= p === currentPage ? 'active' : '' %>"><%= p %></a>
+        <% } %>
+      </div>
+      <% } %>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#fff;padding:13px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.22);min-width:220px;max-width:400px;text-align:center;pointer-events:none"></div>
+<div id="confirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <p id="confirmMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5"></p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="confirmResolve(false)" class="btn btn-secondary btn-sm">Cancelar</button>
+      <button onclick="confirmResolve(true)" class="btn btn-primary btn-sm">Confirmar</button>
+    </div>
+  </div>
+</div>
+<script>
+let _toastTimer, confirmResolve;
+function showToast(msg, type='success') {
+  const t=document.getElementById('toast'); const icon=type==='error'?'✕':type==='warning'?'⚠':'✓';
+  t.innerHTML=`<span style="font-size:16px;margin-right:8px">${icon}</span>${msg}`;
+  t.style.background=type==='error'?'#dc2626':type==='warning'?'#c2800a':'#16a34a';
+  t.style.display='block';t.style.opacity='1';clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.style.display='none',200);},3000);
+}
+function showConfirm(msg) {
+  return new Promise(resolve => { confirmResolve=resolve; document.getElementById('confirmMsg').textContent=msg; document.getElementById('confirmOverlay').style.display='flex'; });
+}
+document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)confirmResolve(false);});
+
+function toggleAllTix(cb) { document.querySelectorAll('.row-chk-t').forEach(c=>c.checked=cb.checked); updateBulkTix(); }
+function updateBulkTix() {
+  const checked = [...document.querySelectorAll('.row-chk-t:checked')];
+  const bar = document.getElementById('bulkBarTix');
+  bar.style.display = checked.length ? 'flex' : 'none';
+  document.getElementById('bulkCountTix').textContent = checked.length + ' selecionado(s)';
+}
+function clearSelTix() { document.querySelectorAll('.row-chk-t').forEach(c=>c.checked=false); document.getElementById('selAllTix').checked=false; updateBulkTix(); }
+async function bulkRefreshTracking() {
+  const codes = [...document.querySelectorAll('.row-chk-t:checked')]
+    .map(c => c.dataset.tracking).filter(Boolean);
+  if (!codes.length) { showToast('Nenhum ticket com código de rastreio selecionado', 'warning'); return; }
+  const ok = await showConfirm(`Atualizar rastreio de ${codes.length} pedido(s)?`);
+  document.getElementById('confirmOverlay').style.display = 'none';
+  if (!ok) return;
+  showToast(`Atualizando ${codes.length} rastreio(s)...`, 'warning');
+  const r = await fetch('/api/tracking/refresh-batch', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codes }),
+  });
+  const d = await r.json();
+  if (d.total !== undefined) showToast(`Atualização iniciada para ${d.total} rastreio(s)`);
+  else showToast(d.error || 'Erro ao atualizar', 'error');
+}
+
+async function bulkResolveTix(status) {
+  const ids = [...document.querySelectorAll('.row-chk-t:checked')].map(c=>c.value);
+  if (!ids.length) return;
+  const ok = await showConfirm(`Alterar ${ids.length} ticket(s) para "${status}"?`);
+  document.getElementById('confirmOverlay').style.display='none';
+  if (!ok) return;
+  const r = await fetch('/api/tickets/bulk-status', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids, status}) });
+  const d = await r.json();
+  if (d.ok) { showToast(d.updated + ' ticket(s) atualizados.'); setTimeout(()=>location.reload(),1200); }
+  else showToast(d.error||'Erro', 'error');
+}
+
+// Motivos dinâmicos por tipo
+const MOTIVOS_BY_TIPO = {
+  RETENCAO: ['Cancelamento', 'Desconto', 'Devolução'],
+  LOGISTICA: ['Reenvio', 'Alteração de pedido', 'Nota fiscal', 'Envio'],
+};
+const ALL_MOTIVOS = [...new Set(Object.values(MOTIVOS_BY_TIPO).flat())];
+function updateMotivoOptions() {
+  const tipo = document.getElementById('filterTipo').value;
+  const sel = document.getElementById('filterMotivo');
+  const current = sel.value;
+  const motivos = tipo ? (MOTIVOS_BY_TIPO[tipo] || []) : ALL_MOTIVOS;
+  sel.innerHTML = '<option value="">Motivo</option>' + motivos.map(m =>
+    `<option value="${m}"${current === m ? ' selected' : ''}>${m}</option>`
+  ).join('');
+}
+// Inicializa com base no tipo atual
+document.addEventListener('DOMContentLoaded', updateMotivoOptions);
+
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() { document.getElementById('notifDropdown').classList.toggle('open'); if (document.getElementById('notifDropdown').classList.contains('open') && NOTIF_USER) loadNotifs(); }
+async function loadNotifs() { if (!NOTIF_USER) return; try { const r = await fetch('/api/notifications'); const { notifications, unread } = await r.json(); document.getElementById('notifBadge').style.display = unread > 0 ? 'block' : 'none'; document.getElementById('notifBadge').textContent = unread; const list = document.getElementById('notifList'); if (!notifications.length) { list.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:24px;font-size:13px">Nenhuma notificação</div>'; return; } list.innerHTML = notifications.map(n => `<a href="/pedido/${n.order_id||n.tracking_code||''}" class="notif-item${n.is_read ? '' : ' unread'}"><div style="font-size:13px;color:var(--text-2)">${n.message}</div><div style="font-size:11px;color:var(--text-4);margin-top:2px">${new Date(n.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div></a>`).join(''); } catch(e) {} }
+async function markAllRead() { if (!NOTIF_USER) return; await fetch('/api/notifications/read', { method: 'POST' }); loadNotifs(); }
+if (NOTIF_USER) { fetch('/api/notifications').then(r=>r.json()).then(({unread})=>{const b=document.getElementById('notifBadge');b.style.display=unread>0?'block':'none';b.textContent=unread}).catch(()=>{}); }
+document.addEventListener('click', e => { const dd=document.getElementById('notifDropdown'),btn=document.getElementById('notifBtn'); if(dd&&btn&&!dd.contains(e.target)&&!btn.contains(e.target)) dd.classList.remove('open'); });
+</script>
+<%- include('partials/ai-chat') %>
+</body>
+</html>

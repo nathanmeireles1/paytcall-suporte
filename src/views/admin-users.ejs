@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usuários — payt Suporte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+  <style>
+    .badge-admin     { background: var(--purple-bg); color: var(--purple); }
+    .badge-suporte   { background: var(--info-bg); color: var(--info); }
+    .badge-logistica { background: var(--info-bg); color: var(--info); }
+    .badge-retencao  { background: var(--warning-bg); color: var(--warning); }
+    .badge-usuario   { background: var(--success-bg); color: var(--success); }
+    .badge-terceiros { background: var(--warning-bg); color: var(--warning); }
+    .badge-active { background: var(--success-bg); color: var(--success); }
+    .badge-inactive { background: var(--danger-bg); color: var(--danger); }
+    .badge-pending { background: var(--warning-bg); color: var(--warning); }
+    .invite-link { background: var(--success-bg); border: 1px solid #bbf7d0; padding: 12px 16px; border-radius: var(--radius); font-family: monospace; font-size: 12px; word-break: break-all; margin-top: 12px; display: none; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'admin-users' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Gerenciar Usuários', breadcrumb: [{ label: 'Admin', href: '/admin/users' }, { label: 'Usuários' }] }) %>
+
+    <div class="page">
+
+      <!-- Convidar -->
+      <div class="card mb-6">
+        <div class="card-header">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          <h3>Convidar Usuário</h3>
+        </div>
+        <div class="card-body">
+          <form id="invite-form" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" required placeholder="email@empresa.com" class="form-input" style="width:220px">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nome</label>
+              <input type="text" name="name" required placeholder="Nome completo" class="form-input" style="width:180px">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Papel</label>
+              <select name="role" id="invite-role" onchange="toggleCompanies()" class="form-select">
+                <option value="suporte">Suporte</option>
+                <option value="logistica">Logística</option>
+                <option value="retencao">Retenção</option>
+                <option value="usuario">Usuário</option>
+                <option value="terceiros">Terceiros</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Senha <span style="color:var(--text-4);font-weight:400">(opcional)</span></label>
+              <input type="password" name="password" placeholder="Deixe em branco para enviar link" class="form-input" style="width:200px" autocomplete="new-password">
+            </div>
+            <div id="companies-group" style="display:none;align-self:center;padding-top:18px">
+              <% Object.entries(companies).forEach(([sid, name]) => { %>
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;white-space:nowrap;margin-right:12px">
+                <input type="checkbox" name="seller_ids" value="<%= sid %>" style="accent-color:var(--brand);width:13px;height:13px">
+                <%= name %>
+              </label>
+              <% }) %>
+            </div>
+            <button type="submit" class="btn btn-primary" id="invite-submit-btn">Criar Usuário</button>
+          </form>
+          <div class="invite-link" id="invite-result">
+            <div id="invite-email-status" style="margin-bottom:6px;font-size:12px;font-weight:600"></div>
+            Link: <span id="invite-url"></span>
+            <span style="margin-left:8px;cursor:pointer;color:var(--brand);font-weight:600" onclick="copyInvite()">Copiar</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela de usuários -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Usuários (<%= users.length %>)</h3>
+        </div>
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th><th>Email</th><th>Papel</th><th>Status</th>
+                  <th>Empresas</th><th>Criado em</th><th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% users.forEach(u => { %>
+                <tr>
+                  <td class="fw-600"><%= u.name %></td>
+                  <td class="text-muted"><%= u.email %></td>
+                  <td>
+                    <select onchange="changeRole('<%= u.id %>', this.value)" class="form-select" style="padding:3px 6px;font-size:12px;width:auto">
+                      <option value="admin"     <%= u.role==='admin'    ?'selected':'' %>>Admin</option>
+                      <option value="suporte"  <%= u.role==='suporte' ?'selected':'' %>>Suporte</option>
+                      <option value="logistica"<%= u.role==='logistica'?'selected':'' %>>Logística</option>
+                      <option value="retencao" <%= u.role==='retencao' ?'selected':'' %>>Retenção</option>
+                      <option value="usuario"  <%= u.role==='usuario'  ?'selected':'' %>>Usuário</option>
+                      <option value="terceiros"<%= u.role==='terceiros'?'selected':'' %>>Terceiros</option>
+                    </select>
+                  </td>
+                  <td>
+                    <% if (!u.auth_id) { %>
+                      <span class="badge badge-pending">Pendente</span>
+                    <% } else if (u.active) { %>
+                      <span class="badge badge-active">Ativo</span>
+                    <% } else { %>
+                      <span class="badge badge-inactive">Inativo</span>
+                    <% } %>
+                  </td>
+                  <td class="text-sm">
+                    <% if (u.role === 'terceiros') { %>
+                      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                        <% if (accessMap[u.id]?.length) { %>
+                          <% accessMap[u.id].forEach(sid => { %>
+                            <span class="badge" style="background:var(--brand-dim);color:var(--brand-dark);font-size:11px"><%= companies[sid] || sid %></span>
+                          <% }) %>
+                        <% } else { %>
+                          <span class="text-muted">Nenhuma</span>
+                        <% } %>
+                        <button class="btn btn-sm btn-ghost" style="padding:2px 6px;font-size:11px" onclick="editCompanies('<%= u.id %>', '<%= u.name %>', <%= JSON.stringify(accessMap[u.id] || []) %>)">Editar</button>
+                      </div>
+                    <% } else { %>
+                      <span class="text-muted">Todas</span>
+                    <% } %>
+                  </td>
+                  <td class="text-muted text-sm">
+                    <%= u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—' %>
+                  </td>
+                  <td style="white-space:nowrap">
+                    <% if (u.auth_id) { %>
+                      <button class="btn btn-sm btn-secondary" onclick="toggleUser('<%= u.id %>', this)" style="margin-right:4px">
+                        <%= u.active ? 'Desativar' : 'Ativar' %>
+                      </button>
+                      <button class="btn btn-sm btn-ghost" onclick="openPasswordModal('<%= u.id %>', '<%= u.name %>')" title="Alterar senha">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      </button>
+                    <% } else { %>
+                      <button class="btn btn-sm btn-ghost" onclick="resendInvite('<%= u.id %>', this)" title="Reenviar convite" style="margin-right:4px">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                      </button>
+                      <button class="btn btn-sm btn-ghost" onclick="deleteInvite('<%= u.id %>', '<%= u.name %>')" title="Excluir convite" style="color:var(--danger)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                      </button>
+                    <% } %>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleCompanies() {
+  const show = document.getElementById('invite-role').value === 'terceiros';
+  document.getElementById('companies-group').style.display = show ? '' : 'none';
+  if (!show) document.querySelectorAll('#companies-group input[type=checkbox]').forEach(c => c.checked = false);
+}
+
+document.querySelector('input[name=password]').addEventListener('input', function() {
+  document.getElementById('invite-submit-btn').textContent = this.value.length > 0 ? 'Criar com Senha' : 'Criar Usuário';
+});
+
+document.getElementById('invite-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = new FormData(e.target);
+  const body = {
+    email: form.get('email'), name: form.get('name'),
+    role: form.get('role'), seller_ids: form.getAll('seller_ids'),
+    password: form.get('password') || '',
+  };
+  const res = await fetch('/admin/users/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (data.ok) {
+    if (data.immediate) {
+      // Usuário criado com senha — ativo na hora
+      alert('Usuário criado com sucesso! Já pode fazer login.');
+    } else {
+      // Fluxo de convite por link
+      document.getElementById('invite-url').textContent = data.inviteLink;
+      const result = document.getElementById('invite-result');
+      result.style.display = 'block';
+      result.style.background = data.emailSent ? 'var(--success-bg)' : 'var(--warning-bg)';
+      result.style.borderColor = data.emailSent ? '#bbf7d0' : '#fde68a';
+      document.getElementById('invite-email-status').textContent = data.emailSent
+        ? '✓ Email enviado para o usuário'
+        : '⚠ SMTP não configurado — compartilhe o link manualmente';
+    }
+    e.target.reset();
+    toggleCompanies();
+    location.reload();
+  } else { alert(data.error || 'Erro ao criar usuário'); }
+});
+
+function copyInvite() { navigator.clipboard.writeText(document.getElementById('invite-url').textContent).then(() => alert('Link copiado!')); }
+async function changeRole(id, role) { await fetch('/admin/users/' + id + '/role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) }); }
+async function toggleUser(id, btn) { const res = await fetch('/admin/users/' + id + '/toggle', { method: 'POST' }); const data = await res.json(); if (data.ok) location.reload(); }
+
+const ALL_COMPANIES = <%- JSON.stringify(companies) %>;
+let _editingUserId = null;
+
+function editCompanies(userId, userName, currentIds) {
+  _editingUserId = userId;
+  document.getElementById('modal-companies-title').textContent = 'Empresas de ' + userName;
+  const container = document.getElementById('modal-companies-list');
+  container.innerHTML = '';
+  Object.entries(ALL_COMPANIES).forEach(([sid, name]) => {
+    const checked = currentIds.includes(sid);
+    container.innerHTML += `<label style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      <input type="checkbox" value="${sid}" ${checked ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--brand)">
+      <span style="font-size:13px;font-weight:500">${name}</span>
+      <span style="font-size:11px;color:var(--text-4);margin-left:auto">${sid}</span>
+    </label>`;
+  });
+  document.getElementById('modal-companies').style.display = 'flex';
+}
+
+function closeCompaniesModal() {
+  document.getElementById('modal-companies').style.display = 'none';
+  _editingUserId = null;
+}
+
+async function deleteInvite(id, name) {
+  if (!confirm(`Excluir convite de "${name}"? Esta ação não pode ser desfeita.`)) return;
+  const res = await fetch('/admin/users/' + id, { method: 'DELETE' });
+  const data = await res.json();
+  if (data.ok) location.reload();
+  else alert(data.error || 'Erro ao excluir convite');
+}
+
+async function resendInvite(id, btn) {
+  btn.disabled = true;
+  btn.style.opacity = '0.5';
+  const res = await fetch('/admin/users/' + id + '/resend-invite', { method: 'POST' });
+  const data = await res.json();
+  btn.disabled = false;
+  btn.style.opacity = '';
+  if (data.ok) {
+    const msg = data.emailSent ? 'Email reenviado com sucesso!' : 'Email não configurado. Link: ' + data.inviteLink;
+    alert(msg);
+  } else alert(data.error || 'Erro ao reenviar convite');
+}
+
+function openPasswordModal(id, name) {
+  document.getElementById('modal-pass-title').textContent = 'Alterar senha de ' + name;
+  document.getElementById('modal-pass-input').value = '';
+  document.getElementById('modal-pass-confirm').value = '';
+  document.getElementById('modal-pass-error').textContent = '';
+  document.getElementById('modal-password').style.display = 'flex';
+  document.getElementById('modal-password').dataset.userId = id;
+}
+
+function closePasswordModal() {
+  document.getElementById('modal-password').style.display = 'none';
+}
+
+async function savePassword() {
+  const id = document.getElementById('modal-password').dataset.userId;
+  const pass = document.getElementById('modal-pass-input').value;
+  const confirm = document.getElementById('modal-pass-confirm').value;
+  const errEl = document.getElementById('modal-pass-error');
+
+  if (pass.length < 6) { errEl.textContent = 'Mínimo 6 caracteres'; return; }
+  if (pass !== confirm) { errEl.textContent = 'As senhas não coincidem'; return; }
+
+  const btn = document.getElementById('modal-pass-save');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  const res = await fetch('/admin/users/' + id + '/password', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pass }),
+  });
+  const data = await res.json();
+  btn.disabled = false; btn.textContent = 'Salvar';
+  if (data.ok) { closePasswordModal(); alert('Senha alterada com sucesso!'); }
+  else errEl.textContent = data.error || 'Erro ao alterar senha';
+}
+
+async function saveCompanies() {
+  const checks = document.querySelectorAll('#modal-companies-list input[type=checkbox]:checked');
+  const seller_ids = Array.from(checks).map(c => c.value);
+  const res = await fetch('/admin/users/' + _editingUserId + '/companies', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seller_ids }),
+  });
+  const data = await res.json();
+  if (data.ok) { closeCompaniesModal(); location.reload(); }
+  else alert(data.error || 'Erro ao salvar empresas');
+}
+
+// Notificações
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+function toggleNotifs() { document.getElementById('notifDropdown').classList.toggle('open'); }
+async function loadNotifs() {}
+async function markAllRead() { if (!NOTIF_USER) return; await fetch('/api/notifications/read', { method: 'POST' }); }
+if (NOTIF_USER) { fetch('/api/notifications').then(r=>r.json()).then(({unread})=>{const b=document.getElementById('notifBadge');b.style.display=unread>0?'block':'none';b.textContent=unread}).catch(()=>{}); }
+document.addEventListener('click', e => { const dd=document.getElementById('notifDropdown'),btn=document.getElementById('notifBtn'); if(dd && btn && !dd.contains(e.target)&&!btn.contains(e.target)) dd.classList.remove('open'); });
+</script>
+<!-- Modal: Alterar senha -->
+<div id="modal-password" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="width:380px;max-width:94vw;padding:0;box-shadow:var(--shadow-lg)">
+    <div class="card-header" style="padding:16px 20px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <h3 id="modal-pass-title" style="font-size:14px">Alterar senha</h3>
+      <button onclick="closePasswordModal()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-3);font-size:18px;line-height:1">×</button>
+    </div>
+    <div class="card-body" style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+      <p style="font-size:12px;color:var(--text-4);margin:0">As senhas são armazenadas de forma criptografada e não podem ser visualizadas. Você pode definir uma nova senha para este usuário.</p>
+      <div class="form-group">
+        <label class="form-label">Nova senha</label>
+        <input id="modal-pass-input" type="password" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar senha</label>
+        <input id="modal-pass-confirm" type="password" class="form-input" placeholder="Repita a senha" autocomplete="new-password">
+      </div>
+      <p id="modal-pass-error" style="font-size:12px;color:var(--danger);margin:0"></p>
+    </div>
+    <div class="card-footer" style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="closePasswordModal()" class="btn btn-secondary">Cancelar</button>
+      <button id="modal-pass-save" onclick="savePassword()" class="btn btn-primary">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar empresas do terceiro -->
+<div id="modal-companies" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="width:420px;max-width:94vw;padding:0;box-shadow:var(--shadow-lg)">
+    <div class="card-header" style="padding:16px 20px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <h3 id="modal-companies-title" style="font-size:14px">Empresas</h3>
+      <button onclick="closeCompaniesModal()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-3);font-size:18px;line-height:1">×</button>
+    </div>
+    <div class="card-body" style="padding:16px 20px">
+      <p style="font-size:12px;color:var(--text-4);margin-bottom:12px">Selecione as empresas que este usuário poderá visualizar</p>
+      <div id="modal-companies-list"></div>
+    </div>
+    <div class="card-footer" style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="closeCompaniesModal()" class="btn btn-secondary">Cancelar</button>
+      <button onclick="saveCompanies()" class="btn btn-primary">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/ai-chat') %>
+</body>
+</html>

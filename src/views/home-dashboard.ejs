@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — payt Suporte</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    @media print {
+      .no-print, .sidebar, .topbar, #ai-chat-container { display: none !important; }
+      .main { margin: 0 !important; padding: 0 !important; }
+      .app { display: block !important; }
+      .page { padding: 12px !important; }
+      body { background: #fff !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'dashboard' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Dashboard', breadcrumb: [{ label: 'Paytcall', href: '/dashboard' }, { label: 'Dashboard' }] }) %>
+
+    <div class="page">
+
+      <!-- Saudação -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px">
+        <h1 style="font-family:'Calistoga',serif;font-size:26px;font-weight:400;color:var(--text);letter-spacing:-0.01em;line-height:1.1">
+          <span id="greeting-text">Olá</span>, <%= typeof currentUser !== 'undefined' ? currentUser.name : '' %>!
+        </h1>
+        <button onclick="window.print()" class="btn btn-ghost btn-sm no-print" style="display:flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Baixar PDF
+        </button>
+      </div>
+      <script>
+        (function() {
+          const h = new Date().getHours();
+          const g = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+          document.getElementById('greeting-text').textContent = g;
+        })();
+      </script>
+
+      <%
+        const fq = typeof filters !== 'undefined' ? filters : {};
+        const fqs = [
+          fq.seller_id  ? 'seller_id='  + encodeURIComponent(fq.seller_id)  : '',
+          fq.date_from  ? 'paid_at_from=' + encodeURIComponent(fq.date_from) : '',
+          fq.date_to    ? 'paid_at_to='   + encodeURIComponent(fq.date_to)   : '',
+        ].filter(Boolean).join('&');
+        const fqp = fqs ? '&' + fqs : '';
+      %>
+      <!-- Stat Cards -->
+      <div class="stats-grid">
+        <a href="/rastreios<%= fqs ? '?' + fqs : '' %>" class="stat-card" style="text-decoration:none;cursor:pointer;border-left:3px solid var(--brand)">
+          <div class="stat-label">Total de Pedidos</div>
+          <div class="stat-value" style="color:var(--brand)"><%= totalOrders.toLocaleString('pt-BR') %></div>
+        </a>
+        <a href="/rastreios<%= fqs ? '?' + fqs : '' %>" class="stat-card" style="text-decoration:none;cursor:pointer">
+          <div class="stat-label">Total de Envios</div>
+          <div class="stat-value" style="color:var(--gray-900)"><%= stats.total %></div>
+        </a>
+        <a href="/rastreios?status=delivered<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
+          <div class="stat-label">Entregues</div>
+          <div class="stat-value" style="color:var(--success)"><%= stats.delivered %></div>
+        </a>
+        <a href="/rastreios?status=forwarded<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
+          <div class="stat-label">Em Trânsito</div>
+          <div class="stat-value" style="color:var(--info)"><%= stats.in_transit %></div>
+        </a>
+        <a href="/rastreios?status=delivering<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
+          <div class="stat-label">Saiu p/ Entrega</div>
+          <div class="stat-value" style="color:var(--purple)"><%= stats.out_for_delivery %></div>
+        </a>
+        <a href="/rastreios?status=recipient_not_found<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
+          <div class="stat-label">Tentativa</div>
+          <div class="stat-value" style="color:var(--warning)"><%= stats.delivery_attempt %></div>
+        </a>
+        <a href="/rastreios?status=returned<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
+          <div class="stat-label">Devolvidos</div>
+          <div class="stat-value" style="color:var(--danger)"><%= stats.returned %></div>
+        </a>
+        <a href="/rastreios?status=waiting_client<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
+          <div class="stat-label">Ag. Retirada</div>
+          <div class="stat-value" style="color:#854d0e"><%= stats.waiting_client %></div>
+        </a>
+        <a href="/rastreios?status=tracking_delayed<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
+          <div class="stat-label">Em Atraso</div>
+          <div class="stat-value" style="color:var(--danger)"><%= stats.tracking_delayed || 0 %></div>
+        </a>
+      </div>
+
+      <!-- Filtros da dashboard -->
+      <form method="GET" action="/dashboard" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+        <select name="seller_id" class="form-select" style="font-size:13px;padding:6px 10px;min-width:160px" onchange="this.form.submit()">
+          <option value="">Todas as empresas</option>
+          <% (typeof companies !== 'undefined' ? companies : []).forEach(c => { %>
+            <option value="<%= c.seller_id %>" <%= (typeof filters !== 'undefined' && filters.seller_id === c.seller_id) ? 'selected' : '' %>><%= c.company_name || c.seller_id %></option>
+          <% }) %>
+        </select>
+        <div style="display:flex;align-items:center;gap:4px">
+          <input type="date" name="date_from" value="<%= (typeof filters !== 'undefined' && filters.date_from) ? filters.date_from : '' %>" class="form-input" style="font-size:13px;padding:6px 9px;width:140px" onchange="applyDashDateRange(this.form)">
+          <span style="font-size:12px;color:var(--text-3)">até</span>
+          <input type="date" name="date_to" value="<%= (typeof filters !== 'undefined' && filters.date_to) ? filters.date_to : '' %>" class="form-input" style="font-size:13px;padding:6px 9px;width:140px" onchange="applyDashDateRange(this.form)">
+        </div>
+        <% if (typeof filters !== 'undefined' && (filters.seller_id || filters.date_from || filters.date_to)) { %>
+        <a href="/dashboard" class="btn btn-ghost btn-sm">Limpar</a>
+        <% } %>
+      </form>
+
+      <!-- Gráficos -->
+      <div class="grid-2" style="margin-bottom:22px">
+
+        <!-- Status Geral -->
+        <div class="card">
+          <div class="card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            <h3>Status Geral</h3>
+            <a href="/rastreios" class="btn btn-ghost btn-xs" style="margin-left:auto;font-size:11px">Ver rastreios →</a>
+          </div>
+          <div class="card-body" style="padding-bottom:12px">
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+              <div style="position:relative;width:100px;height:100px;flex-shrink:0">
+                <canvas id="chartStatus"></canvas>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px;flex:1">
+                <%
+                const statusItems = [
+                  { label: 'Entregues',    val: stats.delivered,        color: '#16a34a' },
+                  { label: 'Em Trânsito',  val: stats.in_transit,       color: '#2563eb' },
+                  { label: 'Saiu p/ent.',  val: stats.out_for_delivery,  color: '#7c3aed' },
+                  { label: 'Tentativa',    val: stats.delivery_attempt,  color: '#c2800a' },
+                  { label: 'Devolvidos',   val: stats.returned,          color: '#dc2626' },
+                  { label: 'Em atraso',    val: stats.tracking_delayed||0, color: '#e47c24' },
+                ];
+                %>
+                <% statusItems.forEach(item => { %>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="width:7px;height:7px;border-radius:99px;background:<%= item.color %>;flex-shrink:0"></span>
+                  <span style="font-size:11.5px;color:var(--text-3);flex:1"><%= item.label %></span>
+                  <span style="font-size:11.5px;font-weight:600;color:var(--text)"><%= (item.val||0).toLocaleString('pt-BR') %></span>
+                </div>
+                <% }) %>
+              </div>
+            </div>
+            <div style="border-top:1px solid var(--border);padding-top:10px">
+              <div style="font-size:10.5px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Tickets</div>
+              <% if (typeof ticketStats !== 'undefined' && ticketStats) { %>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+                <div style="background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:6px;padding:6px 8px;text-align:center">
+                  <div style="font-size:16px;font-weight:700;color:var(--warning)"><%= ticketStats.open %></div>
+                  <div style="font-size:10px;color:var(--text-3)">Abertos</div>
+                </div>
+                <div style="background:var(--info-bg);border:1px solid var(--info-border);border-radius:6px;padding:6px 8px;text-align:center">
+                  <div style="font-size:16px;font-weight:700;color:var(--info)"><%= ticketStats.in_progress %></div>
+                  <div style="font-size:10px;color:var(--text-3)">Em andamento</div>
+                </div>
+                <div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:6px;padding:6px 8px;text-align:center">
+                  <div style="font-size:16px;font-weight:700;color:var(--danger)"><%= ticketStats.sla_expired %></div>
+                  <div style="font-size:10px;color:var(--text-3)">SLA vencido</div>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+                <span style="font-size:11.5px;color:var(--text-3)">Retenção: <strong style="color:var(--text)"><%= ticketStats.retencao %></strong></span>
+                <span style="font-size:11.5px;color:var(--text-3)">Logística: <strong style="color:var(--text)"><%= ticketStats.logistica %></strong></span>
+                <a href="/relatorios/tickets" style="font-size:11px;color:var(--brand)">Ver todos →</a>
+              </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pedidos ao longo do tempo -->
+        <div class="card">
+          <div class="card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <h3>Pedidos por Dia</h3>
+            <span style="margin-left:auto;font-size:11px;color:var(--text-3)"><%= typeof filters !== 'undefined' && filters.date_from ? filters.date_from + ' → ' + (filters.date_to || 'hoje') : 'últimos 30 dias' %></span>
+          </div>
+          <div class="card-body" style="padding-top:8px">
+            <canvas id="chartTimeSeries" height="70"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid 2 colunas: Tickets por Tipo + Rastreamento -->
+      <div class="grid-2" style="margin-bottom:24px">
+
+        <!-- Tickets por Tipo -->
+        <div class="card">
+          <div class="card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <h3>Tickets por Tipo</h3>
+            <a href="/relatorios/tickets" class="btn btn-ghost btn-xs" style="margin-left:auto">Ver todos</a>
+          </div>
+          <div class="card-body" style="padding-top:8px">
+            <canvas id="chartTickets" height="80"></canvas>
+          </div>
+        </div>
+
+        <!-- Rastreamento -->
+        <div class="card">
+          <div class="card-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <h3>Rastreamento</h3>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-muted">Última consulta</span>
+                <span class="fw-600"><%= lastLog ? lastLog.ran_at_fmt : '—' %></span>
+              </div>
+              <% if (lastLog) { %>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-muted">Atualizados</span>
+                <span class="badge badge-success"><%= lastLog.updated %></span>
+              </div>
+              <% if (lastLog.promoted > 0) { %>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-muted">Promovidos</span>
+                <span class="badge badge-purple"><%= lastLog.promoted %></span>
+              </div>
+              <% } %>
+              <% if (lastLog.errors > 0) { %>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-muted">Erros</span>
+                <span class="badge badge-danger"><%= lastLog.errors %></span>
+              </div>
+              <% } %>
+              <% } %>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-muted">Próxima janela</span>
+                <span class="fw-600"><%= nextWindow %></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="text-muted">Ag. rastreio</span>
+                <span class="badge badge-info"><%= pendingCount.toLocaleString('pt-BR') %></span>
+              </div>
+            </div>
+            <div style="margin-top:16px;display:flex;justify-content:flex-end">
+              <button class="btn btn-primary btn-sm" onclick="refreshAll()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                Atualizar agora
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function applyDashDateRange(form) {
+  const from = form.date_from?.value;
+  const to = form.date_to?.value;
+  if (from && to) form.submit();
+}
+
+const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
+
+function toggleNotifs() {
+  const dd = document.getElementById('notifDropdown');
+  dd.classList.toggle('open');
+  if (dd.classList.contains('open') && NOTIF_USER) loadNotifs();
+}
+
+async function loadNotifs() {
+  if (!NOTIF_USER) return;
+  try {
+    const r = await fetch('/api/notifications');
+    const { notifications, unread } = await r.json();
+    const badge = document.getElementById('notifBadge');
+    badge.style.display = unread > 0 ? 'block' : 'none';
+    badge.textContent = unread;
+    const list = document.getElementById('notifList');
+    if (!notifications.length) {
+      list.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:24px;font-size:13px">Nenhuma notificação</div>';
+      return;
+    }
+    list.innerHTML = notifications.map(n => {
+      const date = new Date(n.created_at).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      return '<a href="/shipment/' + (n.tracking_code||'') + '" class="notif-item' + (n.is_read ? '' : ' unread') + '">'
+        + '<div style="font-size:13px;color:var(--gray-700)">' + n.message + '</div>'
+        + '<div style="font-size:11px;color:var(--gray-400);margin-top:2px">' + date + '</div></a>';
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function markAllRead() {
+  if (!NOTIF_USER) return;
+  await fetch('/api/notifications/read', { method: 'POST' });
+  loadNotifs();
+}
+
+// Charts
+(function() {
+  const isDark = document.documentElement.classList.contains('dark');
+  const textColor = isDark ? '#a8a8a8' : '#8a7a6a';
+  const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.05)';
+
+  // Donut — status dos envios
+  const ctxStatus = document.getElementById('chartStatus');
+  if (ctxStatus) {
+    new Chart(ctxStatus, {
+      type: 'doughnut',
+      data: {
+        labels: ['Entregues','Em Trânsito','Saiu p/ent.','Tentativa','Devolvidos','Em atraso'],
+        datasets: [{
+          data: [
+            <%= stats.delivered||0 %>,
+            <%= stats.in_transit||0 %>,
+            <%= stats.out_for_delivery||0 %>,
+            <%= stats.delivery_attempt||0 %>,
+            <%= stats.returned||0 %>,
+            <%= stats.tracking_delayed||0 %>
+          ],
+          backgroundColor: ['#16a34a','#2563eb','#7c3aed','#c2800a','#dc2626','#e47c24'],
+          borderWidth: 0,
+          hoverOffset: 4,
+        }]
+      },
+      options: {
+        cutout: '70%',
+        plugins: { legend: { display: false }, tooltip: { callbacks: {
+          label: (ctx) => ' ' + ctx.label + ': ' + ctx.parsed.toLocaleString('pt-BR')
+        }}},
+        animation: { duration: 400 }
+      }
+    });
+  }
+
+  // Line — pedidos por dia (por empresa)
+  const ctxTS = document.getElementById('chartTimeSeries');
+  if (ctxTS) {
+    <%
+    const tsObj = typeof timeSeries !== 'undefined' ? timeSeries : { labels: [], byCompany: {} };
+    const tsLabels = tsObj.labels || [];
+    const tsCompanies = Object.entries(tsObj.byCompany || {});
+    const COMPANY_COLORS = [
+      { border: '#e47c24', bg: 'rgba(228,124,36,.08)' },
+      { border: '#2563eb', bg: 'rgba(37,99,235,.07)' },
+      { border: '#16a34a', bg: 'rgba(22,163,74,.07)' },
+      { border: '#7c3aed', bg: 'rgba(124,58,237,.07)' },
+      { border: '#dc2626', bg: 'rgba(220,38,38,.07)' },
+      { border: '#c2800a', bg: 'rgba(194,128,10,.07)' },
+    ];
+    %>
+    new Chart(ctxTS, {
+      type: 'line',
+      data: {
+        labels: <%- JSON.stringify(tsLabels) %>,
+        datasets: [
+          <% tsCompanies.forEach(([name, co], i) => { %>
+          {
+            label: '<%= name %>',
+            data: <%- JSON.stringify(co.values || []) %>,
+            borderColor: '<%= COMPANY_COLORS[i % COMPANY_COLORS.length].border %>',
+            backgroundColor: '<%= COMPANY_COLORS[i % COMPANY_COLORS.length].bg %>',
+            pointBackgroundColor: '<%= COMPANY_COLORS[i % COMPANY_COLORS.length].border %>',
+            pointRadius: <%= tsLabels.length > 20 ? 0 : 3 %>,
+            pointHoverRadius: 5,
+            tension: 0.4,
+            fill: <%= tsCompanies.length === 1 ? 'true' : 'false' %>,
+            borderWidth: 2,
+          },
+          <% }) %>
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: <%= tsCompanies.length > 1 ? 'true' : 'false' %>, position: 'bottom', labels: { color: textColor, font: { size: 11 }, boxWidth: 10, padding: 12 } },
+          tooltip: { callbacks: { label: (ctx) => ' ' + ctx.dataset.label + ': ' + ctx.parsed.y + ' pedidos' } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: textColor, font: { size: 10 }, maxTicksLimit: 8, maxRotation: 0 } },
+          y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, precision: 0 }, beginAtZero: true }
+        },
+        animation: { duration: 400 }
+      }
+    });
+  }
+
+  // Bar — tickets por tipo e status
+  const ctxTickets = document.getElementById('chartTickets');
+  if (ctxTickets) {
+    <%
+    const tStats = typeof ticketStats !== 'undefined' && ticketStats ? ticketStats : { retencao: 0, logistica: 0, open: 0, in_progress: 0 };
+    %>
+    new Chart(ctxTickets, {
+      type: 'bar',
+      data: {
+        labels: ['Retenção','Logística','Abertos','Em Andamento','SLA Vencido'],
+        datasets: [{
+          data: [<%= tStats.retencao||0 %>, <%= tStats.logistica||0 %>, <%= tStats.open||0 %>, <%= tStats.in_progress||0 %>, <%= tStats.sla_expired||0 %>],
+          backgroundColor: ['#e47c24','#2563eb','#c2800a','#7c3aed','#dc2626'],
+          borderRadius: 5,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: {
+          label: (ctx) => ' ' + ctx.parsed.y + ' tickets'
+        }}},
+        scales: {
+          x: { grid: { display: false }, ticks: { color: textColor, font: { size: 11 } } },
+          y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 }, precision: 0 }, beginAtZero: true }
+        },
+        animation: { duration: 400 }
+      }
+    });
+  }
+})();
+
+// Toast system
+function showToast(msg, type = 'success') {
+  let t = document.getElementById('_toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = '_toast';
+    t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.18);transition:opacity .3s;white-space:nowrap;pointer-events:none';
+    document.body.appendChild(t);
+  }
+  const colors = { success: '#16a34a', error: '#dc2626', warning: '#c2800a' };
+  const icons  = { success: '✓', error: '✕', warning: '⚠' };
+  t.style.background = colors[type] || colors.success;
+  t.textContent = (icons[type] || '✓') + '  ' + msg;
+  t.style.opacity = '1';
+  clearTimeout(t._to);
+  t._to = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    let overlay = document.getElementById('_confirm');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = '_confirm';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99998;display:flex;align-items:center;justify-content:center';
+      overlay.innerHTML = '<div style="background:var(--surface,#fff);border-radius:12px;padding:24px 28px;max-width:360px;width:90%;box-shadow:0 20px 40px rgba(0,0,0,.15)"><p id="_cMsg" style="font-size:14px;font-weight:500;color:var(--text,#1a1410);margin-bottom:20px;line-height:1.5"></p><div style="display:flex;gap:10px;justify-content:flex-end"><button id="_cNo" style="padding:7px 16px;border-radius:6px;border:1px solid var(--border,#e0d8cc);background:var(--surface-2,#f7f3ee);color:var(--text-2,#4a3f35);font-size:13px;font-weight:600;cursor:pointer">Cancelar</button><button id="_cYes" style="padding:7px 16px;border-radius:6px;border:none;background:#e47c24;color:#fff;font-size:13px;font-weight:600;cursor:pointer">Confirmar</button></div></div>';
+      document.body.appendChild(overlay);
+    }
+    document.getElementById('_cMsg').textContent = msg;
+    overlay.style.display = 'flex';
+    const cleanup = (val) => { overlay.style.display = 'none'; resolve(val); };
+    document.getElementById('_cYes').onclick = () => cleanup(true);
+    document.getElementById('_cNo').onclick  = () => cleanup(false);
+  });
+}
+
+async function refreshAll() {
+  const ok = await showConfirm('Atualizar todos os envios ativos via H7?');
+  if (!ok) return;
+  showToast('Atualização iniciada…', 'warning');
+  fetch('/api/tracking/refresh', { method: 'POST' })
+    .then(() => showToast('H7 acionado com sucesso.'))
+    .catch(() => showToast('Erro ao acionar H7.', 'error'));
+}
+
+// Check unread on load
+if (NOTIF_USER) {
+  fetch('/api/notifications').then(r => r.json()).then(({ unread }) => {
+    const badge = document.getElementById('notifBadge');
+    badge.style.display = unread > 0 ? 'block' : 'none';
+    badge.textContent = unread;
+  }).catch(() => {});
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('notifDropdown');
+  const btn = document.getElementById('notifBtn');
+  if (!dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
+});
+</script>
+<%- include('partials/ai-chat') %>
+</body>
+</html>

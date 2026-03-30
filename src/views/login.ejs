@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar — Suporte Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Calistoga&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f2ee;
+      padding: 24px;
+    }
+
+    /* Subtle background texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(228,124,36,.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 85% 90%, rgba(228,124,36,.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 400px;
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid #e8e2da;
+      box-shadow: 0 4px 24px rgba(26,20,16,.07), 0 1px 4px rgba(26,20,16,.04);
+      padding: 40px 36px 32px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Brand */
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      background: #e47c24;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .brand-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: #1a1410;
+      letter-spacing: -.3px;
+      line-height: 1;
+    }
+
+    .brand-tag {
+      font-size: 10px;
+      font-weight: 600;
+      color: #a09080;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* Form heading */
+    .form-head {
+      margin-bottom: 24px;
+    }
+
+    .form-head h1 {
+      font-family: 'Calistoga', serif;
+      font-size: 22px;
+      font-weight: 400;
+      color: #1a1410;
+      letter-spacing: -.2px;
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+
+    .form-head p {
+      font-size: 13px;
+      color: #9a8a7a;
+    }
+
+    /* Error */
+    .error-msg {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 10px 13px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .error-msg svg { flex-shrink: 0; margin-top: 1px; }
+
+    /* Fields */
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #4a3f35;
+      margin-bottom: 5px;
+      letter-spacing: .1px;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1.5px solid #e0d8cc;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #1a1410;
+      background: #faf8f5;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+      outline: none;
+    }
+
+    .field input:focus {
+      border-color: #e47c24;
+      box-shadow: 0 0 0 3px rgba(228,124,36,.12);
+      background: #fff;
+    }
+
+    .field input::placeholder { color: #c0b4a8; }
+
+    /* Submit */
+    .btn-submit {
+      width: 100%;
+      padding: 11px;
+      background: #e47c24;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .15s, transform .1s, box-shadow .15s;
+      margin-top: 8px;
+      letter-spacing: -.1px;
+      box-shadow: 0 2px 8px rgba(228,124,36,.3);
+    }
+
+    .btn-submit:hover {
+      background: #c96a18;
+      box-shadow: 0 4px 12px rgba(228,124,36,.35);
+    }
+
+    .btn-submit:active { transform: scale(.99); }
+
+    /* Footer */
+    .card-footer {
+      text-align: center;
+      font-size: 11.5px;
+      color: #c0b4a8;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid #f0ece6;
+    }
+
+    @media (max-width: 480px) {
+      .card { padding: 32px 24px 28px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+
+    <div class="brand">
+      <div class="brand-icon">P</div>
+      <div>
+        <div class="brand-name">PAYTCALL</div>
+        <div class="brand-tag">Suporte</div>
+      </div>
+    </div>
+
+    <div class="form-head">
+      <h1>Bem-vindo de volta</h1>
+      <p>Entre com seus dados de acesso</p>
+    </div>
+
+    <% if (error) { %>
+    <div class="error-msg">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <%= error %>
+    </div>
+    <% } %>
+
+    <form method="POST" action="/login">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required autofocus placeholder="seu@email.com">
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input type="password" id="password" name="password" required placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn-submit">Entrar</button>
+    </form>
+
+    <div class="card-footer">Suporte Paytcall &copy; 2025</div>
+
+  </div>
+
+</body>
+</html>
