@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BI — Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'gestao-bi' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Relatório BI', breadcrumb: [
+      { label: 'Paytcall', href: '/dashboard' },
+      { label: 'BI' }
+    ] }) %>
+
+    <div class="page">
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Relatório BI</h1>
+          <p class="page-subtitle">Painel Power BI incorporado</p>
+        </div>
+      </div>
+
+      <% if (!embedUrl) { %>
+        <div class="card">
+          <div class="card-body" style="text-align:center;padding:60px 24px;color:var(--text-3)">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom:16px;opacity:.4"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <p style="font-size:15px;font-weight:500;color:var(--text-2);margin-bottom:6px">Painel não configurado</p>
+            <p style="font-size:13px;margin:0">Configure a URL do Power BI nas configurações do sistema gestão.</p>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="card" style="padding:0;overflow:hidden">
+          <iframe
+            src="<%= embedUrl %><%= pageName ? '&pageName=' + encodeURIComponent(pageName) : '' %>"
+            allowfullscreen
+            title="Painel Power BI"
+            style="border:none;width:100%;min-height:680px;display:block"
+          ></iframe>
+        </div>
+      <% } %>
+
+    </div><!-- /.page -->
+  </div><!-- /.main -->
+
+  <%- include('partials/ai-chat') %>
+</div>
+</body>
+</html>

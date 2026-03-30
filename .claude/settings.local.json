@@ -4,7 +4,9 @@
       "Bash(git init:*)",
       "Bash(git remote:*)",
       "Bash(git fetch:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(node -e \"require\\(''./src/app.js''\\); console.log\\(''OK''\\)\")",
+      "Bash(node -e \":*)"
     ]
   }
 }

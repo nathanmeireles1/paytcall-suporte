@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Empresas — Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'gestao-empresas' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Empresas', breadcrumb: [
+      { label: 'Paytcall', href: '/dashboard' },
+      { label: 'Empresas' }
+    ] }) %>
+
+    <div class="page">
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Empresas</h1>
+          <p class="page-subtitle">Parceiros e clientes cadastrados</p>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <form method="GET" action="/gestao/empresas" class="toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:20px">
+        <input
+          type="text"
+          name="search"
+          class="form-input"
+          placeholder="Buscar por nome..."
+          value="<%= filters.search %>"
+          style="flex:1;min-width:200px;max-width:320px"
+        >
+        <select name="segmento" class="form-select" style="min-width:160px">
+          <option value="">Todos os segmentos</option>
+          <% segmentos.forEach(s => { %>
+            <option value="<%= s %>" <%= filters.segmento === s ? 'selected' : '' %>><%= s %></option>
+          <% }) %>
+        </select>
+        <select name="status" class="form-select" style="min-width:140px">
+          <option value="">Todos os status</option>
+          <option value="Ativo"   <%= filters.status === 'Ativo'   ? 'selected' : '' %>>Ativo</option>
+          <option value="Inativo" <%= filters.status === 'Inativo' ? 'selected' : '' %>>Inativo</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <% if (filters.search || filters.segmento || filters.status) { %>
+          <a href="/gestao/empresas" class="btn btn-secondary">Limpar</a>
+        <% } %>
+      </form>
+
+      <!-- Contagem -->
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:12px">
+        <%= empresas.length %> empresa<%= empresas.length !== 1 ? 's' : '' %> encontrada<%= empresas.length !== 1 ? 's' : '' %>
+      </p>
+
+      <!-- Tabela -->
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Segmento</th>
+                <th>Status</th>
+                <th>Contato</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (empresas.length === 0) { %>
+              <tr>
+                <td colspan="5" style="text-align:center;color:var(--text-3);padding:32px">
+                  Nenhuma empresa encontrada
+                </td>
+              </tr>
+              <% } %>
+              <% empresas.forEach(e => { %>
+              <tr>
+                <td style="font-weight:500"><%= e.nome %></td>
+                <td>
+                  <% if (e.segmento) { %>
+                    <span class="badge badge-neutral"><%= e.segmento %></span>
+                  <% } else { %>
+                    <span style="color:var(--text-4)">—</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (e.status === 'Ativo' || e.status === 'ativo') { %>
+                    <span class="badge badge-success">Ativo</span>
+                  <% } else if (e.status) { %>
+                    <span class="badge badge-neutral"><%= e.status %></span>
+                  <% } else { %>
+                    <span style="color:var(--text-4)">—</span>
+                  <% } %>
+                </td>
+                <td style="color:var(--text-3);font-size:13px"><%= e.contato || e.email || '—' %></td>
+                <td style="text-align:right">
+                  <a href="/gestao/empresas/<%= e.id %>" class="btn btn-secondary btn-sm">Ver</a>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /.page -->
+  </div><!-- /.main -->
+
+  <%- include('partials/ai-chat') %>
+</div>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= nicho %> — Segmento — Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'gestao-segmentos' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: nicho, breadcrumb: [
+      { label: 'Paytcall', href: '/dashboard' },
+      { label: 'Segmentos', href: '/gestao/segmentos' },
+      { label: nicho }
+    ] }) %>
+
+    <div class="page">
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title"><%= nicho %></h1>
+          <p class="page-subtitle"><%= produtos.length %> produto<%= produtos.length !== 1 ? 's' : '' %> neste segmento</p>
+        </div>
+      </div>
+
+      <% if (produtos.length === 0) { %>
+        <div class="card">
+          <div class="card-body" style="text-align:center;color:var(--text-3);padding:40px">
+            Nenhum produto neste segmento
+          </div>
+        </div>
+      <% } else { %>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+          <% produtos.forEach(p => { %>
+          <a href="/gestao/produtos/<%= p.id %>" style="text-decoration:none">
+            <div class="card" style="padding:16px;cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='var(--shadow-md)'" onmouseleave="this.style.boxShadow=''">
+              <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px;line-height:1.3"><%= p.nome %></div>
+              <% if (p.sku) { %>
+                <div style="font-size:11px;color:var(--text-4);margin-bottom:6px">SKU: <%= p.sku %></div>
+              <% } %>
+              <% if (p.descricao) { %>
+                <p style="font-size:12px;color:var(--text-3);margin:0;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">
+                  <%= p.descricao %>
+                </p>
+              <% } %>
+            </div>
+          </a>
+          <% }) %>
+        </div>
+      <% } %>
+
+    </div><!-- /.page -->
+  </div><!-- /.main -->
+
+  <%- include('partials/ai-chat') %>
+</div>
+</body>
+</html>

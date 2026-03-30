@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= produto.nome %> — Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'gestao-produtos' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: produto.nome, breadcrumb: [
+      { label: 'Paytcall', href: '/dashboard' },
+      { label: 'Produtos', href: '/gestao/produtos' },
+      { label: produto.nome }
+    ] }) %>
+
+    <div class="page">
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title"><%= produto.nome %></h1>
+          <% if (produto.nicho) { %>
+            <p class="page-subtitle"><%= produto.nicho %></p>
+          <% } %>
+        </div>
+        <% if (produto.sku) { %>
+          <span class="badge badge-neutral" style="align-self:center">SKU: <%= produto.sku %></span>
+        <% } %>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+        <!-- Informações do produto -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <% if (produto.o_que_e) { %>
+          <div class="card">
+            <div class="card-header">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span style="font-weight:600;font-size:14px">O que é?</span>
+            </div>
+            <div class="card-body">
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0"><%= produto.o_que_e %></p>
+            </div>
+          </div>
+          <% } %>
+
+          <% if (produto.composicao) { %>
+          <div class="card">
+            <div class="card-header">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+              <span style="font-weight:600;font-size:14px">Composição</span>
+            </div>
+            <div class="card-body">
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0;white-space:pre-wrap"><%= produto.composicao %></p>
+            </div>
+          </div>
+          <% } %>
+
+          <% if (produto.como_funciona) { %>
+          <div class="card">
+            <div class="card-header">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span style="font-weight:600;font-size:14px">Como funciona?</span>
+            </div>
+            <div class="card-body">
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0;white-space:pre-wrap"><%= produto.como_funciona %></p>
+            </div>
+          </div>
+          <% } %>
+
+          <% if (produto.descricao) { %>
+          <div class="card">
+            <div class="card-header">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span style="font-weight:600;font-size:14px">Descrição</span>
+            </div>
+            <div class="card-body">
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0;white-space:pre-wrap"><%= produto.descricao %></p>
+            </div>
+          </div>
+          <% } %>
+
+        </div><!-- /col esquerda -->
+
+        <!-- Playbook: fotos e depoimentos -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <% if (fotos.length > 0) { %>
+          <div class="card">
+            <div class="card-header">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span style="font-weight:600;font-size:14px">Fotos (<%= fotos.length %>)</span>
+            </div>
+            <div class="card-body">
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
+                <% fotos.forEach(url => { %>
+                <a href="<%= url %>" target="_blank" rel="noopener">
+                  <img src="<%= url %>" alt="Foto do produto" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--radius);border:1px solid var(--border)">
+                </a>
+                <% }) %>
+              </div>
+            </div>
+          </div>
+          <% } %>
+
+          <% if (depoimentos.length > 0) { %>
+          <div class="card">
+            <div class="card-header">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+              <span style="font-weight:600;font-size:14px">Depoimentos (<%= depoimentos.length %>)</span>
+            </div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+              <% depoimentos.forEach(d => { %>
+                <% if (d.isVideo) { %>
+                  <video controls style="width:100%;border-radius:var(--radius);border:1px solid var(--border)">
+                    <source src="<%= d.url %>" type="video/mp4">
+                  </video>
+                <% } else { %>
+                  <a href="<%= d.url %>" target="_blank" rel="noopener">
+                    <img src="<%= d.url %>" alt="Depoimento" style="width:100%;border-radius:var(--radius);border:1px solid var(--border)">
+                  </a>
+                <% } %>
+              <% }) %>
+            </div>
+          </div>
+          <% } %>
+
+          <% if (fotos.length === 0 && depoimentos.length === 0) { %>
+          <div class="card">
+            <div class="card-body" style="text-align:center;color:var(--text-3);padding:32px;font-size:13px">
+              Nenhuma mídia de playbook disponível
+            </div>
+          </div>
+          <% } %>
+
+        </div><!-- /col direita -->
+
+      </div><!-- /grid -->
+
+    </div><!-- /.page -->
+  </div><!-- /.main -->
+
+  <%- include('partials/ai-chat') %>
+</div>
+</body>
+</html>

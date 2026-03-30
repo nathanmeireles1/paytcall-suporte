@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vendas — Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .period-btn {
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: var(--text-3);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .period-btn.active,
+    .period-btn:hover {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow-xs);
+    }
+    .multiselect-wrap { position: relative; }
+    .multiselect-btn {
+      padding: 7px 12px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+      min-width: 140px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .multiselect-btn.has-selection { border-color: var(--brand); background: var(--brand-dim); color: var(--brand-dark); }
+    .multiselect-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 200;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      width: 240px;
+      display: none;
+    }
+    .multiselect-dropdown.open { display: block; }
+    .multiselect-search { padding: 8px; border-bottom: 1px solid var(--border); }
+    .multiselect-search input { width: 100%; box-sizing: border-box; }
+    .multiselect-list { max-height: 220px; overflow-y: auto; padding: 4px 0; }
+    .multiselect-item { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+    .multiselect-item:hover { background: var(--surface-2); }
+    .multiselect-footer { padding: 6px 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-3); }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; }
+    .kpi-label { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+    .kpi-value { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; }
+    .kpi-sub { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 900px) { .charts-grid, .tables-grid { grid-template-columns: 1fr; } }
+    #customRange { display: none; gap: 8px; align-items: center; }
+    #customRange.visible { display: flex; }
+    .loading-overlay { position: absolute; inset: 0; background: rgba(255,255,255,.6); display: flex; align-items: center; justify-content: center; border-radius: inherit; z-index: 10; }
+    html.dark .loading-overlay { background: rgba(0,0,0,.4); }
+    .spinner { width: 22px; height: 22px; border: 2px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .danger-text { color: var(--danger); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'gestao-vendas' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Vendas', breadcrumb: [
+      { label: 'Paytcall', href: '/dashboard' },
+      { label: 'Vendas' }
+    ] }) %>
+
+    <div class="page">
+
+      <div class="page-header" style="margin-bottom:16px">
+        <div>
+          <h1 class="page-title">Dashboard de Vendas</h1>
+          <p class="page-subtitle">Faturamento e métricas em tempo real</p>
+        </div>
+      </div>
+
+      <!-- Barra de filtros -->
+      <div class="card" style="padding:14px 16px;margin-bottom:16px">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+
+          <!-- Período -->
+          <div style="display:flex;gap:4px;background:var(--surface-2);border-radius:var(--radius-md);padding:3px">
+            <% [['7d','7 dias'],['30d','30 dias'],['90d','90 dias'],['12m','12 meses'],['all','Tudo'],['custom','Período']].forEach(([val,lbl]) => { %>
+              <button class="period-btn <%= val === '30d' ? 'active' : '' %>" data-period="<%= val %>" onclick="setPeriod('<%= val %>')"><%= lbl %></button>
+            <% }) %>
+          </div>
+
+          <!-- Período customizado -->
+          <div id="customRange">
+            <input type="date" id="customFrom" class="form-input" style="width:140px" onchange="loadData()">
+            <span style="color:var(--text-3);font-size:13px">até</span>
+            <input type="date" id="customTo" class="form-input" style="width:140px" onchange="loadData()">
+          </div>
+
+          <!-- Equipe (somente admin) -->
+          <% if (isAdmin && equipes.length > 0) { %>
+          <select id="filterEquipe" class="form-select" style="min-width:140px" onchange="loadData()">
+            <option value="all">Todas as equipes</option>
+            <% equipes.forEach(eq => { %>
+              <option value="<%= eq %>"><%= eq %></option>
+            <% }) %>
+          </select>
+          <% } %>
+
+          <!-- Tipo de venda -->
+          <% if (tipos.length > 0) { %>
+          <select id="filterTipo" class="form-select" style="min-width:140px" onchange="loadData()">
+            <option value="all">Todos os tipos</option>
+            <% tipos.forEach(t => { %>
+              <option value="<%= t %>"><%= t %></option>
+            <% }) %>
+          </select>
+          <% } %>
+
+          <!-- MultiSelect: Empresas -->
+          <div class="multiselect-wrap" id="msEmpresasWrap">
+            <button type="button" class="multiselect-btn" id="msEmpresasBtn" onclick="toggleMs('msEmpresas')">
+              <span id="msEmpresasLabel">Todas Empresas</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="multiselect-dropdown" id="msEmpresasDropdown">
+              <div class="multiselect-search"><input type="text" class="form-input" placeholder="Buscar..." oninput="filterMs('msEmpresas', this.value)"></div>
+              <div class="multiselect-list" id="msEmpresasList">
+                <% empresas.forEach(e => { %>
+                  <label class="multiselect-item"><input type="checkbox" value="<%= e %>" onchange="updateMs('msEmpresas')"> <%= e %></label>
+                <% }) %>
+              </div>
+              <div class="multiselect-footer">
+                <span id="msEmpresasCount">0 selecionadas</span>
+                <button type="button" onclick="clearMs('msEmpresas')" style="background:none;border:none;color:var(--brand);cursor:pointer;font-size:11px;padding:0">Limpar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- MultiSelect: Produtos -->
+          <div class="multiselect-wrap" id="msProdutosWrap">
+            <button type="button" class="multiselect-btn" id="msProdutosBtn" onclick="toggleMs('msProdutos')">
+              <span id="msProdutosLabel">Todos Produtos</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="multiselect-dropdown" id="msProdutosDropdown">
+              <div class="multiselect-search"><input type="text" class="form-input" placeholder="Buscar..." oninput="filterMs('msProdutos', this.value)"></div>
+              <div class="multiselect-list" id="msProdutosList">
+                <% produtos.forEach(p => { %>
+                  <label class="multiselect-item"><input type="checkbox" value="<%= p %>" onchange="updateMs('msProdutos')"> <%= p %></label>
+                <% }) %>
+              </div>
+              <div class="multiselect-footer">
+                <span id="msProdutosCount">0 selecionados</span>
+                <button type="button" onclick="clearMs('msProdutos')" style="background:none;border:none;color:var(--brand);cursor:pointer;font-size:11px;padding:0">Limpar</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card"><div class="kpi-label">Faturamento</div><div class="kpi-value" id="kpiFaturamento">—</div><div class="kpi-sub" id="kpiTotalVendas">carregando...</div></div>
+        <div class="kpi-card"><div class="kpi-label">Ticket Médio</div><div class="kpi-value" id="kpiTicket">—</div><div class="kpi-sub">por venda paga</div></div>
+        <div class="kpi-card"><div class="kpi-label">Chargebacks</div><div class="kpi-value" id="kpiChargebacks">—</div><div class="kpi-sub" id="kpiTaxaCb">taxa: —</div></div>
+        <div class="kpi-card"><div class="kpi-label">Pix</div><div class="kpi-value" id="kpiPix">—</div><div class="kpi-sub" id="kpiCartao">Cartão: —</div></div>
+      </div>
+
+      <!-- Gráfico de área + tabela diária -->
+      <div class="charts-grid">
+        <div class="card" style="padding:0;position:relative">
+          <div class="card-header">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span style="font-weight:600;font-size:14px">Faturamento por Dia</span>
+          </div>
+          <div class="card-body">
+            <canvas id="chartDiario" height="180"></canvas>
+          </div>
+          <div class="loading-overlay" id="loadingChart"><div class="spinner"></div></div>
+        </div>
+
+        <div class="card" style="padding:0;position:relative">
+          <div class="card-header">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span style="font-weight:600;font-size:14px">Vendas por Dia</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--text-3)">mais recente primeiro</span>
+          </div>
+          <div class="table-wrap" style="max-height:280px;overflow-y:auto">
+            <table>
+              <thead>
+                <tr><th>Data</th><th style="text-align:right">Vendas</th><th style="text-align:right">Faturamento</th><th style="text-align:right">Ticket Médio</th></tr>
+              </thead>
+              <tbody id="tabelaDiaria">
+                <tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:24px">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="loading-overlay" id="loadingTabela"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Top Empresas + Top Produtos -->
+      <div class="tables-grid">
+        <div class="card" style="padding:0;position:relative">
+          <div class="card-header">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+            <span style="font-weight:600;font-size:14px">Top 10 Empresas</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--text-3)">por faturamento</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Empresa</th><th style="text-align:right">Vendas</th><th style="text-align:right">Faturamento</th></tr>
+              </thead>
+              <tbody id="topEmpresas">
+                <tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:24px">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="loading-overlay" id="loadingEmpresas"><div class="spinner"></div></div>
+        </div>
+
+        <div class="card" style="padding:0;position:relative">
+          <div class="card-header">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+            <span style="font-weight:600;font-size:14px">Top 10 Produtos</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--text-3)">por quantidade</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Produto</th><th style="text-align:right">Qtd</th><th style="text-align:right">Faturamento</th></tr>
+              </thead>
+              <tbody id="topProdutos">
+                <tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:24px">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="loading-overlay" id="loadingProdutos"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+    </div><!-- /.page -->
+  </div><!-- /.main -->
+
+  <%- include('partials/ai-chat') %>
+</div>
+
+<script>
+  // ── Estado ─────────────────────────────────────────────────────────────────
+  let currentPeriod = '30d';
+  let chartDiario = null;
+  let loadTimer = null;
+
+  // ── Helpers de formatação ───────────────────────────────────────────────────
+  function fmt(v) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v || 0);
+  }
+  function fmtN(v) {
+    return new Intl.NumberFormat('pt-BR').format(v || 0);
+  }
+  function fmtDate(s) {
+    // s = "YYYY-MM-DD"
+    if (!s) return '—';
+    const [y, m, d] = s.split('-');
+    return `${d}/${m}`;
+  }
+  function fmtDateFull(s) {
+    if (!s) return '—';
+    const [y, m, d] = s.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  // ── Período ─────────────────────────────────────────────────────────────────
+  function setPeriod(p) {
+    currentPeriod = p;
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.toggle('active', b.dataset.period === p));
+    document.getElementById('customRange').classList.toggle('visible', p === 'custom');
+    if (p !== 'custom') loadData();
+  }
+
+  // ── MultiSelect ─────────────────────────────────────────────────────────────
+  function toggleMs(id) {
+    const dd = document.getElementById(id + 'Dropdown');
+    dd.classList.toggle('open');
+  }
+  function filterMs(id, q) {
+    const list = document.getElementById(id + 'List');
+    const lower = q.toLowerCase();
+    list.querySelectorAll('.multiselect-item').forEach(el => {
+      el.style.display = el.textContent.toLowerCase().includes(lower) ? '' : 'none';
+    });
+  }
+  function updateMs(id) {
+    const list = document.getElementById(id + 'List');
+    const checked = [...list.querySelectorAll('input:checked')].map(i => i.value);
+    const btn = document.getElementById(id + 'Btn');
+    const label = document.getElementById(id + 'Label');
+    const count = document.getElementById(id + 'Count');
+    const isEmpresas = id === 'msEmpresas';
+    if (checked.length === 0) {
+      label.textContent = isEmpresas ? 'Todas Empresas' : 'Todos Produtos';
+      btn.classList.remove('has-selection');
+    } else if (checked.length === 1) {
+      label.textContent = checked[0].length > 20 ? checked[0].slice(0,18)+'…' : checked[0];
+      btn.classList.add('has-selection');
+    } else {
+      label.textContent = `${checked.length} ${isEmpresas ? 'empresas' : 'produtos'}`;
+      btn.classList.add('has-selection');
+    }
+    count.textContent = `${checked.length} selecionada${checked.length !== 1 ? 's' : ''}`;
+    loadData();
+  }
+  function clearMs(id) {
+    document.getElementById(id + 'List').querySelectorAll('input').forEach(i => i.checked = false);
+    updateMs(id);
+  }
+  function getMs(id) {
+    return [...document.getElementById(id + 'List').querySelectorAll('input:checked')].map(i => i.value);
+  }
+
+  // Fecha dropdown ao clicar fora
+  document.addEventListener('mousedown', e => {
+    ['msEmpresas','msProdutos'].forEach(id => {
+      const wrap = document.getElementById(id + 'Wrap');
+      if (wrap && !wrap.contains(e.target)) {
+        document.getElementById(id + 'Dropdown').classList.remove('open');
+      }
+    });
+  });
+
+  // ── Loading ─────────────────────────────────────────────────────────────────
+  function setLoading(on) {
+    ['Chart','Tabela','Empresas','Produtos'].forEach(id => {
+      const el = document.getElementById('loading' + id);
+      if (el) el.style.display = on ? 'flex' : 'none';
+    });
+  }
+
+  // ── Carga de dados ───────────────────────────────────────────────────────────
+  async function loadData() {
+    clearTimeout(loadTimer);
+    loadTimer = setTimeout(_load, 200);
+  }
+
+  async function _load() {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ period: currentPeriod });
+      if (currentPeriod === 'custom') {
+        params.set('dateFrom', document.getElementById('customFrom').value || '');
+        params.set('dateTo',   document.getElementById('customTo').value   || '');
+      }
+      const equipeEl = document.getElementById('filterEquipe');
+      if (equipeEl) params.set('equipe', equipeEl.value);
+      const tipoEl = document.getElementById('filterTipo');
+      if (tipoEl && tipoEl.value !== 'all') params.set('tipo', tipoEl.value);
+      const msE = getMs('msEmpresas');
+      if (msE.length) params.set('empresas', msE.join(','));
+      const msP = getMs('msProdutos');
+      if (msP.length) params.set('produtos', msP.join(','));
+
+      const r = await fetch('/gestao/api/vendas?' + params);
+      if (!r.ok) throw new Error('Erro ' + r.status);
+      const d = await r.json();
+
+      renderKpis(d.kpis);
+      renderChart(d.daily);
+      renderTabelaDiaria(d.daily);
+      renderTopEmpresas(d.topEmpresas);
+      renderTopProdutos(d.topProdutos);
+    } catch (err) {
+      console.error('[Vendas]', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Renderização ─────────────────────────────────────────────────────────────
+  function renderKpis(k) {
+    document.getElementById('kpiFaturamento').textContent = fmt(k.faturamento);
+    document.getElementById('kpiTotalVendas').textContent = `${fmtN(k.totalPaid)} vendas pagas`;
+    document.getElementById('kpiTicket').textContent = fmt(k.ticketMedio);
+    document.getElementById('kpiChargebacks').textContent = fmtN(k.chargebacks);
+    const taxaEl = document.getElementById('kpiTaxaCb');
+    taxaEl.textContent = `taxa: ${k.taxaCb.toFixed(1)}%`;
+    taxaEl.className = 'kpi-sub' + (k.taxaCb > 5 ? ' danger-text' : '');
+    document.getElementById('kpiPix').textContent = fmtN(k.pix);
+    document.getElementById('kpiCartao').textContent = `Cartão: ${fmtN(k.cartao)}`;
+  }
+
+  function renderChart(daily) {
+    const labels = daily.map(d => fmtDate(d.data));
+    const valores = daily.map(d => d.total);
+    const ctx = document.getElementById('chartDiario').getContext('2d');
+    if (chartDiario) chartDiario.destroy();
+    chartDiario = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Faturamento',
+          data: valores,
+          borderColor: '#e47c24',
+          backgroundColor: 'rgba(228,124,36,.1)',
+          borderWidth: 2,
+          pointRadius: daily.length > 60 ? 0 : 3,
+          fill: true,
+          tension: 0.3,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 12 } },
+          y: { ticks: { callback: v => `R$ ${(v/1000).toFixed(0)}k`, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,.05)' } },
+        },
+      },
+    });
+  }
+
+  function renderTabelaDiaria(daily) {
+    const tbody = document.getElementById('tabelaDiaria');
+    if (!daily.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:20px">Sem dados no período</td></tr>'; return; }
+    tbody.innerHTML = [...daily].reverse().map(d => `
+      <tr>
+        <td>${fmtDateFull(d.data)}</td>
+        <td style="text-align:right">${fmtN(d.count)}</td>
+        <td style="text-align:right;font-weight:500">${fmt(d.total)}</td>
+        <td style="text-align:right;color:var(--text-3)">${d.count ? fmt(d.total / d.count) : '—'}</td>
+      </tr>`).join('');
+  }
+
+  function renderTopEmpresas(top) {
+    const tbody = document.getElementById('topEmpresas');
+    if (!top.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:20px">Sem dados</td></tr>'; return; }
+    tbody.innerHTML = top.map((e, i) => `
+      <tr>
+        <td style="color:var(--text-4);width:28px">${i+1}</td>
+        <td style="font-weight:500">${e.label}</td>
+        <td style="text-align:right;color:var(--text-3)">${fmtN(e.qtd)}</td>
+        <td style="text-align:right;font-weight:600;color:var(--brand-dark)">${fmt(e.total)}</td>
+      </tr>`).join('');
+  }
+
+  function renderTopProdutos(top) {
+    const tbody = document.getElementById('topProdutos');
+    if (!top.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:20px">Sem dados</td></tr>'; return; }
+    tbody.innerHTML = top.map((p, i) => `
+      <tr>
+        <td style="color:var(--text-4);width:28px">${i+1}</td>
+        <td style="font-weight:500">${p.label}</td>
+        <td style="text-align:right;color:var(--text-3)">${fmtN(p.qtd)}</td>
+        <td style="text-align:right;font-weight:600;color:var(--brand-dark)">${fmt(p.total)}</td>
+      </tr>`).join('');
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  loadData();
+</script>
+</body>
+</html>

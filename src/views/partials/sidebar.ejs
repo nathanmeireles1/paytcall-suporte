@@ -69,6 +69,48 @@
       <% } %>
     </div>
 
+    <!-- Gestão -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Gestão</div>
+
+      <a href="/gestao/vendas" class="nav-item <%= _page === 'gestao-vendas' ? 'active' : '' %>">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </span>
+        Vendas
+      </a>
+
+      <a href="/gestao/empresas" class="nav-item <%= _page === 'gestao-empresas' ? 'active' : '' %>">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </span>
+        Empresas
+      </a>
+
+      <a href="/gestao/produtos" class="nav-item <%= _page === 'gestao-produtos' ? 'active' : '' %>">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        </span>
+        Produtos
+      </a>
+
+      <a href="/gestao/segmentos" class="nav-item <%= _page === 'gestao-segmentos' ? 'active' : '' %>">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </span>
+        Segmentos
+      </a>
+
+      <% if (_isAdmin) { %>
+      <a href="/gestao/bi" class="nav-item <%= _page === 'gestao-bi' ? 'active' : '' %>">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </span>
+        BI
+      </a>
+      <% } %>
+    </div>
+
     <!-- Relatórios -->
     <% if (canView('relatorio_cancelamentos') || canView('relatorio_logistica') || _isAdmin) { %>
     <div class="sidebar-section">
