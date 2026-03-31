@@ -53,6 +53,9 @@
               <span><strong style="font-size:18px;color:var(--danger)"><%= result.errors.toLocaleString('pt-BR') %></strong><br><span style="color:var(--text-3)">Erros</span></span>
               <% } %>
             </div>
+            <% if (result.firstError) { %>
+            <div style="margin-top:10px;font-size:12px;color:var(--danger);background:var(--surface-2);padding:8px 12px;border-radius:var(--radius);font-family:monospace"><%= result.firstError %></div>
+            <% } %>
           </div>
         </div>
         <% } %>

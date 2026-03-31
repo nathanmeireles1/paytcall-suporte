@@ -676,7 +676,7 @@ router.post('/vendas/import', requireHub, canEdit, upload.single('arquivo'), asy
     const uniqueRecords = Array.from(deduped.values());
 
     const BATCH = 500;
-    let inserted = 0, errors = 0;
+    let inserted = 0, errors = 0, firstError = null;
 
     for (let b = 0; b < uniqueRecords.length; b += BATCH) {
       const batch = uniqueRecords.slice(b, b + BATCH);
@@ -685,13 +685,16 @@ router.post('/vendas/import', requireHub, canEdit, upload.single('arquivo'), asy
         .upsert(batch, { onConflict: 'codigo', ignoreDuplicates: false })
         .select('codigo');
 
-      if (error) { errors += batch.length; console.error('[Import] Erro batch:', error.message); }
-      else { inserted += (data || []).length; }
+      if (error) {
+        errors += batch.length;
+        console.error('[Import] Erro batch:', error.message, error.details, error.hint);
+        if (errors === batch.length) firstError = error.message; // captura erro do 1º batch
+      } else { inserted += (data || []).length; }
     }
 
     res.render('gestao-vendas-import', {
       activePage: 'gestao-vendas',
-      result: { ok: true, total: dataRows.length, unique: uniqueRecords.length, inserted, errors, arquivo: req.file.originalname },
+      result: { ok: true, total: dataRows.length, unique: uniqueRecords.length, inserted, errors, firstError: firstError || null, arquivo: req.file.originalname },
     });
   } catch (err) {
     console.error('[Gestao/Import] Erro:', err.message);
