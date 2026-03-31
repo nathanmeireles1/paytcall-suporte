@@ -483,7 +483,7 @@ router.get('/api/vendas', async (req, res) => {
       p_produtos: produtosFiltro.length ? produtosFiltro : null,
       p_forma:    (forma && forma !== 'all') ? forma : null,
       p_fonte:    (vendedora && vendedora !== 'all') ? vendedora :
-                  (fonte && fonte !== 'all') ? fonte : null,
+                  (fonte    && fonte    !== 'all') ? fonte    : null,
     });
 
     if (error) return res.status(500).json({ error: error.message });
