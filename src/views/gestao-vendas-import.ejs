@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Importar Vendas — Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'gestao-vendas' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Importar Vendas', breadcrumb: [
+      { label: 'Paytcall', href: '/dashboard' },
+      { label: 'Vendas', href: '/gestao/vendas' },
+      { label: 'Importar Excel' }
+    ] }) %>
+
+    <div class="page">
+
+      <div class="p-page-header">
+        <div class="p-page-header-left">
+          <h1>Importar Vendas</h1>
+          <p class="p-subtitle">Carregue a planilha exportada do Airtable</p>
+        </div>
+        <div class="p-page-header-right">
+          <a href="/gestao/vendas" class="btn btn-secondary btn-sm">← Voltar</a>
+        </div>
+      </div>
+
+      <% if (result) { %>
+        <% if (result.error) { %>
+        <div class="card" style="border-left:4px solid var(--danger);margin-bottom:20px">
+          <div class="card-body" style="padding:16px 20px">
+            <div style="font-weight:600;color:var(--danger);margin-bottom:4px">Erro na importação</div>
+            <div style="font-size:13px;color:var(--text-3)"><%= result.error %></div>
+          </div>
+        </div>
+        <% } else { %>
+        <div class="card" style="border-left:4px solid var(--success);margin-bottom:20px">
+          <div class="card-body" style="padding:16px 20px">
+            <div style="font-weight:600;color:var(--success);margin-bottom:10px">✓ Importação concluída — <%= result.arquivo %></div>
+            <div style="display:flex;gap:24px;font-size:13px">
+              <span><strong style="font-size:18px;color:var(--text)"><%= result.total.toLocaleString('pt-BR') %></strong><br><span style="color:var(--text-3)">Linhas lidas</span></span>
+              <span><strong style="font-size:18px;color:var(--success)"><%= result.inserted.toLocaleString('pt-BR') %></strong><br><span style="color:var(--text-3)">Inseridas/atualizadas</span></span>
+              <% if (result.errors > 0) { %>
+              <span><strong style="font-size:18px;color:var(--danger)"><%= result.errors.toLocaleString('pt-BR') %></strong><br><span style="color:var(--text-3)">Erros</span></span>
+              <% } %>
+            </div>
+          </div>
+        </div>
+        <% } %>
+      <% } %>
+
+      <div class="card" style="max-width:560px">
+        <div class="card-header">
+          <span style="font-weight:600;font-size:14px">Selecionar arquivo</span>
+        </div>
+        <form method="POST" action="/gestao/vendas/import" enctype="multipart/form-data">
+          <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+
+            <div class="form-group">
+              <label class="form-label">Arquivo Excel (.xlsx)</label>
+              <input type="file" name="arquivo" accept=".xlsx,.xls" class="form-input" required id="file-input">
+              <span id="file-name" style="font-size:12px;color:var(--text-4);margin-top:4px"></span>
+            </div>
+
+            <div class="card" style="background:var(--surface-2);padding:12px 16px;border:1px solid var(--border)">
+              <div style="font-size:12px;color:var(--text-3);line-height:1.7">
+                <strong style="color:var(--text-2)">Como funciona:</strong><br>
+                • A planilha deve ser exportada do Airtable no formato <strong>.xlsx</strong><br>
+                • Colunas ausentes são ignoradas automaticamente<br>
+                • Registros existentes (mesmo <strong>Código</strong>) são atualizados<br>
+                • Registros novos são inseridos<br>
+                • Arquivos grandes (70k+ linhas) podem levar alguns segundos
+              </div>
+            </div>
+
+          </div>
+          <div class="card-footer" style="justify-content:flex-end;gap:8px">
+            <a href="/gestao/vendas" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary" id="submit-btn">Importar</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <%- include('partials/ai-chat') %>
+</div>
+
+<script>
+document.getElementById('file-input').addEventListener('change', function() {
+  const name = this.files[0]?.name || '';
+  document.getElementById('file-name').textContent = name;
+});
+document.querySelector('form').addEventListener('submit', function() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Importando...';
+});
+</script>
+</body>
+</html>

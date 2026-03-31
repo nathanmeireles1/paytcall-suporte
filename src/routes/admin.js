@@ -158,7 +158,8 @@ router.post('/users/:id/role', requireAuth, requirePermission('admin_usuarios', 
     if (!ROLES.includes(role)) {
       return res.status(400).json({ error: 'Papel inválido' });
     }
-    await db.from('user_profiles').update({ role, updated_at: new Date().toISOString() }).eq('id', req.params.id);
+    const { error } = await db.from('user_profiles').update({ role }).eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: error.message });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

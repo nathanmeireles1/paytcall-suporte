@@ -146,14 +146,17 @@
                     <td class="fw-600"><%= u.name %></td>
                     <td class="text-muted"><%= u.email %></td>
                     <td>
-                      <select onchange="changeRole('<%= u.id %>', this.value, this)" class="form-select" style="padding:3px 6px;font-size:12px;width:auto">
-                        <option value="admin"     <%= u.role==='admin'     ?'selected':'' %>>Admin</option>
-                        <option value="suporte"   <%= u.role==='suporte'   ?'selected':'' %>>Suporte</option>
-                        <option value="logistica" <%= u.role==='logistica' ?'selected':'' %>>Logística</option>
-                        <option value="retencao"  <%= u.role==='retencao'  ?'selected':'' %>>Retenção</option>
-                        <option value="usuario"   <%= u.role==='usuario'   ?'selected':'' %>>Usuário</option>
-                        <option value="terceiros" <%= u.role==='terceiros' ?'selected':'' %>>Terceiros</option>
-                      </select>
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <select id="role-sel-<%= u.id %>" class="form-select" style="padding:3px 6px;font-size:12px;width:auto">
+                          <option value="admin"     <%= u.role==='admin'     ?'selected':'' %>>Admin</option>
+                          <option value="suporte"   <%= u.role==='suporte'   ?'selected':'' %>>Suporte</option>
+                          <option value="logistica" <%= u.role==='logistica' ?'selected':'' %>>Logística</option>
+                          <option value="retencao"  <%= u.role==='retencao'  ?'selected':'' %>>Retenção</option>
+                          <option value="usuario"   <%= u.role==='usuario'   ?'selected':'' %>>Usuário</option>
+                          <option value="terceiros" <%= u.role==='terceiros' ?'selected':'' %>>Terceiros</option>
+                        </select>
+                        <button class="btn btn-sm btn-primary" onclick="changeRole('<%= u.id %>', this)">Salvar</button>
+                      </div>
                     </td>
                     <td>
                       <% if (!u.auth_id) { %>
@@ -448,16 +451,17 @@ document.getElementById('invite-form').addEventListener('submit', async (e) => {
 });
 
 function copyInvite() { navigator.clipboard.writeText(document.getElementById('invite-url').textContent).then(() => alert('Link copiado!')); }
-async function changeRole(id, role, selectEl) {
-  if (selectEl) { selectEl.disabled = true; selectEl.style.opacity = '0.6'; }
+async function changeRole(id, btn) {
+  const sel = document.getElementById('role-sel-' + id);
+  const role = sel.value;
+  btn.disabled = true; btn.textContent = '...';
   try {
     const res = await fetch('/admin/users/' + id + '/role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) });
     const data = await res.json();
-    if (!data.ok) { alert(data.error || 'Erro ao alterar papel'); }
+    if (data.ok) { btn.textContent = '✓'; setTimeout(() => { btn.textContent = 'Salvar'; btn.disabled = false; }, 1500); return; }
+    else { alert(data.error || 'Erro ao alterar papel'); }
   } catch (e) { alert('Erro de conexão'); }
-  finally {
-    if (selectEl) { selectEl.disabled = false; selectEl.style.opacity = ''; }
-  }
+  btn.disabled = false; btn.textContent = 'Salvar';
 }
 async function toggleUser(id, btn) { const res = await fetch('/admin/users/' + id + '/toggle', { method: 'POST' }); const data = await res.json(); if (data.ok) location.reload(); }
 

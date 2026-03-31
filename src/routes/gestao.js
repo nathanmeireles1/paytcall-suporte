@@ -556,4 +556,133 @@ router.get('/bi', requireHub, requireRole(['admin']), async (req, res) => {
   }
 });
 
+// ─── IMPORTADOR EXCEL / VENDAS ────────────────────────────────────────────────
+
+const multer  = require('multer');
+const XLSX    = require('xlsx');
+const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+// Mapa: nome da coluna Excel → campo na tabela vendas
+const COL_MAP = {
+  'Código':                        'codigo',
+  'Tipo Venda':                    'tipo_venda',
+  'Sku':                           'sku',
+  'Produto':                       'produto',
+  'Empresa':                       'empresa',
+  'Email':                         'email',
+  'Email formatado':               'email_formatado',
+  'Status Pagamento':              'status_pagamento',
+  'Valor sem juros':               'valor_sem_juros',
+  'Valor da Venda':                'valor_da_venda',
+  'f. Valor da Venda':             'f_valor_da_venda',
+  'Saldo da Venda':                'saldo_da_venda',
+  'f. Saldo da Venda':             'f_saldo_da_venda',
+  'Forma de Pagamento':            'forma_pagamento',
+  'Data de aprovação':             'data_aprovacao',
+  'Data de criação':               'data_criacao',
+  'Data de atualização':           'data_atualizacao',
+  'Data Airtable':                 'data_airtable',
+  'Email cliente':                 'email_cliente',
+  'Nome':                          'nome',
+  'Telefone':                      'telefone',
+  'Documento':                     'documento',
+  'Limpeza':                       'limpeza',
+  'Compra anterior recusada?':     'compra_anterior_recusada',
+  'Tem confirmação do cliente?':   'tem_confirmacao_cliente',
+  'Confirmou endereço?':           'confirmou_endereco',
+  'Status de auditoria':           'status_auditoria',
+  'Motivo da reprovação':          'motivo_reprovacao',
+  'Data de auditoria':             'data_auditoria',
+  'Data de solicitação':           'data_solicitacao',
+  'Data do reembolso':             'data_reembolso',
+  'Status de atendimento':         'status_atendimento',
+  'Status de entrega':             'status_entrega',
+  'Rastreio':                      'rastreio',
+  'Pedido suspenso':               'pedido_suspenso',
+  'Motivo do cancelamento':        'motivo_cancelamento',
+  'Observação do cancelamento':    'observacao_cancelamento',
+  'Data do cancelamento log':      'data_cancelamento_log',
+  'ID da NFe':                     'id_nfe',
+  'Status da NFe':                 'status_nfe',
+  'Observação do atendimento':     'observacao_atendimento',
+  'Tipo de cancelamento':          'tipo_cancelamento',
+};
+
+const DATE_FIELDS = new Set([
+  'data_aprovacao','data_criacao','data_atualizacao','data_airtable',
+  'data_auditoria','data_solicitacao','data_reembolso','data_cancelamento_log',
+]);
+
+function excelDateToISO(val) {
+  if (!val && val !== 0) return null;
+  if (typeof val === 'string') return val || null;
+  // Serial date do Excel → JS Date
+  const d = new Date((val - 25569) * 86400 * 1000);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().split('T')[0];
+}
+
+// GET /gestao/vendas/import
+router.get('/vendas/import', requireHub, canEdit, (req, res) => {
+  res.render('gestao-vendas-import', { activePage: 'gestao-vendas', result: null });
+});
+
+// POST /gestao/vendas/import
+router.post('/vendas/import', requireHub, canEdit, upload.single('arquivo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).render('gestao-vendas-import', { activePage: 'gestao-vendas', result: { error: 'Nenhum arquivo enviado.' } });
+
+    const wb   = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    if (rows.length < 2) return res.render('gestao-vendas-import', { activePage: 'gestao-vendas', result: { error: 'Planilha vazia ou sem dados.' } });
+
+    const headers = rows[0];
+    const dataRows = rows.slice(1).filter(r => r.some(c => c !== '' && c !== null));
+
+    // Mapeia colunas presentes na planilha
+    const colIndexes = {}; // dbField → index na planilha
+    headers.forEach((h, i) => {
+      const dbField = COL_MAP[h?.toString().trim()];
+      if (dbField) colIndexes[dbField] = i;
+    });
+
+    const BATCH = 500;
+    let inserted = 0, updated = 0, errors = 0;
+
+    for (let b = 0; b < dataRows.length; b += BATCH) {
+      const batch = dataRows.slice(b, b + BATCH).map(row => {
+        const rec = {};
+        for (const [field, idx] of Object.entries(colIndexes)) {
+          let val = row[idx];
+          if (val === '' || val === null || val === undefined) { rec[field] = null; continue; }
+          if (DATE_FIELDS.has(field)) { rec[field] = excelDateToISO(val); continue; }
+          if (typeof val === 'number' && ['valor_sem_juros','valor_da_venda','f_valor_da_venda','saldo_da_venda','f_saldo_da_venda'].includes(field)) {
+            rec[field] = val;
+          } else {
+            rec[field] = String(val).trim() || null;
+          }
+        }
+        return rec;
+      }).filter(r => r.codigo); // ignora linhas sem código
+
+      const { error, data } = await hub.from('vendas')
+        .upsert(batch, { onConflict: 'codigo', ignoreDuplicates: false })
+        .select('codigo');
+
+      if (error) { errors += batch.length; console.error('[Import] Erro batch:', error.message); }
+      else { inserted += (data || []).length; }
+    }
+
+    res.render('gestao-vendas-import', {
+      activePage: 'gestao-vendas',
+      result: { ok: true, total: dataRows.length, inserted, errors, arquivo: req.file.originalname },
+    });
+  } catch (err) {
+    console.error('[Gestao/Import] Erro:', err.message);
+    res.render('gestao-vendas-import', { activePage: 'gestao-vendas', result: { error: err.message } });
+  }
+});
+
 module.exports = router;
