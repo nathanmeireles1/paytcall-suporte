@@ -32,6 +32,7 @@ const FIELD_MAP = {
 };
 
 const DATE_FIELDS = new Set(['dt_aprovacao', 'dt_criacao', 'data_atualizacao']);
+const NUM_FIELDS  = new Set(['valor_venda', 'saldo_venda']);
 
 function mapRecord(fields) {
   const rec = { fonte: 'airtable' };
@@ -40,6 +41,9 @@ function mapRecord(fields) {
     if (val === undefined || val === null || val === '') { rec[dbField] = null; continue; }
     if (DATE_FIELDS.has(dbField)) {
       rec[dbField] = String(val).slice(0, 10) || null;
+    } else if (NUM_FIELDS.has(dbField)) {
+      const n = parseFloat(String(val).replace(',', '.'));
+      rec[dbField] = isNaN(n) ? null : n;
     } else if (typeof val === 'number') {
       rec[dbField] = val;
     } else {
