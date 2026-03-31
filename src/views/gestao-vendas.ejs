@@ -120,6 +120,17 @@
             <input type="date" id="customTo" class="form-input" style="width:140px" onchange="loadData()">
           </div>
 
+          <!-- Fonte (somente admin) -->
+          <% if (isAdmin) { %>
+          <select id="filterFonte" class="form-select" style="min-width:150px" onchange="loadData()">
+            <option value="all">Todas as fontes</option>
+            <option value="paytcall">Paytcall</option>
+            <% colaboradores.forEach(c => { %>
+              <option value="<%= c.email %>"><%= c.email.split('@')[0] %></option>
+            <% }) %>
+          </select>
+          <% } %>
+
           <!-- Equipe (somente admin) -->
           <% if (isAdmin && equipes.length > 0) { %>
           <select id="filterEquipe" class="form-select" style="min-width:140px" onchange="loadData()">
@@ -215,8 +226,8 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             <span style="font-weight:600;font-size:14px">Faturamento por Dia</span>
           </div>
-          <div class="card-body">
-            <canvas id="chartDiario" height="180"></canvas>
+          <div class="card-body" style="position:relative;height:220px">
+            <canvas id="chartDiario"></canvas>
           </div>
           <div class="loading-overlay" id="loadingChart"><div class="spinner"></div></div>
         </div>
@@ -402,6 +413,8 @@
       if (equipeEl) params.set('equipe', equipeEl.value);
       const tipoEl = document.getElementById('filterTipo');
       if (tipoEl && tipoEl.value !== 'all') params.set('tipo', tipoEl.value);
+      const fonteEl = document.getElementById('filterFonte');
+      if (fonteEl && fonteEl.value !== 'all') params.set('fonte', fonteEl.value);
       const formaEl = document.getElementById('filterForma');
       if (formaEl && formaEl.value !== 'all') params.set('forma', formaEl.value);
       const msE = getMs('msEmpresas');
@@ -460,6 +473,7 @@
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 12 } },
