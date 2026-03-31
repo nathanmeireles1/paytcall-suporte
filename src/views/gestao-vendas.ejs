@@ -146,11 +146,12 @@
             <option value="all">Todas as formas</option>
             <% formas.forEach(f => { %>
               <option value="<%= f %>"><%=
-                f === 'credit_card' ? 'Cartão de Crédito' :
-                f === 'debit_card'  ? 'Cartão de Débito'  :
-                f === 'pix'         ? 'PIX'               :
-                f === 'pix_cnpj'    ? 'PIX CNPJ'          :
-                f === 'boleto'      ? 'Boleto'             : f
+                f === 'credit_card'      ? 'Cartão de Crédito' :
+                f === 'debit_card'       ? 'Cartão de Débito'  :
+                f === 'pix'              ? 'PIX'               :
+                f === 'pix_cnpj'         ? 'PIX CNPJ'          :
+                f === 'boleto'           ? 'Boleto'            :
+                f === 'cash_on_delivery' ? 'Pag. na Entrega'   : f
               %></option>
             <% }) %>
           </select>
