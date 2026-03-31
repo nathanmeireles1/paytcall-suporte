@@ -427,7 +427,6 @@
 
   function selectFonte(value, label) {
     currentFonte = value;
-    if (value !== 'all') { currentVendedora = 'all'; document.getElementById('msVendedoraLabel').textContent = 'Vendedora'; document.getElementById('msVendedoraBtn').classList.remove('has-selection'); }
     document.getElementById('msFonteLabel').textContent = label;
     document.getElementById('msFonteBtn').classList.toggle('has-selection', value !== 'all');
     document.getElementById('msFonteDropdown').classList.remove('open');
@@ -436,7 +435,6 @@
 
   function selectVendedora(email, label) {
     currentVendedora = email;
-    if (email !== 'all') { currentFonte = 'all'; document.getElementById('msFonteLabel').textContent = 'Fonte'; document.getElementById('msFonteBtn').classList.remove('has-selection'); }
     document.getElementById('msVendedoraLabel').textContent = label;
     document.getElementById('msVendedoraBtn').classList.toggle('has-selection', email !== 'all');
     document.getElementById('msVendedoraDropdown').classList.remove('open');
