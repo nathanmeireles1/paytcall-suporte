@@ -469,25 +469,23 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     };
 
     const [
-      { data: kpiPaid, error: e1 },
+      { data: kpiPaid },
       { data: kpiCb },
       { data: formaPgto },
       { data: daily },
       { data: topEmpresas },
       { data: topProdutos },
     ] = await Promise.all([
-      applyFilters(hub.from('vendas').select('f_saldo_da_venda, id')).eq('status_pagamento', 'paid'),
+      applyFilters(hub.from('vendas').select('saldo_venda, id')).eq('status_pagamento', 'paid'),
       applyFilters(hub.from('vendas').select('id')).eq('status_pagamento', 'chargeback'),
       applyFilters(hub.from('vendas').select('forma_pagamento, id')).eq('status_pagamento', 'paid'),
-      applyFilters(hub.from('vendas').select('data_aprovacao, f_saldo_da_venda, id')).eq('status_pagamento', 'paid').order('data_aprovacao', { ascending: true }),
-      applyFilters(hub.from('vendas').select('empresa, f_saldo_da_venda, id')).eq('status_pagamento', 'paid').not('empresa', 'is', null),
-      applyFilters(hub.from('vendas').select('produto, f_saldo_da_venda, id')).eq('status_pagamento', 'paid').not('produto', 'is', null),
+      applyFilters(hub.from('vendas').select('data_aprovacao, saldo_venda, id')).eq('status_pagamento', 'paid').order('data_aprovacao', { ascending: true }),
+      applyFilters(hub.from('vendas').select('empresa, saldo_venda, id')).eq('status_pagamento', 'paid').not('empresa', 'is', null),
+      applyFilters(hub.from('vendas').select('produto, saldo_venda, id')).eq('status_pagamento', 'paid').not('produto', 'is', null),
     ]);
 
-    if (e1) return res.status(500).json({ error: e1.message + ' | hint: ' + (e1.hint || e1.details || '') });
-
     const totalPaid   = (kpiPaid || []).length;
-    const faturamento = (kpiPaid || []).reduce((s, v) => s + (v.f_saldo_da_venda || 0), 0);
+    const faturamento = (kpiPaid || []).reduce((s, v) => s + (v.saldo_venda || 0), 0);
     const ticketMedio = totalPaid ? faturamento / totalPaid : 0;
     const chargebacks = (kpiCb || []).length;
     const taxaCb = (totalPaid + chargebacks) ? (chargebacks / (totalPaid + chargebacks)) * 100 : 0;
@@ -499,7 +497,7 @@ router.get('/api/vendas', requireHub, async (req, res) => {
       const d = v.data_aprovacao?.slice(0, 10);
       if (!d) continue;
       if (!dailyMap[d]) dailyMap[d] = { data: d, total: 0, count: 0 };
-      dailyMap[d].total += v.f_saldo_da_venda || 0;
+      dailyMap[d].total += v.saldo_venda || 0;
       dailyMap[d].count += 1;
     }
     const dailyData = Object.values(dailyMap).sort((a, b) => a.data.localeCompare(b.data));
@@ -507,7 +505,7 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     const empMap = {};
     for (const v of (topEmpresas || [])) {
       if (!empMap[v.empresa]) empMap[v.empresa] = { label: v.empresa, total: 0, qtd: 0 };
-      empMap[v.empresa].total += v.f_saldo_da_venda || 0;
+      empMap[v.empresa].total += v.saldo_venda || 0;
       empMap[v.empresa].qtd  += 1;
     }
     const topEmpresasArr = Object.values(empMap).sort((a, b) => b.total - a.total).slice(0, 10);
@@ -515,7 +513,7 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     const prodMap = {};
     for (const v of (topProdutos || [])) {
       if (!prodMap[v.produto]) prodMap[v.produto] = { label: v.produto, total: 0, qtd: 0 };
-      prodMap[v.produto].total += v.f_saldo_da_venda || 0;
+      prodMap[v.produto].total += v.saldo_venda || 0;
       prodMap[v.produto].qtd  += 1;
     }
     const topProdutosArr = Object.values(prodMap).sort((a, b) => b.qtd - a.qtd).slice(0, 10);
@@ -578,7 +576,7 @@ const COL_MAP = {
   'Valor da Venda':                'valor_da_venda',
   'f. Valor da Venda':             'f_valor_da_venda',
   'Saldo da Venda':                'saldo_da_venda',
-  'f. Saldo da Venda':             'f_saldo_da_venda',
+  'f. Saldo da Venda':             'saldo_venda',
   'Forma de Pagamento':            'forma_pagamento',
   'Data de aprovação':             'data_aprovacao',
   'Data de criação':               'data_criacao',
@@ -663,7 +661,7 @@ router.post('/vendas/import', requireHub, canEdit, upload.single('arquivo'), asy
         let val = row[idx];
         if (val === '' || val === null || val === undefined) { rec[field] = null; continue; }
         if (DATE_FIELDS.has(field)) { rec[field] = excelDateToISO(val); continue; }
-        if (typeof val === 'number' && ['valor_sem_juros','valor_da_venda','f_valor_da_venda','saldo_da_venda','f_saldo_da_venda'].includes(field)) {
+        if (typeof val === 'number' && ['valor_sem_juros','valor_da_venda','f_valor_da_venda','saldo_da_venda','saldo_venda'].includes(field)) {
           rec[field] = val;
         } else {
           rec[field] = String(val).trim() || null;
