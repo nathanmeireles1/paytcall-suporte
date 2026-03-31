@@ -140,6 +140,16 @@
           </select>
           <% } %>
 
+          <!-- Forma de pagamento -->
+          <% if (formas.length > 0) { %>
+          <select id="filterForma" class="form-select" style="min-width:160px" onchange="loadData()">
+            <option value="all">Todas as formas</option>
+            <% formas.forEach(f => { %>
+              <option value="<%= f %>"><%= f === 'credit_card' ? 'Cartão' : f === 'pix' ? 'PIX' : f %></option>
+            <% }) %>
+          </select>
+          <% } %>
+
           <!-- MultiSelect: Empresas -->
           <div class="multiselect-wrap" id="msEmpresasWrap">
             <button type="button" class="multiselect-btn" id="msEmpresasBtn" onclick="toggleMs('msEmpresas')">
@@ -380,6 +390,8 @@
       if (equipeEl) params.set('equipe', equipeEl.value);
       const tipoEl = document.getElementById('filterTipo');
       if (tipoEl && tipoEl.value !== 'all') params.set('tipo', tipoEl.value);
+      const formaEl = document.getElementById('filterForma');
+      if (formaEl && formaEl.value !== 'all') params.set('forma', formaEl.value);
       const msE = getMs('msEmpresas');
       if (msE.length) params.set('empresas', msE.join(','));
       const msP = getMs('msProdutos');

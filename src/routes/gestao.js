@@ -392,19 +392,21 @@ router.get('/vendas', async (req, res) => {
     const user = req.user;
     const role = user.role;
 
-    const [{ data: tiposData }, { data: empresasData }, { data: produtosData }, { data: colaboradoresData }] = await Promise.all([
+    const [{ data: tiposData }, { data: empresasData }, { data: produtosData }, { data: colaboradoresData }, { data: formasData }] = await Promise.all([
       db.from('vendas').select('tipo_venda').not('tipo_venda', 'is', null).limit(2000),
       db.from('vendas').select('empresa').not('empresa', 'is', null).limit(2000),
       db.from('vendas').select('produto').not('produto', 'is', null).limit(2000),
       role === 'admin'
         ? db.from('vendas_colaboradores').select('equipe').eq('ativo', true)
         : Promise.resolve({ data: [] }),
+      db.from('vendas').select('forma_pagamento').not('forma_pagamento', 'is', null).limit(1000),
     ]);
 
     const tipos    = [...new Set((tiposData    || []).map(r => r.tipo_venda))].sort();
     const empresas = [...new Set((empresasData || []).map(r => r.empresa))].sort();
     const produtos = [...new Set((produtosData || []).map(r => r.produto))].sort();
     const equipes  = [...new Set((colaboradoresData || []).map(r => r.equipe).filter(Boolean))].sort();
+    const formas   = [...new Set((formasData   || []).map(r => r.forma_pagamento))].sort();
 
     res.render('gestao-vendas', {
       activePage: 'gestao-vendas',
@@ -412,6 +414,7 @@ router.get('/vendas', async (req, res) => {
       empresas,
       produtos,
       equipes,
+      formas,
       userRole: role,
       userEmail: user.email,
       isAdmin: role === 'admin',
@@ -425,7 +428,7 @@ router.get('/vendas', async (req, res) => {
 // GET /gestao/api/vendas — endpoint de dados para o dashboard (chamado via fetch)
 router.get('/api/vendas', async (req, res) => {
   try {
-    const { period, dateFrom, dateTo, equipe, tipo, empresas: empresasParam, produtos: produtosParam } = req.query;
+    const { period, dateFrom, dateTo, equipe, tipo, empresas: empresasParam, produtos: produtosParam, forma } = req.query;
     const user = req.user;
     const role = user.role;
 
@@ -466,6 +469,7 @@ router.get('/api/vendas', async (req, res) => {
       p_tipo:     (tipo && tipo !== 'all') ? tipo : null,
       p_empresas: empresasFiltro.length ? empresasFiltro : null,
       p_produtos: produtosFiltro.length ? produtosFiltro : null,
+      p_forma:    (forma && forma !== 'all') ? forma : null,
     });
 
     if (error) return res.status(500).json({ error: error.message });
