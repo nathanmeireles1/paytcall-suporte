@@ -21,8 +21,9 @@ router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req,
     const queueQuery = () => {
       let q = db.from('customer_queue').select('*', { count: 'exact', head: true });
       if (seller_id) q = q.eq('seller_id', seller_id);
-      if (date_from) q = q.gte('paid_at', date_from);
-      if (date_to)   q = q.lte('paid_at', date_to + 'T23:59:59Z');
+      // usa created_at como fallback: paid_at pode ser null em registros antigos
+      if (date_from) q = q.gte('created_at', date_from);
+      if (date_to)   q = q.lte('created_at', date_to + 'T23:59:59Z');
       return q.then(r => r.count || 0);
     };
 
@@ -30,7 +31,7 @@ router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req,
       Shipment.getStats({ seller_id: seller_id || null, date_from: date_from || null, date_to: date_to || null }),
       Shipment.getLastSchedulerLog(),
       Shipment.countPendingForRefresh(),
-      Shipment.getTicketStats(),
+      Shipment.getTicketStats({ seller_id: seller_id || null, date_from: date_from || null, date_to: date_to || null }),
       Shipment.getShipmentsPerDay({ sellerId: seller_id || null, dateFrom: date_from || null, dateTo: date_to || null }),
       Shipment.getCompanies(),
       queueQuery(),

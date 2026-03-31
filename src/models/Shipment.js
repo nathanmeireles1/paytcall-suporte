@@ -323,15 +323,23 @@ const Shipment = {
   },
 
   // --- Stats de Tickets (para dashboard) ---
-  async getTicketStats() {
+  async getTicketStats({ seller_id, date_from, date_to } = {}) {
     try {
-      // Usar count queries ao invés de SELECT * (evita o cap de 1000 linhas do PostgREST)
       const terminalList = '("Cancelado","Retido","Concluído")';
       const slaThreshold = new Date(Date.now() - 72 * 3600000).toISOString();
 
-      const base = () => db.from('tickets')
-        .select('*', { count: 'exact', head: true })
-        .not('status', 'in', terminalList);
+      // Se filtrar por empresa, faz join com shipments via tracking_code
+      const selectStr = seller_id ? 'tracking_code, status, tipo, created_at, shipments!inner(seller_id)' : 'tracking_code, status, tipo, created_at';
+
+      const base = () => {
+        let q = db.from('tickets')
+          .select(selectStr, { count: 'exact', head: true })
+          .not('status', 'in', terminalList);
+        if (seller_id) q = q.eq('shipments.seller_id', seller_id);
+        if (date_from) q = q.gte('created_at', date_from);
+        if (date_to)   q = q.lte('created_at', date_to + 'T23:59:59Z');
+        return q;
+      };
 
       const [openR, inProgressR, slaR, retenR, logisticaR] = await Promise.all([
         base().eq('status', 'Aberto'),

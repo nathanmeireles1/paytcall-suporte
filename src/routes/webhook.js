@@ -66,7 +66,7 @@ router.post('/', async (req, res) => {
   const orderId = body.transaction_id || null;
 
   const paidAt = body.status === 'paid'
-    ? (body.started_at || body.transaction?.created_at || body.updated_at || null)
+    ? (body.started_at || body.transaction?.created_at || body.updated_at || new Date().toISOString())
     : null;
 
   const parentOrderId = transaction.upsell_from || null;
@@ -113,7 +113,7 @@ router.post('/', async (req, res) => {
         tipo,
         payment_status: body.status,
         status_entrega: existing?.status || null,
-        data_compra:    body.started_at || body.transaction?.created_at || null,
+        data_compra:    body.started_at || body.transaction?.created_at || existing?.paid_at || new Date().toISOString(),
         seller_id:      body.seller_id || existing?.seller_id || null,
         seller_email:   body.seller_email || existing?.seller_email || null,
         company_name:   producer?.name || existing?.company_name || null,
