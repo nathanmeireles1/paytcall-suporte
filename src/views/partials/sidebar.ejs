@@ -19,7 +19,7 @@
   <!-- Brand -->
   <div class="sidebar-brand">
     <div class="brand-logo">
-      <span style="color:#fff;font-size:14px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;line-height:28px;display:block;text-align:center">S</span>
+      <span style="color:#fff;font-size:14px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;line-height:28px;display:block;text-align:center">O</span>
     </div>
     <div>
       <div class="brand-name">PAYTCALL</div>
@@ -88,6 +88,12 @@
       </a>
 
       <% if (_isAdmin) { %>
+      <a href="/gestao/colaboradores" class="nav-item <%= _page === 'gestao-colaboradores' ? 'active' : '' %>">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </span>
+        Colaboradores
+      </a>
       <a href="/gestao/bi" class="nav-item <%= _page === 'gestao-bi' ? 'active' : '' %>">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>

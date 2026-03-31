@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Colaboradores — Paytcall</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/global.css">
+</head>
+<body>
+<div class="app">
+
+  <%- include('partials/sidebar', { activePage: 'gestao-colaboradores' }) %>
+
+  <div class="main">
+    <%- include('partials/topbar', { pageTitle: 'Colaboradores', breadcrumb: [
+      { label: 'Paytcall', href: '/dashboard' },
+      { label: 'Colaboradores' }
+    ] }) %>
+
+    <div class="page">
+
+      <div class="p-page-header" style="margin-bottom:16px">
+        <div class="p-page-header-left">
+          <h1>Colaboradores</h1>
+          <p class="p-subtitle">Vendedoras ativas e inativas</p>
+        </div>
+        <div class="p-page-header-right">
+          <button class="btn btn-primary btn-sm" onclick="openModal()">+ Nova Vendedora</button>
+        </div>
+      </div>
+
+      <!-- Toolbar de busca -->
+      <div class="toolbar" style="margin-bottom:12px">
+        <input type="text" class="form-input" placeholder="Buscar por nome, email ou equipe..." id="searchInput" oninput="filterTable()" style="max-width:340px">
+        <select class="form-select" id="filterAtivo" onchange="filterTable()" style="width:140px">
+          <option value="">Todos</option>
+          <option value="true" selected>Ativos</option>
+          <option value="false">Inativos</option>
+        </select>
+      </div>
+
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table id="tabelaColaboradores">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Email / Src</th>
+                <th>Equipe</th>
+                <th>Região</th>
+                <th>Tipo de Venda</th>
+                <th>Status</th>
+                <th style="width:80px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% colaboradores.forEach(c => { %>
+              <tr data-nome="<%= (c.primeiro_nome || c.nome || '').toLowerCase() %>"
+                  data-email="<%= (c.email || '').toLowerCase() %>"
+                  data-equipe="<%= (c.equipe || '').toLowerCase() %>"
+                  data-ativo="<%= c.ativo %>">
+                <td>
+                  <div style="font-weight:500"><%= c.primeiro_nome || '—' %></div>
+                  <div style="font-size:11px;color:var(--text-3)"><%= c.nome || '' %></div>
+                </td>
+                <td>
+                  <div><%= c.email %></div>
+                  <div style="font-size:11px;color:var(--text-3)"><%= c.src || '' %></div>
+                </td>
+                <td><%= c.equipe || '—' %></td>
+                <td><%= c.regiao || '—' %></td>
+                <td><%= c.tipo_venda || '—' %></td>
+                <td>
+                  <span class="badge <%= c.ativo ? 'badge-success' : 'badge-neutral' %>">
+                    <%= c.ativo ? 'Ativo' : 'Inativo' %>
+                  </span>
+                </td>
+                <td>
+                  <button class="btn btn-secondary btn-sm" onclick='openEdit(<%= JSON.stringify(c) %>)'>Editar</button>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <%- include('partials/ai-chat') %>
+</div>
+
+<!-- Modal Nova Vendedora -->
+<div id="modalNova" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="width:480px;max-width:95vw">
+    <div class="card-header">
+      <span style="font-weight:600">Nova Vendedora</span>
+      <button onclick="closeModal()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-3);font-size:18px">×</button>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Email *</label>
+        <input type="email" class="form-input" id="novaEmail" placeholder="paytcallsc999@gmail.com">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Primeiro Nome</label>
+          <input type="text" class="form-input" id="novaPrimeiro" placeholder="Maria">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nome Completo</label>
+          <input type="text" class="form-input" id="novaNome" placeholder="Maria Silva">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Equipe</label>
+          <input type="text" class="form-input" id="novaEquipe" placeholder="Cristiane">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Região</label>
+          <input type="text" class="form-input" id="novaRegiao" placeholder="SC">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tipo de Venda</label>
+        <input type="text" class="form-input" id="novaTipo" placeholder="Venda principal">
+      </div>
+    </div>
+    <div class="card-footer" style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="salvarNova()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar -->
+<div id="modalEditar" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="width:480px;max-width:95vw">
+    <div class="card-header">
+      <span style="font-weight:600" id="modalEditarTitulo">Editar Vendedora</span>
+      <button onclick="closeEdit()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-3);font-size:18px">×</button>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+      <input type="hidden" id="editId">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Primeiro Nome</label>
+          <input type="text" class="form-input" id="editPrimeiro">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nome Completo</label>
+          <input type="text" class="form-input" id="editNome">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Equipe</label>
+          <input type="text" class="form-input" id="editEquipe">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Região</label>
+          <input type="text" class="form-input" id="editRegiao">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Tipo de Venda</label>
+          <input type="text" class="form-input" id="editTipo">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select" id="editAtivo">
+            <option value="true">Ativo</option>
+            <option value="false">Inativo</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer" style="display:flex;justify-content:space-between;align-items:center">
+      <button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="excluir()">Excluir</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="closeEdit()">Cancelar</button>
+        <button class="btn btn-primary btn-sm" onclick="salvarEdit()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function filterTable() {
+    const q     = document.getElementById('searchInput').value.toLowerCase();
+    const ativo = document.getElementById('filterAtivo').value;
+    document.querySelectorAll('#tabelaColaboradores tbody tr').forEach(tr => {
+      const matchQ = !q || tr.dataset.nome.includes(q) || tr.dataset.email.includes(q) || tr.dataset.equipe.includes(q);
+      const matchA = !ativo || tr.dataset.ativo === ativo;
+      tr.style.display = matchQ && matchA ? '' : 'none';
+    });
+  }
+
+  function openModal() {
+    ['novaEmail','novaPrimeiro','novaNome','novaEquipe','novaRegiao','novaTipo'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('modalNova').style.display = 'flex';
+  }
+  function closeModal() { document.getElementById('modalNova').style.display = 'none'; }
+
+  async function salvarNova() {
+    const email = document.getElementById('novaEmail').value.trim();
+    if (!email) { alert('Email obrigatório'); return; }
+    const r = await fetch('/gestao/colaboradores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        primeiro_nome: document.getElementById('novaPrimeiro').value,
+        nome:          document.getElementById('novaNome').value,
+        equipe:        document.getElementById('novaEquipe').value,
+        regiao:        document.getElementById('novaRegiao').value,
+        tipo_venda:    document.getElementById('novaTipo').value,
+      }),
+    });
+    const d = await r.json();
+    if (d.ok) location.reload();
+    else alert(d.error || 'Erro ao salvar');
+  }
+
+  function openEdit(c) {
+    document.getElementById('editId').value       = c.id;
+    document.getElementById('editPrimeiro').value = c.primeiro_nome || '';
+    document.getElementById('editNome').value     = c.nome || '';
+    document.getElementById('editEquipe').value   = c.equipe || '';
+    document.getElementById('editRegiao').value   = c.regiao || '';
+    document.getElementById('editTipo').value     = c.tipo_venda || '';
+    document.getElementById('editAtivo').value    = String(c.ativo);
+    document.getElementById('modalEditarTitulo').textContent = c.primeiro_nome || c.email;
+    document.getElementById('modalEditar').style.display = 'flex';
+  }
+  function closeEdit() { document.getElementById('modalEditar').style.display = 'none'; }
+
+  async function salvarEdit() {
+    const id = document.getElementById('editId').value;
+    const r = await fetch(`/gestao/colaboradores/${id}/editar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        primeiro_nome: document.getElementById('editPrimeiro').value,
+        nome:          document.getElementById('editNome').value,
+        equipe:        document.getElementById('editEquipe').value,
+        regiao:        document.getElementById('editRegiao').value,
+        tipo_venda:    document.getElementById('editTipo').value,
+        ativo:         document.getElementById('editAtivo').value,
+      }),
+    });
+    const d = await r.json();
+    if (d.ok) location.reload();
+    else alert(d.error || 'Erro ao salvar');
+  }
+
+  async function excluir() {
+    if (!confirm('Excluir esta vendedora?')) return;
+    const id = document.getElementById('editId').value;
+    const r = await fetch(`/gestao/colaboradores/${id}/excluir`, { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) location.reload();
+    else alert(d.error || 'Erro ao excluir');
+  }
+
+  filterTable();
+</script>
+</body>
+</html>
