@@ -392,21 +392,19 @@ router.get('/vendas', async (req, res) => {
     const user = req.user;
     const role = user.role;
 
-    const [{ data: tiposData }, { data: empresasData }, { data: produtosData }, { data: colaboradoresData }, { data: formasData }] = await Promise.all([
-      db.from('vendas').select('tipo_venda').not('tipo_venda', 'is', null).limit(2000),
-      db.from('vendas').select('empresa').not('empresa', 'is', null).limit(2000),
-      db.from('vendas').select('produto').not('produto', 'is', null).limit(2000),
+    const [{ data: filterOpts }, { data: colaboradoresData }] = await Promise.all([
+      db.rpc('get_vendas_filter_options'),
       role === 'admin'
         ? db.from('vendas_colaboradores').select('equipe').eq('ativo', true)
         : Promise.resolve({ data: [] }),
-      db.from('vendas').select('forma_pagamento').not('forma_pagamento', 'is', null).limit(1000),
     ]);
 
-    const tipos    = [...new Set((tiposData    || []).map(r => r.tipo_venda))].sort();
-    const empresas = [...new Set((empresasData || []).map(r => r.empresa))].sort();
-    const produtos = [...new Set((produtosData || []).map(r => r.produto))].sort();
+    const opts     = filterOpts || {};
+    const tipos    = (opts.tipos    || []).sort();
+    const empresas = (opts.empresas || []).sort();
+    const produtos = (opts.produtos || []).sort();
+    const formas   = (opts.formas   || []).sort();
     const equipes  = [...new Set((colaboradoresData || []).map(r => r.equipe).filter(Boolean))].sort();
-    const formas   = [...new Set((formasData   || []).map(r => r.forma_pagamento))].sort();
 
     res.render('gestao-vendas', {
       activePage: 'gestao-vendas',
