@@ -460,12 +460,12 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
 
     const applyFilters = (q) => {
-      q = q.gte('dt_aprovacao', fromStr).lte('dt_aprovacao', toStr);
+      q = q.gte('data_aprovacao', fromStr).lte('data_aprovacao', toStr);
       if (emailFilter)            q = q.in('email', emailFilter);
       if (tipo && tipo !== 'all') q = q.eq('tipo_venda', tipo);
       if (empresasFiltro.length)  q = q.in('empresa', empresasFiltro);
       if (produtosFiltro.length)  q = q.in('produto', produtosFiltro);
-      return q.range(0, 49999); // Supabase limita 1000 rows por padrão
+      return q.range(0, 99999);
     };
 
     const [
@@ -476,16 +476,16 @@ router.get('/api/vendas', requireHub, async (req, res) => {
       { data: topEmpresas },
       { data: topProdutos },
     ] = await Promise.all([
-      applyFilters(hub.from('vendas').select('valor_venda, id')).eq('status_pagamento', 'paid'),
+      applyFilters(hub.from('vendas').select('valor_da_venda, id')).eq('status_pagamento', 'paid'),
       applyFilters(hub.from('vendas').select('id')).eq('status_pagamento', 'chargeback'),
       applyFilters(hub.from('vendas').select('forma_pagamento, id')).eq('status_pagamento', 'paid'),
-      applyFilters(hub.from('vendas').select('dt_aprovacao, valor_venda, id')).eq('status_pagamento', 'paid').order('dt_aprovacao', { ascending: true }),
-      applyFilters(hub.from('vendas').select('empresa, valor_venda, id')).eq('status_pagamento', 'paid').not('empresa', 'is', null),
-      applyFilters(hub.from('vendas').select('produto, valor_venda, id')).eq('status_pagamento', 'paid').not('produto', 'is', null),
+      applyFilters(hub.from('vendas').select('data_aprovacao, valor_da_venda, id')).eq('status_pagamento', 'paid').order('data_aprovacao', { ascending: true }),
+      applyFilters(hub.from('vendas').select('empresa, valor_da_venda, id')).eq('status_pagamento', 'paid').not('empresa', 'is', null),
+      applyFilters(hub.from('vendas').select('produto, valor_da_venda, id')).eq('status_pagamento', 'paid').not('produto', 'is', null),
     ]);
 
     const totalPaid   = (kpiPaid || []).length;
-    const faturamento = (kpiPaid || []).reduce((s, v) => s + (v.valor_venda || 0), 0);
+    const faturamento = (kpiPaid || []).reduce((s, v) => s + (v.valor_da_venda || 0), 0);
     const ticketMedio = totalPaid ? faturamento / totalPaid : 0;
     const chargebacks = (kpiCb || []).length;
     const taxaCb = (totalPaid + chargebacks) ? (chargebacks / (totalPaid + chargebacks)) * 100 : 0;
@@ -494,10 +494,10 @@ router.get('/api/vendas', requireHub, async (req, res) => {
 
     const dailyMap = {};
     for (const v of (daily || [])) {
-      const d = v.dt_aprovacao?.slice(0, 10);
+      const d = v.data_aprovacao?.slice(0, 10);
       if (!d) continue;
       if (!dailyMap[d]) dailyMap[d] = { data: d, total: 0, count: 0 };
-      dailyMap[d].total += v.valor_venda || 0;
+      dailyMap[d].total += v.valor_da_venda || 0;
       dailyMap[d].count += 1;
     }
     const dailyData = Object.values(dailyMap).sort((a, b) => a.data.localeCompare(b.data));
@@ -505,7 +505,7 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     const empMap = {};
     for (const v of (topEmpresas || [])) {
       if (!empMap[v.empresa]) empMap[v.empresa] = { label: v.empresa, total: 0, qtd: 0 };
-      empMap[v.empresa].total += v.valor_venda || 0;
+      empMap[v.empresa].total += v.valor_da_venda || 0;
       empMap[v.empresa].qtd  += 1;
     }
     const topEmpresasArr = Object.values(empMap).sort((a, b) => b.total - a.total).slice(0, 10);
@@ -513,7 +513,7 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     const prodMap = {};
     for (const v of (topProdutos || [])) {
       if (!prodMap[v.produto]) prodMap[v.produto] = { label: v.produto, total: 0, qtd: 0 };
-      prodMap[v.produto].total += v.valor_venda || 0;
+      prodMap[v.produto].total += v.valor_da_venda || 0;
       prodMap[v.produto].qtd  += 1;
     }
     const topProdutosArr = Object.values(prodMap).sort((a, b) => b.qtd - a.qtd).slice(0, 10);
