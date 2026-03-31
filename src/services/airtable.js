@@ -55,19 +55,18 @@ async function fetchPages(params = {}) {
   let offset = null;
 
   do {
-    const url = new URL(BASE_URL);
+    // Monta URL manualmente para evitar encoding incorreto de fields[]
+    let urlStr = BASE_URL + '?pageSize=100';
     for (const [k, v] of Object.entries(params)) {
-      if (Array.isArray(v)) {
-        v.forEach(item => url.searchParams.append(`${k}[]`, item));
-      } else {
-        url.searchParams.set(k, v);
-      }
+      if (k === 'fields') continue; // campos: pega tudo, sem filtro
+      urlStr += `&${k}=${encodeURIComponent(v)}`;
     }
-    if (offset) url.searchParams.set('offset', offset);
+    if (offset) urlStr += `&offset=${encodeURIComponent(offset)}`;
 
-    const res  = await fetch(url.toString(), { headers });
-    const json = await res.json();
-    if (!res.ok) throw new Error(`Airtable API error: ${json.error?.message || res.status}`);
+    const res  = await fetch(urlStr, { headers });
+    const body = await res.text();
+    if (!res.ok) throw new Error(`Airtable API error: ${body.slice(0, 200)}`);
+    const json = JSON.parse(body);
 
     records.push(...(json.records || []));
     offset = json.offset || null;
@@ -111,7 +110,7 @@ async function syncIncremental(minutes = 10) {
   try {
     const since = new Date(Date.now() - minutes * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
     const formula = `IS_AFTER({Data de atualização}, DATETIME_PARSE('${since}', 'YYYY-MM-DD HH:mm:ss'))`;
-    const records = await fetchPages({ filterByFormula: formula, fields: Object.keys(FIELD_MAP) });
+    const records = await fetchPages({ filterByFormula: formula });
     if (!records.length) { console.log('[Airtable] Incremental: nenhum registro novo'); return; }
     const count = await upsertRecords(records);
     console.log(`[Airtable] Incremental: ${count} registros atualizados`);
@@ -125,7 +124,7 @@ async function syncFull() {
   if (!API_KEY) return;
   try {
     console.log('[Airtable] Full sync iniciando...');
-    const records = await fetchPages({ fields: Object.keys(FIELD_MAP) });
+    const records = await fetchPages({});
     const count = await upsertRecords(records);
     console.log(`[Airtable] Full sync: ${count} registros de ${records.length} processados`);
   } catch (err) {
