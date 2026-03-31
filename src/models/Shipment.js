@@ -325,22 +325,29 @@ const Shipment = {
   // --- Stats de Tickets (para dashboard) ---
   async getTicketStats() {
     try {
-      const { data, error } = await db.from('tickets').select('tipo, status, created_at');
-      if (error) throw error;
-      const tickets = data || [];
-      const now = Date.now();
-      const SLA_MS = 72 * 3600000;
-      let open = 0, in_progress = 0, sla_expired = 0, retencao = 0, logistica = 0;
-      for (const t of tickets) {
-        const isTerminal = ['Cancelado', 'Retido', 'Concluído'].includes(t.status);
-        if (isTerminal) continue;
-        if (t.status === 'Aberto') open++;
-        if (t.status === 'Em andamento' || t.status === 'Aguardando estoque') in_progress++;
-        if (now - new Date(t.created_at).getTime() > SLA_MS) sla_expired++;
-        if (t.tipo === 'RETENCAO') retencao++;
-        if (t.tipo === 'LOGISTICA') logistica++;
-      }
-      return { open, in_progress, sla_expired, retencao, logistica };
+      // Usar count queries ao invés de SELECT * (evita o cap de 1000 linhas do PostgREST)
+      const terminalList = '("Cancelado","Retido","Concluído")';
+      const slaThreshold = new Date(Date.now() - 72 * 3600000).toISOString();
+
+      const base = () => db.from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .not('status', 'in', terminalList);
+
+      const [openR, inProgressR, slaR, retenR, logisticaR] = await Promise.all([
+        base().eq('status', 'Aberto'),
+        base().in('status', ['Em andamento', 'Aguardando estoque']),
+        base().lt('created_at', slaThreshold),
+        base().eq('tipo', 'RETENCAO'),
+        base().eq('tipo', 'LOGISTICA'),
+      ]);
+
+      return {
+        open:        openR.count        || 0,
+        in_progress: inProgressR.count  || 0,
+        sla_expired: slaR.count         || 0,
+        retencao:    retenR.count       || 0,
+        logistica:   logisticaR.count   || 0,
+      };
     } catch (err) {
       console.error('[Shipment] Erro getTicketStats:', err.message);
       return { open: 0, in_progress: 0, sla_expired: 0, retencao: 0, logistica: 0 };
