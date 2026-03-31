@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { hub } = require('../config/database');
+const { db, hub } = require('../config/database');
 const { requireRole } = require('../middleware/auth');
 
 // Middleware: garante que o hub está configurado
@@ -387,17 +387,17 @@ router.post('/feedbacks/:id/excluir', requireHub, async (req, res) => {
 // ─── VENDAS ──────────────────────────────────────────────────────────────────
 
 // GET /gestao/vendas
-router.get('/vendas', requireHub, async (req, res) => {
+router.get('/vendas', async (req, res) => {
   try {
     const user = req.user;
     const role = user.role;
 
     const [{ data: tiposData }, { data: empresasData }, { data: produtosData }, { data: colaboradoresData }] = await Promise.all([
-      hub.from('vendas').select('tipo_venda').not('tipo_venda', 'is', null).limit(2000),
-      hub.from('vendas').select('empresa').not('empresa', 'is', null).limit(2000),
-      hub.from('vendas').select('produto').not('produto', 'is', null).limit(2000),
+      db.from('vendas').select('tipo_venda').not('tipo_venda', 'is', null).limit(2000),
+      db.from('vendas').select('empresa').not('empresa', 'is', null).limit(2000),
+      db.from('vendas').select('produto').not('produto', 'is', null).limit(2000),
       role === 'admin'
-        ? hub.from('vendas_colaboradores').select('equipe').eq('ativo', true)
+        ? db.from('vendas_colaboradores').select('equipe').eq('ativo', true)
         : Promise.resolve({ data: [] }),
     ]);
 
@@ -423,7 +423,7 @@ router.get('/vendas', requireHub, async (req, res) => {
 });
 
 // GET /gestao/api/vendas — endpoint de dados para o dashboard (chamado via fetch)
-router.get('/api/vendas', requireHub, async (req, res) => {
+router.get('/api/vendas', async (req, res) => {
   try {
     const { period, dateFrom, dateTo, equipe, tipo, empresas: empresasParam, produtos: produtosParam } = req.query;
     const user = req.user;
@@ -448,7 +448,7 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     if (role !== 'admin') {
       emailFilter = [user.email];
     } else if (equipe && equipe !== 'all') {
-      const { data: cols } = await hub
+      const { data: cols } = await db
         .from('vendas_colaboradores')
         .select('email')
         .eq('equipe', equipe)
@@ -460,7 +460,7 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
 
     const applyFilters = (q) => {
-      q = q.gte('data_aprovacao', fromStr).lte('data_aprovacao', toStr);
+      q = q.gte('dt_aprovacao', fromStr).lte('dt_aprovacao', toStr);
       if (emailFilter)            q = q.in('email', emailFilter);
       if (tipo && tipo !== 'all') q = q.eq('tipo_venda', tipo);
       if (empresasFiltro.length)  q = q.in('empresa', empresasFiltro);
@@ -476,12 +476,12 @@ router.get('/api/vendas', requireHub, async (req, res) => {
       { data: topEmpresas },
       { data: topProdutos },
     ] = await Promise.all([
-      applyFilters(hub.from('vendas').select('saldo_venda, id')).eq('status_pagamento', 'paid'),
-      applyFilters(hub.from('vendas').select('id')).eq('status_pagamento', 'chargeback'),
-      applyFilters(hub.from('vendas').select('forma_pagamento, id')).eq('status_pagamento', 'paid'),
-      applyFilters(hub.from('vendas').select('data_aprovacao, saldo_venda, id')).eq('status_pagamento', 'paid').order('data_aprovacao', { ascending: true }),
-      applyFilters(hub.from('vendas').select('empresa, saldo_venda, id')).eq('status_pagamento', 'paid').not('empresa', 'is', null),
-      applyFilters(hub.from('vendas').select('produto, saldo_venda, id')).eq('status_pagamento', 'paid').not('produto', 'is', null),
+      applyFilters(db.from('vendas').select('saldo_venda, id')).eq('status_pagamento', 'paid'),
+      applyFilters(db.from('vendas').select('id')).eq('status_pagamento', 'chargeback'),
+      applyFilters(db.from('vendas').select('forma_pagamento, id')).eq('status_pagamento', 'paid'),
+      applyFilters(db.from('vendas').select('dt_aprovacao, saldo_venda, id')).eq('status_pagamento', 'paid').order('dt_aprovacao', { ascending: true }),
+      applyFilters(db.from('vendas').select('empresa, saldo_venda, id')).eq('status_pagamento', 'paid').not('empresa', 'is', null),
+      applyFilters(db.from('vendas').select('produto, saldo_venda, id')).eq('status_pagamento', 'paid').not('produto', 'is', null),
     ]);
 
     const totalPaid   = (kpiPaid || []).length;
@@ -494,7 +494,7 @@ router.get('/api/vendas', requireHub, async (req, res) => {
 
     const dailyMap = {};
     for (const v of (daily || [])) {
-      const d = v.data_aprovacao?.slice(0, 10);
+      const d = v.dt_aprovacao?.slice(0, 10);
       if (!d) continue;
       if (!dailyMap[d]) dailyMap[d] = { data: d, total: 0, count: 0 };
       dailyMap[d].total += v.saldo_venda || 0;
@@ -570,47 +570,27 @@ const COL_MAP = {
   'Produto':                       'produto',
   'Empresa':                       'empresa',
   'Email':                         'email',
-  'Email formatado':               'email_formatado',
   'Status Pagamento':              'status_pagamento',
-  'Valor sem juros':               'valor_sem_juros',
-  'Valor da Venda':                'valor_da_venda',
-  'f. Valor da Venda':             'f_valor_da_venda',
-  'Saldo da Venda':                'saldo_da_venda',
+  'Valor da Venda':                'valor_venda',
   'f. Saldo da Venda':             'saldo_venda',
   'Forma de Pagamento':            'forma_pagamento',
-  'Data de aprovação':             'data_aprovacao',
-  'Data de criação':               'data_criacao',
+  'Data de aprovação':             'dt_aprovacao',
+  'Data de criação':               'dt_criacao',
   'Data de atualização':           'data_atualizacao',
-  'Data Airtable':                 'data_airtable',
-  'Email cliente':                 'email_cliente',
-  'Nome':                          'nome',
+  'Nome':                          'nome_cliente',
   'Telefone':                      'telefone',
   'Documento':                     'documento',
-  'Limpeza':                       'limpeza',
-  'Compra anterior recusada?':     'compra_anterior_recusada',
-  'Tem confirmação do cliente?':   'tem_confirmacao_cliente',
-  'Confirmou endereço?':           'confirmou_endereco',
   'Status de auditoria':           'status_auditoria',
-  'Motivo da reprovação':          'motivo_reprovacao',
-  'Data de auditoria':             'data_auditoria',
-  'Data de solicitação':           'data_solicitacao',
-  'Data do reembolso':             'data_reembolso',
   'Status de atendimento':         'status_atendimento',
   'Status de entrega':             'status_entrega',
   'Rastreio':                      'rastreio',
   'Pedido suspenso':               'pedido_suspenso',
   'Motivo do cancelamento':        'motivo_cancelamento',
-  'Observação do cancelamento':    'observacao_cancelamento',
-  'Data do cancelamento log':      'data_cancelamento_log',
-  'ID da NFe':                     'id_nfe',
-  'Status da NFe':                 'status_nfe',
-  'Observação do atendimento':     'observacao_atendimento',
   'Tipo de cancelamento':          'tipo_cancelamento',
 };
 
 const DATE_FIELDS = new Set([
-  'data_aprovacao','data_criacao','data_atualizacao','data_airtable',
-  'data_auditoria','data_solicitacao','data_reembolso','data_cancelamento_log',
+  'dt_aprovacao','dt_criacao','data_atualizacao',
 ]);
 
 function excelDateToISO(val) {
@@ -623,12 +603,12 @@ function excelDateToISO(val) {
 }
 
 // GET /gestao/vendas/import
-router.get('/vendas/import', requireHub, canEdit, (req, res) => {
+router.get('/vendas/import', (req, res) => {
   res.render('gestao-vendas-import', { activePage: 'gestao-vendas', result: null });
 });
 
 // POST /gestao/vendas/import
-router.post('/vendas/import', requireHub, canEdit, upload.single('arquivo'), async (req, res) => {
+router.post('/vendas/import', upload.single('arquivo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).render('gestao-vendas-import', { activePage: 'gestao-vendas', result: { error: 'Nenhum arquivo enviado.' } });
 
@@ -642,7 +622,7 @@ router.post('/vendas/import', requireHub, canEdit, upload.single('arquivo'), asy
     const dataRows = rows.slice(1).filter(r => r.some(c => c !== '' && c !== null));
 
     // Descobre colunas reais da tabela vendas no Supabase
-    const { data: sampleRow } = await hub.from('vendas').select('*').limit(1);
+    const { data: sampleRow } = await db.from('vendas').select('*').limit(1);
     const tableColumns = sampleRow && sampleRow.length > 0
       ? new Set(Object.keys(sampleRow[0]))
       : null; // se tabela vazia, aceita tudo do COL_MAP
@@ -687,7 +667,7 @@ router.post('/vendas/import', requireHub, canEdit, upload.single('arquivo'), asy
     for (let b = 0; b < uniqueRecords.length; b += BATCH) {
       const batch = uniqueRecords.slice(b, b + BATCH);
 
-      const { error, data } = await hub.from('vendas')
+      const { error, data } = await db.from('vendas')
         .upsert(batch, { onConflict: 'codigo', ignoreDuplicates: false })
         .select('codigo');
 
