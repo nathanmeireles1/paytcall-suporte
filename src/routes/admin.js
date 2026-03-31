@@ -196,12 +196,17 @@ router.post('/users/:id/companies', requireAuth, requirePermission('admin_usuari
   }
 });
 
-// DELETE /admin/users/:id — remove convite pendente
+// DELETE /admin/users/:id — remove usuário (pendente ou ativo)
 router.delete('/users/:id', requireAuth, requirePermission('admin_usuarios', 'can_delete'), async (req, res) => {
   try {
-    const { data: user } = await db.from('user_profiles').select('auth_id').eq('id', req.params.id).maybeSingle();
+    const { data: user } = await db.from('user_profiles').select('auth_id, name').eq('id', req.params.id).maybeSingle();
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-    if (user.auth_id) return res.status(400).json({ error: 'Só é possível excluir convites pendentes (usuário ainda não ativou a conta)' });
+
+    // Se tem auth_id, remove também do Supabase Auth
+    if (user.auth_id) {
+      const { error: authErr } = await db.auth.admin.deleteUser(user.auth_id);
+      if (authErr) return res.status(400).json({ error: 'Erro ao remover autenticação: ' + authErr.message });
+    }
 
     await db.from('user_company_access').delete().eq('user_id', req.params.id);
     await db.from('user_profiles').delete().eq('id', req.params.id);

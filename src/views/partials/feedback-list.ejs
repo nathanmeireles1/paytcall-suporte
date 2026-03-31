@@ -1,0 +1,44 @@
+<%
+  // Parâmetros esperados: feedbacks (array), redirectUrl (string), currentUserName (string), isAdmin (bool)
+%>
+<% feedbacks.forEach(f => { %>
+<div id="fb-<%= f.id %>" style="padding:14px 16px;border-bottom:1px solid var(--border)">
+
+  <!-- Visualização -->
+  <div class="fb-view-<%= f.id %>">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+      <span style="font-size:12px;font-weight:600;color:var(--text-2)"><%= f.autor || 'Sistema' %></span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:11px;color:var(--text-4)"><%= new Date(f.dt_criacao).toLocaleDateString('pt-BR') %></span>
+        <% if (isAdmin || f.autor === currentUserName) { %>
+        <button onclick="editarFb('<%= f.id %>')" style="background:none;border:none;cursor:pointer;color:var(--text-4);padding:0;font-size:11px;text-decoration:underline">editar</button>
+        <form method="POST" action="/gestao/feedbacks/<%= f.id %>/excluir" style="display:inline" onsubmit="return confirm('Excluir este feedback?')">
+          <input type="hidden" name="redirect" value="<%= redirectUrl %>">
+          <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--danger);padding:0;font-size:11px;text-decoration:underline">excluir</button>
+        </form>
+        <% } %>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--text);margin:0;line-height:1.5;white-space:pre-wrap"><%= f.texto %></p>
+  </div>
+
+  <!-- Formulário de edição (oculto) -->
+  <% if (isAdmin || f.autor === currentUserName) { %>
+  <div class="fb-edit-<%= f.id %>" style="display:none">
+    <form method="POST" action="/gestao/feedbacks/<%= f.id %>/editar">
+      <input type="hidden" name="redirect" value="<%= redirectUrl %>">
+      <textarea name="texto" class="form-input" rows="3" style="resize:vertical;margin-bottom:8px"><%= f.texto %></textarea>
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="cancelarEditFb('<%= f.id %>')">Cancelar</button>
+      </div>
+    </form>
+  </div>
+  <% } %>
+
+</div>
+<% }) %>
+
+<% if (feedbacks.length === 0) { %>
+<div style="padding:24px;text-align:center;color:var(--text-3);font-size:13px">Nenhum feedback registrado ainda</div>
+<% } %>

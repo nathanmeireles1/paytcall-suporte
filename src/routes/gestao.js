@@ -13,111 +13,60 @@ function requireHub(req, res, next) {
   next();
 }
 
-// Acesso: admin e supervisor podem criar/editar; todos os roles autenticados podem ver
-const canManage = requireRole(['admin', 'supervisor']);
+// Permissão de edição: admin ou role_permissions.catalogo.can_edit
+function canEdit(req, res, next) {
+  const role = req.user.role;
+  const perms = req.user.permissions || {};
+  if (role === 'admin' || perms.catalogo?.can_edit) return next();
+  return res.status(403).render('error', { message: 'Sem permissão para editar o catálogo' });
+}
 
-// ─── EMPRESAS ────────────────────────────────────────────────────────────────
+// Exclusão: somente admin
+function canDelete(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return res.status(403).render('error', { message: 'Apenas administradores podem excluir registros' });
+  }
+  next();
+}
 
-// GET /gestao/empresas
-router.get('/empresas', requireHub, async (req, res) => {
+// Helper: resolve canEdit para passar às views
+function userCanEdit(req) {
+  return req.user.role === 'admin' || !!(req.user.permissions?.catalogo?.can_edit);
+}
+
+// ─── CATÁLOGO (Empresas + Produtos + Nichos unificados) ──────────────────────
+
+// Redirects de URLs antigas
+router.get('/empresas', requireHub, (req, res) => res.redirect('/gestao/catalogo?tab=empresas'));
+router.get('/produtos',  requireHub, (req, res) => res.redirect('/gestao/catalogo?tab=produtos'));
+router.get('/segmentos', requireHub, (req, res) => res.redirect('/gestao/catalogo?tab=nichos'));
+router.get('/segmentos/:slug', requireHub, (req, res) => res.redirect('/gestao/catalogo?tab=nichos'));
+
+// GET /gestao/catalogo
+router.get('/catalogo', requireHub, async (req, res) => {
   try {
-    const { search, segmento, status } = req.query;
-
-    let q = hub.from('empresas').select('*').order('nome');
-    if (search)   q = q.ilike('nome', `%${search}%`);
-    if (segmento) q = q.eq('segmento', segmento);
-    if (status)   q = q.eq('status', status);
-
-    const [{ data: empresas, error }, { data: segmentos }] = await Promise.all([
-      q,
-      hub.from('empresas').select('segmento').not('segmento', 'is', null),
+    const [
+      { data: empresas, error: empErr },
+      { data: produtos, error: prodErr },
+    ] = await Promise.all([
+      hub.from('empresas').select('*').order('nome'),
+      hub.from('produtos').select('*').order('nome'),
     ]);
 
-    if (error) throw error;
+    if (empErr) throw empErr;
+    if (prodErr) throw prodErr;
 
-    const segmentosUnicos = [...new Set((segmentos || []).map(s => s.segmento))].sort();
+    const segmentosUnicos = [...new Set((empresas || []).map(e => e.segmento).filter(Boolean))].sort();
 
-    res.render('gestao-empresas', {
-      activePage: 'gestao-empresas',
-      empresas: empresas || [],
-      segmentos: segmentosUnicos,
-      filters: { search: search || '', segmento: segmento || '', status: status || '' },
-    });
-  } catch (err) {
-    console.error('[Gestao/Empresas] Erro:', err.message);
-    res.status(500).render('error', { message: 'Erro ao carregar empresas: ' + err.message });
-  }
-});
+    const nichosCount = {};
+    for (const p of (produtos || [])) {
+      const n = p.nicho || 'Sem categoria';
+      nichosCount[n] = (nichosCount[n] || 0) + 1;
+    }
+    const nichos = Object.entries(nichosCount)
+      .map(([nicho, total]) => ({ nicho, total }))
+      .sort((a, b) => a.nicho.localeCompare(b.nicho));
 
-// GET /gestao/empresas/:id
-router.get('/empresas/:id', requireHub, async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const [{ data: empresa, error }, { data: notas }] = await Promise.all([
-      hub.from('empresas').select('*').eq('id', id).maybeSingle(),
-      hub.from('notas').select('*').eq('empresa_id', id).order('dt_criacao', { ascending: false }),
-    ]);
-
-    if (error) throw error;
-    if (!empresa) return res.status(404).render('error', { message: 'Empresa não encontrada' });
-
-    res.render('gestao-empresa-detalhe', {
-      activePage: 'gestao-empresas',
-      empresa,
-      notas: notas || [],
-      canManage: ['admin', 'supervisor'].includes(req.user.role),
-    });
-  } catch (err) {
-    console.error('[Gestao/Empresa] Erro:', err.message);
-    res.status(500).render('error', { message: 'Erro ao carregar empresa: ' + err.message });
-  }
-});
-
-// POST /gestao/empresas/:id/notas — adiciona nota/follow-up
-router.post('/empresas/:id/notas', requireHub, canManage, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { conteudo, data_followup } = req.body;
-    if (!conteudo?.trim()) return res.status(400).json({ error: 'Conteúdo obrigatório' });
-
-    const { error } = await hub.from('notas').insert({
-      empresa_id: id,
-      conteudo: conteudo.trim(),
-      data_followup: data_followup || null,
-      user_id: req.user.id,
-      autor: req.user.name,
-    });
-    if (error) throw error;
-
-    res.redirect(`/gestao/empresas/${id}`);
-  } catch (err) {
-    console.error('[Gestao/Nota] Erro:', err.message);
-    res.status(500).render('error', { message: 'Erro ao salvar nota: ' + err.message });
-  }
-});
-
-// ─── PRODUTOS ────────────────────────────────────────────────────────────────
-
-// GET /gestao/produtos
-router.get('/produtos', requireHub, async (req, res) => {
-  try {
-    const { search, nicho } = req.query;
-
-    let q = hub.from('produtos').select('*').order('nome');
-    if (search) q = q.ilike('nome', `%${search}%`);
-    if (nicho)  q = q.eq('nicho', nicho);
-
-    const [{ data: produtos, error }, { data: nichos }] = await Promise.all([
-      q,
-      hub.from('produtos').select('nicho').not('nicho', 'is', null),
-    ]);
-
-    if (error) throw error;
-
-    const nichosUnicos = [...new Set((nichos || []).map(n => n.nicho))].sort();
-
-    // Agrupa por nicho para exibição em grid
     const porNicho = {};
     for (const p of (produtos || [])) {
       const n = p.nicho || 'Sem categoria';
@@ -125,51 +74,154 @@ router.get('/produtos', requireHub, async (req, res) => {
       porNicho[n].push(p);
     }
 
-    res.render('gestao-produtos', {
-      activePage: 'gestao-produtos',
+    const nichosUnicos = [...new Set((produtos || []).map(p => p.nicho).filter(Boolean))].sort();
+
+    res.render('gestao-catalogo', {
+      activePage: 'gestao-catalogo',
+      empresas: empresas || [],
       produtos: produtos || [],
+      nichos,
       porNicho,
-      nichos: nichosUnicos,
-      filters: { search: search || '', nicho: nicho || '' },
+      segmentos: segmentosUnicos,
+      nichosUnicos,
+      tab: req.query.tab || 'empresas',
+      canEdit: userCanEdit(req),
+      isAdmin: req.user.role === 'admin',
     });
   } catch (err) {
-    console.error('[Gestao/Produtos] Erro:', err.message);
-    res.status(500).render('error', { message: 'Erro ao carregar produtos: ' + err.message });
+    console.error('[Gestao/Catalogo] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao carregar catálogo: ' + err.message });
   }
 });
+
+// ─── EMPRESAS ────────────────────────────────────────────────────────────────
+
+// GET /gestao/empresas/:id
+router.get('/empresas/:id', requireHub, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [{ data: empresa, error }, { data: feedbacks }] = await Promise.all([
+      hub.from('empresas').select('*').eq('id', id).maybeSingle(),
+      hub.from('feedbacks').select('*').order('dt_criacao', { ascending: false }),
+    ]);
+
+    if (error) throw error;
+    if (!empresa) return res.status(404).render('error', { message: 'Empresa não encontrada' });
+
+    const feedbacksEmpresa = (feedbacks || []).filter(
+      f => f.empresa && f.empresa.toLowerCase() === empresa.nome.toLowerCase()
+    );
+
+    res.render('gestao-empresa-detalhe', {
+      activePage: 'gestao-catalogo',
+      empresa,
+      feedbacks: feedbacksEmpresa,
+      canEdit: userCanEdit(req),
+      isAdmin: req.user.role === 'admin',
+    });
+  } catch (err) {
+    console.error('[Gestao/Empresa] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao carregar empresa: ' + err.message });
+  }
+});
+
+// POST /gestao/empresas — criar
+router.post('/empresas', requireHub, canEdit, async (req, res) => {
+  try {
+    const campos = ['nome','segmento','status','cnpj','email','telefone','contato','site','cidade','estado','descricao'];
+    const data = {};
+    for (const c of campos) data[c] = req.body[c]?.trim() || null;
+    if (!data.nome) return res.status(400).render('error', { message: 'Nome é obrigatório' });
+
+    const { data: nova, error } = await hub.from('empresas').insert(data).select().maybeSingle();
+    if (error) throw error;
+    res.redirect(`/gestao/empresas/${nova.id}`);
+  } catch (err) {
+    console.error('[Gestao/Empresa/Criar] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao criar empresa: ' + err.message });
+  }
+});
+
+// POST /gestao/empresas/:id/editar
+router.post('/empresas/:id/editar', requireHub, canEdit, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const campos = ['nome','segmento','status','cnpj','email','telefone','contato','site','cidade','estado','descricao'];
+    const data = {};
+    for (const c of campos) data[c] = req.body[c]?.trim() || null;
+    if (!data.nome) return res.status(400).render('error', { message: 'Nome é obrigatório' });
+
+    const { error } = await hub.from('empresas').update(data).eq('id', id);
+    if (error) throw error;
+    res.redirect(`/gestao/empresas/${id}`);
+  } catch (err) {
+    console.error('[Gestao/Empresa/Editar] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao editar empresa: ' + err.message });
+  }
+});
+
+// POST /gestao/empresas/:id/excluir
+router.post('/empresas/:id/excluir', requireHub, canDelete, async (req, res) => {
+  try {
+    const { error } = await hub.from('empresas').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.redirect('/gestao/catalogo?tab=empresas');
+  } catch (err) {
+    console.error('[Gestao/Empresa/Excluir] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao excluir empresa: ' + err.message });
+  }
+});
+
+// ─── PRODUTOS ────────────────────────────────────────────────────────────────
 
 // GET /gestao/produtos/:id
 router.get('/produtos/:id', requireHub, async (req, res) => {
   try {
     const { id } = req.params;
-    const { data: produto, error } = await hub.from('produtos').select('*').eq('id', id).maybeSingle();
+
+    const [{ data: produto, error }, { data: feedbacks }] = await Promise.all([
+      hub.from('produtos').select('*').eq('id', id).maybeSingle(),
+      hub.from('feedbacks').select('*').order('dt_criacao', { ascending: false }),
+    ]);
 
     if (error) throw error;
     if (!produto) return res.status(404).render('error', { message: 'Produto não encontrado' });
 
-    // Busca mídias do playbook no Storage (se slug existir)
+    const feedbacksProduto = (feedbacks || []).filter(
+      f => f.produto && f.produto.toLowerCase() === produto.nome.toLowerCase()
+    );
+
     let fotos = [];
     let depoimentos = [];
-    if (produto.playbook_slug) {
-      const [{ data: fotosData }, { data: depData }] = await Promise.all([
-        hub.storage.from('produtos-midias').list(`playbooks/${produto.playbook_slug}/fotos`),
-        hub.storage.from('produtos-midias').list(`playbooks/${produto.playbook_slug}/depoimentos`),
-      ]);
+    const slug = produto.playbook_slug || produto.id;
+    const [{ data: fotosData }, { data: depData }] = await Promise.all([
+      hub.storage.from('produtos-midias').list(`playbooks/${slug}/fotos`),
+      hub.storage.from('produtos-midias').list(`playbooks/${slug}/depoimentos`),
+    ]);
 
-      const getUrl = (path) => hub.storage.from('produtos-midias').getPublicUrl(path).data.publicUrl;
-
-      fotos = (fotosData || []).map(f => getUrl(`playbooks/${produto.playbook_slug}/fotos/${f.name}`));
-      depoimentos = (depData || []).map(d => ({
-        url: getUrl(`playbooks/${produto.playbook_slug}/depoimentos/${d.name}`),
-        isVideo: d.name.endsWith('.mp4'),
-      }));
-    }
+    const getUrl = (path) => hub.storage.from('produtos-midias').getPublicUrl(path).data.publicUrl;
+    fotos = (fotosData || []).filter(f => f.name !== '.emptyFolderPlaceholder').map(f => ({
+      url: getUrl(`playbooks/${slug}/fotos/${f.name}`),
+      path: `playbooks/${slug}/fotos/${f.name}`,
+      name: f.name,
+    }));
+    depoimentos = (depData || []).filter(d => d.name !== '.emptyFolderPlaceholder').map(d => ({
+      url: getUrl(`playbooks/${slug}/depoimentos/${d.name}`),
+      path: `playbooks/${slug}/depoimentos/${d.name}`,
+      name: d.name,
+      isVideo: /\.(mp4|webm|mov)$/i.test(d.name),
+    }));
 
     res.render('gestao-produto-detalhe', {
-      activePage: 'gestao-produtos',
+      activePage: 'gestao-catalogo',
       produto,
+      feedbacks: feedbacksProduto,
       fotos,
       depoimentos,
+      playbook_slug: slug,
+      canEdit: userCanEdit(req),
+      isAdmin: req.user.role === 'admin',
     });
   } catch (err) {
     console.error('[Gestao/Produto] Erro:', err.message);
@@ -177,48 +229,158 @@ router.get('/produtos/:id', requireHub, async (req, res) => {
   }
 });
 
-// ─── SEGMENTOS ────────────────────────────────────────────────────────────────
-
-// GET /gestao/segmentos
-router.get('/segmentos', requireHub, async (req, res) => {
+// POST /gestao/produtos — criar
+router.post('/produtos', requireHub, canEdit, async (req, res) => {
   try {
-    const { data: produtos, error } = await hub.from('produtos').select('nicho').not('nicho', 'is', null);
+    const campos = ['nome','nicho','sku','o_que_e','composicao','como_funciona','descricao','playbook_slug'];
+    const data = {};
+    for (const c of campos) data[c] = req.body[c]?.trim() || null;
+    if (!data.nome) return res.status(400).render('error', { message: 'Nome é obrigatório' });
+
+    const { data: novo, error } = await hub.from('produtos').insert(data).select().maybeSingle();
     if (error) throw error;
-
-    const contagem = {};
-    for (const p of (produtos || [])) {
-      contagem[p.nicho] = (contagem[p.nicho] || 0) + 1;
-    }
-
-    const segmentos = Object.entries(contagem)
-      .map(([nicho, total]) => ({ nicho, total }))
-      .sort((a, b) => a.nicho.localeCompare(b.nicho));
-
-    res.render('gestao-segmentos', {
-      activePage: 'gestao-segmentos',
-      segmentos,
-    });
+    res.redirect(`/gestao/produtos/${novo.id}`);
   } catch (err) {
-    console.error('[Gestao/Segmentos] Erro:', err.message);
-    res.status(500).render('error', { message: 'Erro ao carregar segmentos: ' + err.message });
+    console.error('[Gestao/Produto/Criar] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao criar produto: ' + err.message });
   }
 });
 
-// GET /gestao/segmentos/:slug
-router.get('/segmentos/:slug', requireHub, async (req, res) => {
+// POST /gestao/produtos/:id/editar
+router.post('/produtos/:id/editar', requireHub, canEdit, async (req, res) => {
   try {
-    const slug = decodeURIComponent(req.params.slug);
-    const { data: produtos, error } = await hub.from('produtos').select('*').eq('nicho', slug).order('nome');
+    const { id } = req.params;
+    const campos = ['nome','nicho','sku','o_que_e','composicao','como_funciona','descricao','playbook_slug'];
+    const data = {};
+    for (const c of campos) data[c] = req.body[c]?.trim() || null;
+    if (!data.nome) return res.status(400).render('error', { message: 'Nome é obrigatório' });
+
+    const { error } = await hub.from('produtos').update(data).eq('id', id);
+    if (error) throw error;
+    res.redirect(`/gestao/produtos/${id}`);
+  } catch (err) {
+    console.error('[Gestao/Produto/Editar] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao editar produto: ' + err.message });
+  }
+});
+
+// POST /gestao/produtos/:id/excluir
+router.post('/produtos/:id/excluir', requireHub, canDelete, async (req, res) => {
+  try {
+    const { error } = await hub.from('produtos').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.redirect('/gestao/catalogo?tab=produtos');
+  } catch (err) {
+    console.error('[Gestao/Produto/Excluir] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao excluir produto: ' + err.message });
+  }
+});
+
+// ─── MÍDIAS ──────────────────────────────────────────────────────────────────
+
+// POST /gestao/api/upload-media — base64 → Supabase Storage
+router.post('/api/upload-media', requireHub, canEdit, async (req, res) => {
+  try {
+    const { base64, mimeType, tipo, slug } = req.body;
+    if (!base64 || !tipo || !slug) return res.status(400).json({ error: 'Parâmetros inválidos' });
+
+    const allowed = ['image/jpeg','image/png','image/webp','video/mp4','video/webm'];
+    if (!allowed.includes(mimeType)) return res.status(400).json({ error: 'Tipo de arquivo não permitido' });
+
+    const ext = mimeType.split('/')[1].replace('jpeg','jpg');
+    const filename = `${Date.now()}.${ext}`;
+    const path = `playbooks/${slug}/${tipo}/${filename}`;
+    const buffer = Buffer.from(base64, 'base64');
+
+    const { error } = await hub.storage.from('produtos-midias').upload(path, buffer, {
+      contentType: mimeType,
+      upsert: false,
+    });
     if (error) throw error;
 
-    res.render('gestao-segmento-detalhe', {
-      activePage: 'gestao-segmentos',
-      nicho: slug,
-      produtos: produtos || [],
-    });
+    const url = hub.storage.from('produtos-midias').getPublicUrl(path).data.publicUrl;
+    res.json({ ok: true, url, path, name: filename });
   } catch (err) {
-    console.error('[Gestao/Segmento] Erro:', err.message);
-    res.status(500).render('error', { message: 'Erro ao carregar segmento: ' + err.message });
+    console.error('[Gestao/Upload] Erro:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /gestao/api/delete-media
+router.post('/api/delete-media', requireHub, canEdit, async (req, res) => {
+  try {
+    const { path } = req.body;
+    if (!path || !path.startsWith('playbooks/')) return res.status(400).json({ error: 'Path inválido' });
+
+    const { error } = await hub.storage.from('produtos-midias').remove([path]);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Gestao/DeleteMedia] Erro:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── FEEDBACKS ───────────────────────────────────────────────────────────────
+
+// POST /gestao/feedbacks — qualquer usuário autenticado pode registrar
+router.post('/feedbacks', requireHub, async (req, res) => {
+  try {
+    const { texto, empresa, produto, redirect: redir } = req.body;
+    if (!texto?.trim()) return res.status(400).render('error', { message: 'Texto do feedback obrigatório' });
+
+    const { error } = await hub.from('feedbacks').insert({
+      texto: texto.trim(),
+      empresa: empresa || null,
+      produto: produto || null,
+      autor: req.user.name || req.user.email,
+    });
+    if (error) throw error;
+    res.redirect(redir || '/gestao/catalogo');
+  } catch (err) {
+    console.error('[Gestao/Feedback] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao salvar feedback: ' + err.message });
+  }
+});
+
+// POST /gestao/feedbacks/:id/editar
+router.post('/feedbacks/:id/editar', requireHub, async (req, res) => {
+  try {
+    const { texto, redirect: redir } = req.body;
+    if (!texto?.trim()) return res.status(400).render('error', { message: 'Texto obrigatório' });
+
+    const { data: fb } = await hub.from('feedbacks').select('autor').eq('id', req.params.id).maybeSingle();
+    const autorAtual = req.user.name || req.user.email;
+    if (req.user.role !== 'admin' && fb?.autor !== autorAtual) {
+      return res.status(403).render('error', { message: 'Sem permissão para editar este feedback' });
+    }
+
+    const { error } = await hub.from('feedbacks').update({ texto: texto.trim() }).eq('id', req.params.id);
+    if (error) throw error;
+    res.redirect(redir || '/gestao/catalogo');
+  } catch (err) {
+    console.error('[Gestao/Feedback/Editar] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao editar feedback: ' + err.message });
+  }
+});
+
+// POST /gestao/feedbacks/:id/excluir
+router.post('/feedbacks/:id/excluir', requireHub, async (req, res) => {
+  try {
+    const { redirect: redir } = req.body;
+
+    const { data: fb } = await hub.from('feedbacks').select('autor').eq('id', req.params.id).maybeSingle();
+    const autorAtual = req.user.name || req.user.email;
+    if (req.user.role !== 'admin' && fb?.autor !== autorAtual) {
+      return res.status(403).render('error', { message: 'Sem permissão para excluir este feedback' });
+    }
+
+    const { error } = await hub.from('feedbacks').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.redirect(redir || '/gestao/catalogo');
+  } catch (err) {
+    console.error('[Gestao/Feedback/Excluir] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao excluir feedback: ' + err.message });
   }
 });
 
@@ -228,11 +390,8 @@ router.get('/segmentos/:slug', requireHub, async (req, res) => {
 router.get('/vendas', requireHub, async (req, res) => {
   try {
     const user = req.user;
-    const role = user.role; // admin, supervisor, vendedor (mapeados dos roles do hub)
-    // No portal de operações: admin = admin; demais roles = vendedor (acesso próprio)
-    // Supervisor pode ser mapeado via vendas_colaboradores se necessário
+    const role = user.role;
 
-    // Opções para os filtros (carregadas no primeiro acesso)
     const [{ data: tiposData }, { data: empresasData }, { data: produtosData }, { data: colaboradoresData }] = await Promise.all([
       hub.from('vendas').select('tipo_venda').not('tipo_venda', 'is', null).limit(2000),
       hub.from('vendas').select('empresa').not('empresa', 'is', null).limit(2000),
@@ -270,7 +429,6 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     const user = req.user;
     const role = user.role;
 
-    // Resolve período
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     let from = new Date('2000-01-01');
@@ -286,10 +444,8 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     const fromStr = from.toISOString().slice(0, 10);
     const toStr   = today.toISOString().slice(0, 10);
 
-    // Resolve filtro de email por role
     let emailFilter = null;
     if (role !== 'admin') {
-      // Todos os não-admin veem apenas suas próprias vendas
       emailFilter = [user.email];
     } else if (equipe && equipe !== 'all') {
       const { data: cols } = await hub
@@ -303,17 +459,15 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     const empresasFiltro = empresasParam ? empresasParam.split(',').filter(Boolean) : [];
     const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
 
-    // Helper para aplicar filtros comuns
-    const applyFilters = (q, statusOverride) => {
+    const applyFilters = (q) => {
       q = q.gte('dt_aprovacao', fromStr).lte('dt_aprovacao', toStr);
-      if (emailFilter)        q = q.in('email', emailFilter);
+      if (emailFilter)            q = q.in('email', emailFilter);
       if (tipo && tipo !== 'all') q = q.eq('tipo_venda', tipo);
-      if (empresasFiltro.length) q = q.in('empresa', empresasFiltro);
-      if (produtosFiltro.length) q = q.in('produto', produtosFiltro);
-      return q;
+      if (empresasFiltro.length)  q = q.in('empresa', empresasFiltro);
+      if (produtosFiltro.length)  q = q.in('produto', produtosFiltro);
+      return q.range(0, 49999); // Supabase limita 1000 rows por padrão
     };
 
-    // Executa todas as queries em paralelo
     const [
       { data: kpiPaid },
       { data: kpiCb },
@@ -330,18 +484,14 @@ router.get('/api/vendas', requireHub, async (req, res) => {
       applyFilters(hub.from('vendas').select('produto, valor_venda, id')).eq('status_pagamento', 'paid').not('produto', 'is', null),
     ]);
 
-    // KPIs
-    const totalPaid  = (kpiPaid || []).length;
+    const totalPaid   = (kpiPaid || []).length;
     const faturamento = (kpiPaid || []).reduce((s, v) => s + (v.valor_venda || 0), 0);
     const ticketMedio = totalPaid ? faturamento / totalPaid : 0;
     const chargebacks = (kpiCb || []).length;
     const taxaCb = (totalPaid + chargebacks) ? (chargebacks / (totalPaid + chargebacks)) * 100 : 0;
+    const pix    = (formaPgto || []).filter(v => v.forma_pagamento === 'pix').length;
+    const cartao = (formaPgto || []).filter(v => v.forma_pagamento === 'credit_card').length;
 
-    // Forma de pagamento
-    const pix       = (formaPgto || []).filter(v => v.forma_pagamento === 'pix').length;
-    const cartao    = (formaPgto || []).filter(v => v.forma_pagamento === 'credit_card').length;
-
-    // Daily
     const dailyMap = {};
     for (const v of (daily || [])) {
       const d = v.dt_aprovacao?.slice(0, 10);
@@ -352,7 +502,6 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     }
     const dailyData = Object.values(dailyMap).sort((a, b) => a.data.localeCompare(b.data));
 
-    // Top empresas
     const empMap = {};
     for (const v of (topEmpresas || [])) {
       if (!empMap[v.empresa]) empMap[v.empresa] = { label: v.empresa, total: 0, qtd: 0 };
@@ -361,7 +510,6 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     }
     const topEmpresasArr = Object.values(empMap).sort((a, b) => b.total - a.total).slice(0, 10);
 
-    // Top produtos
     const prodMap = {};
     for (const v of (topProdutos || [])) {
       if (!prodMap[v.produto]) prodMap[v.produto] = { label: v.produto, total: 0, qtd: 0 };
@@ -384,7 +532,6 @@ router.get('/api/vendas', requireHub, async (req, res) => {
 
 // ─── BI ──────────────────────────────────────────────────────────────────────
 
-// GET /gestao/bi — somente admin
 router.get('/bi', requireHub, requireRole(['admin']), async (req, res) => {
   try {
     const { data: config } = await hub
@@ -393,8 +540,7 @@ router.get('/bi', requireHub, requireRole(['admin']), async (req, res) => {
       .eq('id', 'powerbi')
       .maybeSingle();
 
-    let embedUrl = null;
-    let pageName = null;
+    let embedUrl = null, pageName = null;
     if (config?.valor) {
       try {
         const parsed = typeof config.valor === 'string' ? JSON.parse(config.valor) : config.valor;
@@ -403,11 +549,7 @@ router.get('/bi', requireHub, requireRole(['admin']), async (req, res) => {
       } catch (_) {}
     }
 
-    res.render('gestao-bi', {
-      activePage: 'gestao-bi',
-      embedUrl,
-      pageName,
-    });
+    res.render('gestao-bi', { activePage: 'gestao-bi', embedUrl, pageName });
   } catch (err) {
     console.error('[Gestao/BI] Erro:', err.message);
     res.status(500).render('error', { message: 'Erro ao carregar BI: ' + err.message });

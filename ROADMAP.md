@@ -1,7 +1,7 @@
 # ROADMAP — Portal de Suporte Paytcall
 
-> Atualizado em: 27/03/2026
-> Status: Itens 1–8 concluídos. Próximos: 9 (AI Agent), 10 (Analytics avançado), 11 (UX pendências)
+> Atualizado em: 30/03/2026
+> Status: 1–8, 12, 14 concluídos. Em andamento: 15 (Catálogo). Próximos: 16 (Importador Excel), 10 (Analytics).
 
 ---
 
@@ -16,11 +16,14 @@
 | 5 | SLA com timer e semáforo | ✅ Concluído |
 | 7 | Relatório de Tickets | ✅ Concluído |
 | 8 | Rastreio em Atraso (1 dia / 3 dias) | ✅ Concluído |
-| 9 | AI Agent / Chat | 🔲 Pendente |
+| 9 | AI Agent / Chat (Lina — Gemini) | ✅ Concluído |
 | 10 | Analytics/KPIs avançado | 🟡 Em andamento |
 | 11 | UX/UI — refinamentos visuais | 🟡 Em andamento |
 | 12 | Seleção múltipla + ações em lote (rastreios) | ✅ Concluído |
-| 13 | Subdomínio suporte.paytcall.com.br | 🔲 Pendente |
+| 13 | Subdomínio / domínio definitivo | 🔲 Pendente |
+| 14 | Paginação universal (por página + ir para página) | ✅ Concluído |
+| 15 | Módulo Catálogo (Empresas, Produtos, Nichos, Feedbacks, Mídias) | 🟡 Em andamento |
+| 16 | Importador Excel/Airtable para Vendas | 🔲 Pendente |
 
 ---
 
@@ -375,6 +378,54 @@ Seu portal **já está seguro** — código no GitHub, dados no Supabase. O que 
 
 ---
 
+## 14 — PAGINAÇÃO UNIVERSAL ✅
+
+- [x] Partial `partials/pagination.ejs` reutilizável em todas as views
+- [x] Seletor "Por página" (25 / 50 / 100 / 200) — preserva filtros via `window.location`
+- [x] Paginação com ellipsis inteligente (mostra 1, atual±2, último)
+- [x] Campo "Ir para [___] de N páginas" com Enter para navegar
+- [x] Aplicado em: dashboard, tickets, cancelamentos, logística, retenção/solicitacoes, rastreio-log
+- [x] CSS: classes `.pagination-bar`, `.pagination-info`, `.pagination-controls`, `.pagination-goto`
+
+---
+
+## 15 — MÓDULO CATÁLOGO 🟡 Em andamento
+
+### O que foi feito
+- [x] Rota `/gestao/*` em `src/routes/gestao.js` usando Supabase hub
+- [x] Página `/gestao/catalogo` com abas: Empresas | Produtos | Nichos
+- [x] CRUD completo de Empresas (criar, editar, excluir) com modal design system
+- [x] CRUD completo de Produtos (criar, editar, excluir) com modal design system
+- [x] Detalhe de Empresa: informações + feedbacks + modal editar
+- [x] Detalhe de Produto: informações + upload/delete de fotos e depoimentos + feedbacks
+- [x] Sistema de Feedbacks (criar/editar/excluir) via partial `feedback-list.ejs`
+- [x] Nichos derivados do campo `produto.nicho` — modal próprio (sem browser prompt)
+- [x] Segmento exibido como tag laranja na tabela de empresas
+- [x] Permissões: `canEdit` (admin ou role_permission) / `canDelete` (admin only)
+- [x] Sidebar atualizada: item único "Catálogo" substituindo Empresas/Produtos/Segmentos
+
+### Pendente
+- [ ] PR e merge no `main` (branch atual: `feat/migracao-gestao`)
+- [ ] Importador Excel/Airtable para módulo Vendas (item 16)
+- [ ] Módulo Vendas (BI, dashboard de vendas) — aguardando colunas do Excel
+
+---
+
+## 16 — IMPORTADOR EXCEL/AIRTABLE (VENDAS) 🔲 Pendente
+
+### Contexto
+- Dados recentes ficam no Airtable; quando chega perto de 120k linhas, usuário exporta para Excel e exclui do Airtable
+- Os Excels ficam em uma pasta local
+- Pacote `xlsx` já instalado no projeto
+
+### Pendente
+- [ ] Usuário fornecer nomes das colunas do Excel exportado do Airtable
+- [ ] Criar rota de upload/import em `/gestao/vendas/import`
+- [ ] Mapear colunas Excel → tabela hub `vendas` (ou equivalente)
+- [ ] Interface de upload com preview antes de confirmar
+
+---
+
 ## ITENS JÁ CONCLUÍDOS ✅
 
 - [x] Webhook Payt → recebe pedidos pagos, chargebacks, reembolsos
@@ -382,9 +433,9 @@ Seu portal **já está seguro** — código no GitHub, dados no Supabase. O que 
 - [x] Scheduler 08h e 14h BRT
 - [x] Dashboard com filtros (status, empresa, transportadora, produto, paid_at)
 - [x] Detalhe do pedido (cliente, endereço, pagamento, timeline H7)
-- [x] Paginação inteligente
+- [x] Paginação universal com por página + ir para (item 14)
 - [x] Datas formatadas em horário Brasil
 - [x] Endereço estruturado + CEP formatado
-- [x] Tickets básicos (abrir/fechar) — será substituído pelo item 2
+- [x] Tickets completos (LOGISTICA / RETENCAO, SLA, prioridades, motivos)
 - [x] Correios (Wonca) como backup
-- [x] Terminal statuses: delivered, returned (overdue removido)
+- [x] Terminal statuses: delivered, returned

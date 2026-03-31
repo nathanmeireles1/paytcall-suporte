@@ -170,13 +170,7 @@
         </div>
       </div>
 
-      <% if (pages > 1) { %>
-      <div class="pagination">
-        <% for (let p = 1; p <= pages; p++) { %>
-        <a href="?<%= Object.entries({...filters, page: p}).filter(([,v])=>v).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&') %>" class="<%= p === currentPage ? 'active' : '' %>"><%= p %></a>
-        <% } %>
-      </div>
-      <% } %>
+      <%- include('partials/pagination', { pages, currentPage, total, perPage }) %>
 
     </div>
   </div>

@@ -61,7 +61,8 @@ router.get('/dashboard', requirePermission('dashboard', 'can_view'), async (req,
 // Handler de rastreios — compartilhado entre / e /rastreios
 async function handleRastreios(req, res) {
   try {
-    const { status, search, seller_id, carrier, product, paid_at_from, paid_at_to, page = 1 } = req.query;
+    const { status, search, seller_id, carrier, product, paid_at_from, paid_at_to, page = 1, perPage } = req.query;
+    const limit = [25, 50, 100, 200].includes(parseInt(perPage)) ? parseInt(perPage) : 50;
 
     // Terceiros: filtra por seller_ids permitidos
     let effectiveSellerId = seller_id;
@@ -73,7 +74,7 @@ async function handleRastreios(req, res) {
 
     const [stats, result, companies, lastLog, pendingCount] = await Promise.all([
       Shipment.getStats(),
-      Shipment.findAllCombined({ status, search, seller_id: effectiveSellerId, paid_at_from, paid_at_to, page: parseInt(page) }),
+      Shipment.findAllCombined({ status, search, seller_id: effectiveSellerId, paid_at_from, paid_at_to, page: parseInt(page), limit }),
       Shipment.getCompanies(),
       Shipment.getLastSchedulerLog(),
       Shipment.countPendingForRefresh(),
@@ -96,6 +97,7 @@ async function handleRastreios(req, res) {
       total: result.total,
       pages: result.pages,
       currentPage: parseInt(page),
+      perPage: limit,
       filters: { status, search, seller_id: effectiveSellerId, carrier, product, paid_at_from, paid_at_to },
       lastLog: lastLog ? { ...lastLog, ran_at_fmt: fmtDate(lastLog.ran_at) } : null,
       pendingCount,

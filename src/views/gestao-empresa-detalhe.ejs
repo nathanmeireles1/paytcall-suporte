@@ -10,12 +10,12 @@
 <body>
 <div class="app">
 
-  <%- include('partials/sidebar', { activePage: 'gestao-empresas' }) %>
+  <%- include('partials/sidebar', { activePage: 'gestao-catalogo' }) %>
 
   <div class="main">
     <%- include('partials/topbar', { pageTitle: empresa.nome, breadcrumb: [
       { label: 'Paytcall', href: '/dashboard' },
-      { label: 'Empresas', href: '/gestao/empresas' },
+      { label: 'Catálogo', href: '/gestao/catalogo?tab=empresas' },
       { label: empresa.nome }
     ] }) %>
 
@@ -28,15 +28,22 @@
             <p class="page-subtitle"><%= empresa.segmento %></p>
           <% } %>
         </div>
-        <% if (empresa.status) { %>
+        <div style="display:flex;gap:8px;align-items:center">
           <% if (empresa.status === 'Ativo' || empresa.status === 'ativo') { %>
-            <span class="badge badge-success" style="align-self:center">Ativo</span>
-          <% } else { %>
-            <span class="badge badge-neutral" style="align-self:center"><%= empresa.status %></span>
+            <span class="badge badge-success">Ativo</span>
+          <% } else if (empresa.status) { %>
+            <span class="badge badge-neutral"><%= empresa.status %></span>
           <% } %>
-        <% } %>
+          <% if (canEdit) { %>
+            <button class="btn btn-secondary btn-sm" onclick="openModal('modal-editar-empresa')">Editar</button>
+          <% } %>
+          <% if (isAdmin) { %>
+            <button class="btn btn-sm" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)" onclick="confirmarExclusao()">Excluir</button>
+          <% } %>
+        </div>
       </div>
 
+      <!-- Grid: Informações + Feedbacks -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
 
         <!-- Informações da empresa -->
@@ -48,20 +55,16 @@
           <div class="card-body">
             <dl style="display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13px">
               <% if (empresa.cnpj) { %>
-                <dt style="color:var(--text-3)">CNPJ</dt>
-                <dd style="margin:0"><%= empresa.cnpj %></dd>
+                <dt style="color:var(--text-3)">CNPJ</dt><dd style="margin:0"><%= empresa.cnpj %></dd>
               <% } %>
               <% if (empresa.email) { %>
-                <dt style="color:var(--text-3)">Email</dt>
-                <dd style="margin:0"><%= empresa.email %></dd>
+                <dt style="color:var(--text-3)">Email</dt><dd style="margin:0"><%= empresa.email %></dd>
               <% } %>
               <% if (empresa.telefone) { %>
-                <dt style="color:var(--text-3)">Telefone</dt>
-                <dd style="margin:0"><%= empresa.telefone %></dd>
+                <dt style="color:var(--text-3)">Telefone</dt><dd style="margin:0"><%= empresa.telefone %></dd>
               <% } %>
               <% if (empresa.contato) { %>
-                <dt style="color:var(--text-3)">Contato</dt>
-                <dd style="margin:0"><%= empresa.contato %></dd>
+                <dt style="color:var(--text-3)">Contato</dt><dd style="margin:0"><%= empresa.contato %></dd>
               <% } %>
               <% if (empresa.site) { %>
                 <dt style="color:var(--text-3)">Site</dt>
@@ -83,70 +86,148 @@
           </div>
         </div>
 
-        <!-- Notas e follow-ups -->
-        <div>
-          <% if (canManage) { %>
-          <div class="card" style="margin-bottom:16px">
-            <div class="card-header">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-              <span style="font-weight:600;font-size:14px">Nova Nota</span>
-            </div>
-            <div class="card-body">
-              <form method="POST" action="/gestao/empresas/<%= empresa.id %>/notas">
-                <div style="margin-bottom:10px">
-                  <label class="form-label">Anotação</label>
-                  <textarea name="conteudo" class="form-input" rows="3" placeholder="Registre um follow-up, observação ou contato..." required style="resize:vertical"></textarea>
-                </div>
-                <div style="margin-bottom:12px">
-                  <label class="form-label">Data de follow-up (opcional)</label>
-                  <input type="date" name="data_followup" class="form-input">
-                </div>
-                <button type="submit" class="btn btn-primary btn-sm">Salvar nota</button>
-              </form>
-            </div>
+        <!-- Lista de feedbacks -->
+        <div class="card" style="padding:0">
+          <div class="card-header">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            <span style="font-weight:600;font-size:14px">Feedbacks (<%= feedbacks.length %>)</span>
           </div>
-          <% } %>
-
-          <div class="card" style="padding:0">
-            <div class="card-header">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              <span style="font-weight:600;font-size:14px">Notas (<%= notas.length %>)</span>
-            </div>
-            <% if (notas.length === 0) { %>
-              <div style="padding:24px;text-align:center;color:var(--text-3);font-size:13px">
-                Nenhuma nota registrada ainda
-              </div>
-            <% } else { %>
-              <div style="max-height:480px;overflow-y:auto">
-                <% notas.forEach(n => { %>
-                <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                    <span style="font-size:12px;font-weight:600;color:var(--text-2)"><%= n.autor || 'Sistema' %></span>
-                    <span style="font-size:11px;color:var(--text-4)">
-                      <%= new Date(n.dt_criacao).toLocaleDateString('pt-BR') %>
-                    </span>
-                  </div>
-                  <p style="font-size:13px;color:var(--text);margin:0;line-height:1.5"><%= n.conteudo %></p>
-                  <% if (n.data_followup) { %>
-                    <div style="margin-top:6px">
-                      <span style="font-size:11px;background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning-border);border-radius:4px;padding:2px 7px">
-                        Follow-up: <%= new Date(n.data_followup).toLocaleDateString('pt-BR') %>
-                      </span>
-                    </div>
-                  <% } %>
-                </div>
-                <% }) %>
-              </div>
-            <% } %>
+          <div style="max-height:420px;overflow-y:auto">
+            <%- include('partials/feedback-list', {
+              feedbacks,
+              redirectUrl: '/gestao/empresas/' + empresa.id,
+              currentUserName: currentUser.name || currentUser.email,
+              isAdmin
+            }) %>
           </div>
         </div>
 
-      </div><!-- /grid -->
+      </div>
+
+      <!-- Formulário de feedback — largura total -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span style="font-weight:600;font-size:14px">Registrar Feedback</span>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="/gestao/feedbacks" style="display:flex;gap:12px;align-items:flex-end">
+            <input type="hidden" name="empresa" value="<%= empresa.nome %>">
+            <input type="hidden" name="redirect" value="/gestao/empresas/<%= empresa.id %>">
+            <div style="flex:1">
+              <textarea name="texto" class="form-input" rows="4" placeholder="Registre um problema, observação ou informação relevante sobre esta empresa..." required style="resize:vertical;width:100%"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="white-space:nowrap">Salvar</button>
+          </form>
+        </div>
+      </div>
 
     </div><!-- /.page -->
   </div><!-- /.main -->
 
   <%- include('partials/ai-chat') %>
 </div>
+
+<!-- Modal Editar Empresa -->
+<% if (canEdit) { %>
+<div id="modal-editar-empresa" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;overflow-y:auto;padding:40px 20px">
+  <div class="card" style="max-width:560px;margin:0 auto">
+    <div class="card-header" style="justify-content:space-between">
+      <span style="font-weight:700;font-size:15px">Editar Empresa</span>
+      <button onclick="closeModal('modal-editar-empresa')" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:20px;line-height:1">&times;</button>
+    </div>
+    <form method="POST" action="/gestao/empresas/<%= empresa.id %>/editar">
+      <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div class="form-group">
+          <label class="form-label">Nome *</label>
+          <input name="nome" class="form-input" required value="<%= empresa.nome %>">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label">Segmento</label>
+            <input name="segmento" class="form-input" value="<%= empresa.segmento || '' %>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+              <option value="">—</option>
+              <option value="Ativo" <%= empresa.status === 'Ativo' ? 'selected' : '' %>>Ativo</option>
+              <option value="Inativo" <%= empresa.status === 'Inativo' ? 'selected' : '' %>>Inativo</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label">CNPJ</label>
+            <input name="cnpj" class="form-input" value="<%= empresa.cnpj || '' %>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input name="email" type="email" class="form-input" value="<%= empresa.email || '' %>">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label">Telefone</label>
+            <input name="telefone" class="form-input" value="<%= empresa.telefone || '' %>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contato</label>
+            <input name="contato" class="form-input" value="<%= empresa.contato || '' %>">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 80px;gap:12px">
+          <div class="form-group">
+            <label class="form-label">Cidade</label>
+            <input name="cidade" class="form-input" value="<%= empresa.cidade || '' %>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">UF</label>
+            <input name="estado" class="form-input" maxlength="2" value="<%= empresa.estado || '' %>">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Site</label>
+          <input name="site" class="form-input" value="<%= empresa.site || '' %>">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descrição</label>
+          <textarea name="descricao" class="form-input" rows="3" style="resize:vertical"><%= empresa.descricao || '' %></textarea>
+        </div>
+      </div>
+      <div class="card-footer" style="justify-content:flex-end;gap:8px">
+        <button type="button" onclick="closeModal('modal-editar-empresa')" class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar alterações</button>
+      </div>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<!-- Form exclusão oculto -->
+<% if (isAdmin) { %>
+<form id="form-excluir" method="POST" action="/gestao/empresas/<%= empresa.id %>/excluir" style="display:none"></form>
+<% } %>
+
+<script>
+function openModal(id) { document.getElementById(id).style.display = ''; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+document.querySelectorAll('[id^="modal-"]').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+});
+function confirmarExclusao() {
+  if (confirm('Excluir a empresa "<%= empresa.nome %>"? Esta ação não pode ser desfeita.')) {
+    document.getElementById('form-excluir').submit();
+  }
+}
+function editarFb(id) {
+  document.querySelector('.fb-view-' + id).style.display = 'none';
+  document.querySelector('.fb-edit-' + id).style.display = '';
+}
+function cancelarEditFb(id) {
+  document.querySelector('.fb-view-' + id).style.display = '';
+  document.querySelector('.fb-edit-' + id).style.display = 'none';
+}
+</script>
 </body>
 </html>

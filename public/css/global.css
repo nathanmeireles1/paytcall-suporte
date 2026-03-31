@@ -492,7 +492,7 @@ html.dark .badge-overdue   { color: var(--brand); }
 .toolbar .search-input { flex: 1; min-width: 160px; max-width: none; }
 
 /* ===== Pagination ===== */
-.pagination { display: flex; gap: 3px; justify-content: center; margin-top: 16px; }
+.pagination { display: flex; gap: 3px; justify-content: center; margin-top: 0; }
 .pagination a, .pagination span {
   padding: 5px 10px; border-radius: var(--radius);
   border: 1px solid var(--border); font-size: 12.5px; font-weight: 500;
@@ -501,6 +501,16 @@ html.dark .badge-overdue   { color: var(--brand); }
 .pagination a:hover { background: var(--surface-2); border-color: var(--border-2); color: var(--text); }
 .pagination a.active { background: var(--brand); color: #fff; border-color: var(--brand); }
 .pagination .ellipsis { border: none; background: transparent; color: var(--text-4); }
+
+/* Pagination bar — info + controls em linha */
+.pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0 4px; flex-wrap: wrap; }
+.pagination-info { font-size: 12.5px; color: var(--text-3); display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.pagination-info strong { color: var(--text-2); font-weight: 600; }
+.pag-perpage-sel { font-size: 12px; padding: 3px 6px; border: 1px solid var(--border-2); border-radius: var(--radius); background: var(--surface); color: var(--text-2); cursor: pointer; margin-left: 2px; }
+.pagination-controls { display: flex; align-items: center; gap: 10px; }
+.pagination-goto { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
+.pag-goto-input { width: 52px; padding: 4px 7px; border: 1px solid var(--border-2); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 12px; text-align: center; font-family: var(--font); }
+.pag-goto-input:focus { outline: none; border-color: var(--brand); }
 
 /* ===== Empty State ===== */
 .empty-state { text-align: center; padding: 56px 20px; }

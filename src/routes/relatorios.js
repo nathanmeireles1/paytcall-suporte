@@ -6,10 +6,16 @@ const { requirePermission } = require('../middleware/auth');
 // Compatibilidade: /cancelamentos → /retencao
 router.get('/cancelamentos', (req, res) => res.redirect(301, '/relatorios/retencao'));
 
+function parsePerPage(val) {
+  const n = parseInt(val);
+  return [25, 50, 100, 200].includes(n) ? n : 50;
+}
+
 // GET /relatorios/tickets — Relatório de todos os tickets
 router.get('/tickets', requirePermission('relatorio_tickets', 'can_view'), async (req, res) => {
   try {
-    const { tipo, status, assigned_to, priority, motivo, search, page = 1 } = req.query;
+    const { tipo, status, assigned_to, priority, motivo, search, page = 1, perPage } = req.query;
+    const limit = parsePerPage(perPage);
 
     // Roles operacionais veem apenas seus próprios tickets
     const RESTRICTED_ROLES = ['suporte', 'logistica', 'retencao'];
@@ -26,7 +32,7 @@ router.get('/tickets', requirePermission('relatorio_tickets', 'can_view'), async
       status,
       assigned_to: forcedAssignedTo || assigned_to,
       priority, motivo, search,
-      page: parseInt(page),
+      page: parseInt(page), limit,
     });
 
     res.render('relatorios-tickets', {
@@ -34,6 +40,7 @@ router.get('/tickets', requirePermission('relatorio_tickets', 'can_view'), async
       total: result.total,
       pages: result.pages,
       currentPage: parseInt(page),
+      perPage: limit,
       filters: { tipo: forcedTipo || tipo, status, assigned_to, priority, motivo, search },
       isSuporte: isRestricted,
     });
@@ -46,10 +53,11 @@ router.get('/tickets', requirePermission('relatorio_tickets', 'can_view'), async
 // GET /relatorios/retencao — Relatório de chargebacks e reembolsos
 router.get('/retencao', requirePermission('relatorio_cancelamentos', 'can_view'), async (req, res) => {
   try {
-    const { tipo, payment_status, status_atendimento, search, page = 1 } = req.query;
+    const { tipo, payment_status, status_atendimento, search, page = 1, perPage } = req.query;
+    const limit = parsePerPage(perPage);
 
     const result = await Shipment.getCancelamentos({
-      tipo, payment_status, status_atendimento, search, page: parseInt(page),
+      tipo, payment_status, status_atendimento, search, page: parseInt(page), limit,
     });
 
     res.render('relatorios-cancelamentos', {
@@ -57,6 +65,7 @@ router.get('/retencao', requirePermission('relatorio_cancelamentos', 'can_view')
       total: result.total,
       pages: result.pages,
       currentPage: parseInt(page),
+      perPage: limit,
       filters: { tipo, payment_status, status_atendimento, search },
     });
   } catch (err) {
@@ -191,13 +200,15 @@ router.post('/retencao/:id', requirePermission('relatorio_cancelamentos', 'can_e
 // GET /relatorios/logistica
 router.get('/logistica', requirePermission('relatorio_logistica', 'can_view'), async (req, res) => {
   try {
-    const { status, assigned_to, priority, search, page = 1 } = req.query;
-    const result = await Shipment.getAllTickets({ tipo: 'LOGISTICA', status, assigned_to, priority, search, page: parseInt(page) });
+    const { status, assigned_to, priority, search, page = 1, perPage } = req.query;
+    const limit = parsePerPage(perPage);
+    const result = await Shipment.getAllTickets({ tipo: 'LOGISTICA', status, assigned_to, priority, search, page: parseInt(page), limit });
     res.render('relatorios-logistica', {
       tickets: result.rows,
       total: result.total,
       pages: result.pages,
       currentPage: parseInt(page),
+      perPage: limit,
       filters: { status, assigned_to, priority, search },
     });
   } catch (err) {
@@ -304,11 +315,12 @@ router.get('/logistica/solicitacoes/export', requirePermission('tickets', 'can_v
 // GET /relatorios/retencao/solicitacoes
 router.get('/retencao/solicitacoes', requirePermission('tickets', 'can_view'), async (req, res) => {
   try {
-    const { status, assigned_to, priority, search, page = 1 } = req.query;
-    const result = await Shipment.getAllTickets({ tipo: 'RETENCAO', status, assigned_to, priority, search, page: parseInt(page) });
+    const { status, assigned_to, priority, search, page = 1, perPage } = req.query;
+    const limit = parsePerPage(perPage);
+    const result = await Shipment.getAllTickets({ tipo: 'RETENCAO', status, assigned_to, priority, search, page: parseInt(page), limit });
     res.render('relatorios-solicitacoes', {
       setor: 'RETENCAO', setorLabel: 'Retenção',
-      tickets: result.rows, total: result.total, pages: result.pages, currentPage: parseInt(page),
+      tickets: result.rows, total: result.total, pages: result.pages, currentPage: parseInt(page), perPage: limit,
       filters: { status, assigned_to, priority, search },
     });
   } catch (err) { res.status(500).render('error', { message: err.message }); }
@@ -317,11 +329,12 @@ router.get('/retencao/solicitacoes', requirePermission('tickets', 'can_view'), a
 // GET /relatorios/logistica/solicitacoes
 router.get('/logistica/solicitacoes', requirePermission('tickets', 'can_view'), async (req, res) => {
   try {
-    const { status, assigned_to, priority, search, page = 1 } = req.query;
-    const result = await Shipment.getAllTickets({ tipo: 'LOGISTICA', status, assigned_to, priority, search, page: parseInt(page) });
+    const { status, assigned_to, priority, search, page = 1, perPage } = req.query;
+    const limit = parsePerPage(perPage);
+    const result = await Shipment.getAllTickets({ tipo: 'LOGISTICA', status, assigned_to, priority, search, page: parseInt(page), limit });
     res.render('relatorios-solicitacoes', {
       setor: 'LOGISTICA', setorLabel: 'Logística',
-      tickets: result.rows, total: result.total, pages: result.pages, currentPage: parseInt(page),
+      tickets: result.rows, total: result.total, pages: result.pages, currentPage: parseInt(page), perPage: limit,
       filters: { status, assigned_to, priority, search },
     });
   } catch (err) { res.status(500).render('error', { message: err.message }); }
@@ -330,13 +343,15 @@ router.get('/logistica/solicitacoes', requirePermission('tickets', 'can_view'), 
 // GET /relatorios/rastreio-log — Logs de Rastreio (agendado + manual)
 router.get('/rastreio-log', requirePermission('rastreio_log', 'can_view'), async (req, res) => {
   try {
-    const { page = 1, origin = '' } = req.query;
-    const result = await Shipment.getSchedulerLogs({ page: parseInt(page), origin: origin || null });
+    const { page = 1, origin = '', perPage } = req.query;
+    const limit = parsePerPage(perPage);
+    const result = await Shipment.getSchedulerLogs({ page: parseInt(page), origin: origin || null, limit });
     res.render('relatorios-rastreio-log', {
       logs: result.rows,
       total: result.total,
       pages: result.pages,
       currentPage: parseInt(page),
+      perPage: limit,
       filters: { origin },
     });
   } catch (err) {

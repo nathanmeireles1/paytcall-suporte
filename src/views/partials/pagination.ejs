@@ -1,0 +1,95 @@
+<%
+  /* Variáveis esperadas: pages, currentPage, total, perPage */
+  const _perPage  = perPage || 50;
+  const _start    = Math.min(((currentPage - 1) * _perPage) + 1, total);
+  const _end      = Math.min(currentPage * _perPage, total);
+  const _options  = [25, 50, 100, 200];
+  const _showPg   = (p) => p === 1 || p === pages || (p >= currentPage - 2 && p <= currentPage + 2);
+%>
+<div class="pagination-bar">
+
+  <!-- Info + por página -->
+  <div class="pagination-info">
+    Mostrando
+    <strong><%= total === 0 ? 0 : _start.toLocaleString('pt-BR') %>–<%= _end.toLocaleString('pt-BR') %></strong>
+    de <strong><%= total.toLocaleString('pt-BR') %></strong>
+    &nbsp;·&nbsp; Por página:
+    <select class="pag-perpage-sel" onchange="paginationSetPerPage(this.value)">
+      <% _options.forEach(n => { %>
+      <option value="<%= n %>" <%= n === _perPage ? 'selected' : '' %>><%= n %></option>
+      <% }) %>
+    </select>
+  </div>
+
+  <!-- Controles de página -->
+  <% if (pages > 1) { %>
+  <div class="pagination-controls">
+    <div class="pagination" style="margin:0">
+
+      <% if (currentPage > 1) { %>
+      <a href="#" class="pag-link" data-page="<%= currentPage - 1 %>">‹</a>
+      <% } %>
+
+      <%
+        let _lastShown = 0;
+        for (let _i = 1; _i <= pages; _i++) {
+          if (_showPg(_i)) {
+            if (_lastShown && _i - _lastShown > 1) {
+      %><span class="ellipsis">…</span><%
+            }
+      %>
+      <a href="#" class="pag-link <%= _i === currentPage ? 'active' : '' %>" data-page="<%= _i %>"><%= _i %></a>
+      <%
+            _lastShown = _i;
+          }
+        }
+      %>
+
+      <% if (currentPage < pages) { %>
+      <a href="#" class="pag-link" data-page="<%= currentPage + 1 %>">›</a>
+      <% } %>
+
+    </div>
+
+    <div class="pagination-goto">
+      Ir para
+      <input type="number" class="pag-goto-input" min="1" max="<%= pages %>" placeholder="<%= currentPage %>">
+      <span>de <%= pages %></span>
+    </div>
+  </div>
+  <% } %>
+
+</div>
+<script>
+(function() {
+  function goToPage(p) {
+    const max = <%= pages %>;
+    p = parseInt(p);
+    if (!p || p < 1 || p > max) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', p);
+    window.location = url.toString();
+  }
+  function paginationSetPerPage(n) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('perPage', n);
+    url.searchParams.set('page', 1);
+    window.location = url.toString();
+  }
+  window.paginationSetPerPage = paginationSetPerPage;
+
+  document.querySelectorAll('.pag-link').forEach(a => {
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      goToPage(this.dataset.page);
+    });
+  });
+
+  const gotoInput = document.querySelector('.pag-goto-input');
+  if (gotoInput) {
+    gotoInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') goToPage(this.value);
+    });
+  }
+})();
+</script>

@@ -36,15 +36,16 @@ Guia obrigatório para qualquer desenvolvedor ou agente IA que trabalhe neste pr
 src/
   app.js              — entrada da aplicação Express
   config/
-    database.js       — clientes Supabase
+    database.js       — clientes Supabase (db = operacional, hubDb = hub)
   middleware/
     auth.js           — requireAuth, requirePermission, loadPermissions
   routes/
     admin.js          — /admin/* (usuários, permissões, configurações, docs, IA)
     ai.js             — /api/ai/chat (Lina — Gemini)
     auth.js           — /login, /logout, /invite/:token
-    dashboard.js      — /dashboard
-    relatorios.js     — /relatorios/* (tickets, rastreio-log, etc.)
+    dashboard.js      — /dashboard, /rastreios (handler compartilhado handleRastreios)
+    gestao.js         — /gestao/* (catálogo: empresas, produtos, nichos, feedbacks)
+    relatorios.js     — /relatorios/* (tickets, rastreio-log, cancelamentos, logística, retenção)
     tracking.js       — /rastreios, /pedido/:id, refresh
     webhook.js        — /webhook (Paytcall)
   services/
@@ -53,15 +54,23 @@ src/
     haga7.js          — integração API H7 (rastreio por CPF)
   views/
     partials/
-      sidebar.ejs     — navegação lateral (roles controlam visibilidade)
-      topbar.ejs      — barra superior com notificações
-      ai-chat.ejs     — widget flutuante da Lina
+      sidebar.ejs       — navegação lateral (roles controlam visibilidade)
+      topbar.ejs        — barra superior com notificações
+      ai-chat.ejs       — widget flutuante da Lina
+      feedback-list.ejs — lista de feedbacks com edit/delete inline
+      pagination.ejs    — paginação universal (info + ellipsis + ir para + por página)
     login.ejs
-    invite.ejs        — página de aceite de convite
-    dashboard.ejs
-    shipment.ejs      — página do pedido individual
+    invite.ejs          — página de aceite de convite
+    dashboard.ejs       — tabela de rastreios com filtros
+    shipment.ejs        — página do pedido individual
+    gestao-catalogo.ejs         — Catálogo (abas: Empresas | Produtos | Nichos)
+    gestao-empresa-detalhe.ejs  — Detalhe de empresa + feedbacks
+    gestao-produto-detalhe.ejs  — Detalhe de produto + mídias + feedbacks
     relatorios-tickets.ejs
     relatorios-rastreio-log.ejs
+    relatorios-cancelamentos.ejs
+    relatorios-logistica.ejs
+    relatorios-solicitacoes.ejs
     admin-configuracoes.ejs  — Usuários + Permissões + Sistema (abas)
     admin-docs.ejs    — documentação do sistema
     admin-ia.ejs      — página dedicada ao agente Lina
@@ -89,9 +98,12 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 
 ## Design System — regras obrigatórias
 
-- **Sempre** usar classes do `global.css`: `card`, `card-header`, `card-body`, `card-footer`, `btn`, `btn-primary`, `btn-secondary`, `form-input`, `form-select`, `form-label`, `badge`, `table-wrap`, `toolbar`, `pagination`
+- **Sempre** usar classes do `global.css`: `card`, `card-header`, `card-body`, `card-footer`, `btn`, `btn-primary`, `btn-secondary`, `btn-sm`, `form-input`, `form-select`, `form-label`, `form-group`, `badge`, `table-wrap`, `toolbar`, `pagination`, `pagination-bar`
 - **Nunca** criar estilos inline que dupliquem o que o design system já oferece
 - Modais seguem o padrão: overlay `rgba(0,0,0,.45)` + `class="card"` + `card-header` + `card-body` + `card-footer`
+- Page headers com título + botões: usar `p-page-header` > `p-page-header-left` + `p-page-header-right`
+- Formulários: sempre envolver `label` + `input` em `<div class="form-group">` (flex-column, gap:5px)
+- Paginação: usar `<%- include('partials/pagination', { pages, currentPage, total, perPage }) %>` — NUNCA reimplementar manualmente
 - Cores via variáveis CSS: `var(--brand)`, `var(--success)`, `var(--danger)`, `var(--warning)`, `var(--info)`, `var(--text)`, `var(--text-3)`, `var(--text-4)`, `var(--border)`
 - Páginas públicas (login, invite) têm design próprio — não usam `global.css`
 
@@ -131,6 +143,8 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 | `SESSION_SECRET` | Secret para cookies de sessão |
 | `ADMIN_PASS` | Senha admin de emergência |
 | `WONCA_API_KEY` | Chave API H7 para consulta de rastreios por CPF |
+| `HUB_SUPABASE_URL` | URL do projeto Supabase hub (vendas, empresas, produtos) |
+| `HUB_SUPABASE_SERVICE_KEY` | Service role key do Supabase hub |
 
 ---
 
@@ -160,6 +174,14 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 | `notifications` | Notificações internas por usuário |
 | `cancelamentos` | Registros de cancelamento/chargeback |
 
+**Tabelas no Supabase hub (`cclvcemrxpucpxaywopc`) — acessadas via `hubDb`:**
+
+| Tabela | Descrição |
+|---|---|
+| `empresas` | Empresas parceiras (nome, segmento, cnpj, email, telefone, contato, cidade, estado, site, descricao, status) |
+| `produtos` | Produtos do catálogo (nome, nicho, sku, o_que_e, como_funciona, composicao, descricao, playbook_slug) |
+| `feedbacks` | Feedbacks sobre empresas/produtos (autor text, empresa text, produto text, texto, dt_criacao) — sem FK obrigatória |
+
 ---
 
 ## Fluxo de convite de usuário
@@ -172,5 +194,28 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 
 ---
 
+## Módulo Catálogo (Gestão)
+
+- Rota base: `/gestao/*` em `src/routes/gestao.js`
+- Usa `hubDb` (Supabase hub) para empresas, produtos, feedbacks
+- Permissões: `canEdit` = admin OU `role_permissions.catalogo.can_edit`; `canDelete` = admin only
+- Mídias de produtos: Supabase Storage bucket `produtos-midias`, path `playbooks/{slug}/fotos/` e `playbooks/{slug}/depoimentos/`
+- Nichos são derivados do campo `produto.nicho` (sem tabela própria) — "Novo Nicho" pré-preenche o modal de Novo Produto
+- Feedbacks: qualquer usuário cria; autor ou admin pode editar/excluir
+
+## Paginação universal
+
+Todas as páginas com tabelas usam o partial `partials/pagination.ejs`.
+
+**Como passar os dados:**
+1. Na rota, ler `perPage` do query: `const limit = parsePerPage(req.query.perPage)` (função helper em relatorios.js e inline em dashboard.js; valores válidos: 25, 50, 100, 200)
+2. Passar `limit` para o model como parâmetro `limit`
+3. Passar ao render: `{ pages, currentPage, total, perPage: limit }`
+4. Na view: `<%- include('partials/pagination', { pages, currentPage, total, perPage }) %>`
+
+O partial preserva todos os query params automaticamente via `window.location` (não precisa conhecer os filtros).
+
+---
+
 *Atualizado em: 2026-03-30*
-*Próxima atualização necessária quando: migração do hub de vendas for concluída*
+*Próxima atualização necessária quando: migração do hub de vendas for concluída / importador Excel for implementado*

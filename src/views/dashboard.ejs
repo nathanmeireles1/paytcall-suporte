@@ -382,33 +382,7 @@
         </script>
 
         <!-- Paginação -->
-        <% if (pages > 1) { %>
-        <%
-          const qs = (filters.status ? '&status=' + filters.status : '')
-            + (filters.seller_id ? '&seller_id=' + filters.seller_id : '')
-            + (filters.carrier ? '&carrier=' + filters.carrier : '')
-            + (filters.product ? '&product=' + encodeURIComponent(filters.product) : '')
-            + (filters.search ? '&search=' + encodeURIComponent(filters.search) : '');
-          const pUrl = (p) => '?page=' + p + qs;
-          const showPage = (p) => p === 1 || p === pages || (p >= currentPage - 2 && p <= currentPage + 2);
-        %>
-        <div style="padding:14px 20px;border-top:1px solid var(--gray-100);display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:12.5px;color:var(--gray-400)">
-            Mostrando <%= ((currentPage-1)*50)+1 %>–<%= Math.min(currentPage*50, total) %> de <%= total.toLocaleString('pt-BR') %>
-          </span>
-          <div class="pagination" style="margin:0">
-            <% if (currentPage > 1) { %><a href="<%= pUrl(currentPage - 1) %>">‹</a><% } %>
-            <% let lastShown = 0; for (let i = 1; i <= pages; i++) { %>
-              <% if (showPage(i)) { %>
-                <% if (lastShown && i - lastShown > 1) { %><span class="ellipsis">…</span><% } %>
-                <a href="<%= pUrl(i) %>" class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
-                <% lastShown = i; %>
-              <% } %>
-            <% } %>
-            <% if (currentPage < pages) { %><a href="<%= pUrl(currentPage + 1) %>">›</a><% } %>
-          </div>
-        </div>
-        <% } %>
+        <%- include('partials/pagination', { pages, currentPage, total, perPage }) %>
 
       </div><!-- /p-card -->
 
