@@ -45,6 +45,9 @@
             <div style="font-weight:600;color:var(--success);margin-bottom:10px">✓ Importação concluída — <%= result.arquivo %></div>
             <div style="display:flex;gap:24px;font-size:13px">
               <span><strong style="font-size:18px;color:var(--text)"><%= result.total.toLocaleString('pt-BR') %></strong><br><span style="color:var(--text-3)">Linhas lidas</span></span>
+              <% if (result.total !== result.unique) { %>
+              <span><strong style="font-size:18px;color:var(--warning)"><%= (result.total - result.unique).toLocaleString('pt-BR') %></strong><br><span style="color:var(--text-3)">Deduplicadas</span></span>
+              <% } %>
               <span><strong style="font-size:18px;color:var(--success)"><%= result.inserted.toLocaleString('pt-BR') %></strong><br><span style="color:var(--text-3)">Inseridas/atualizadas</span></span>
               <% if (result.errors > 0) { %>
               <span><strong style="font-size:18px;color:var(--danger)"><%= result.errors.toLocaleString('pt-BR') %></strong><br><span style="color:var(--text-3)">Erros</span></span>

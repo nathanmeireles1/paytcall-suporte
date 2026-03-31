@@ -648,24 +648,38 @@ router.post('/vendas/import', requireHub, canEdit, upload.single('arquivo'), asy
       if (dbField) colIndexes[dbField] = i;
     });
 
-    const BATCH = 500;
-    let inserted = 0, updated = 0, errors = 0;
-
-    for (let b = 0; b < dataRows.length; b += BATCH) {
-      const batch = dataRows.slice(b, b + BATCH).map(row => {
-        const rec = {};
-        for (const [field, idx] of Object.entries(colIndexes)) {
-          let val = row[idx];
-          if (val === '' || val === null || val === undefined) { rec[field] = null; continue; }
-          if (DATE_FIELDS.has(field)) { rec[field] = excelDateToISO(val); continue; }
-          if (typeof val === 'number' && ['valor_sem_juros','valor_da_venda','f_valor_da_venda','saldo_da_venda','f_saldo_da_venda'].includes(field)) {
-            rec[field] = val;
-          } else {
-            rec[field] = String(val).trim() || null;
-          }
+    // Mapeia todas as linhas primeiro
+    const allRecords = dataRows.map(row => {
+      const rec = {};
+      for (const [field, idx] of Object.entries(colIndexes)) {
+        let val = row[idx];
+        if (val === '' || val === null || val === undefined) { rec[field] = null; continue; }
+        if (DATE_FIELDS.has(field)) { rec[field] = excelDateToISO(val); continue; }
+        if (typeof val === 'number' && ['valor_sem_juros','valor_da_venda','f_valor_da_venda','saldo_da_venda','f_saldo_da_venda'].includes(field)) {
+          rec[field] = val;
+        } else {
+          rec[field] = String(val).trim() || null;
         }
-        return rec;
-      }).filter(r => r.codigo); // ignora linhas sem código
+      }
+      return rec;
+    }).filter(r => r.codigo);
+
+    // Deduplica por codigo mantendo o registro com data_atualizacao mais recente
+    const deduped = new Map();
+    for (const rec of allRecords) {
+      const existing = deduped.get(rec.codigo);
+      if (!existing) { deduped.set(rec.codigo, rec); continue; }
+      const dateNew = rec.data_atualizacao || '';
+      const dateOld = existing.data_atualizacao || '';
+      if (dateNew > dateOld) deduped.set(rec.codigo, rec);
+    }
+    const uniqueRecords = Array.from(deduped.values());
+
+    const BATCH = 500;
+    let inserted = 0, errors = 0;
+
+    for (let b = 0; b < uniqueRecords.length; b += BATCH) {
+      const batch = uniqueRecords.slice(b, b + BATCH);
 
       const { error, data } = await hub.from('vendas')
         .upsert(batch, { onConflict: 'codigo', ignoreDuplicates: false })
@@ -677,7 +691,7 @@ router.post('/vendas/import', requireHub, canEdit, upload.single('arquivo'), asy
 
     res.render('gestao-vendas-import', {
       activePage: 'gestao-vendas',
-      result: { ok: true, total: dataRows.length, inserted, errors, arquivo: req.file.originalname },
+      result: { ok: true, total: dataRows.length, unique: uniqueRecords.length, inserted, errors, arquivo: req.file.originalname },
     });
   } catch (err) {
     console.error('[Gestao/Import] Erro:', err.message);
