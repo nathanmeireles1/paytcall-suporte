@@ -56,7 +56,13 @@ async function fetchPages(params = {}) {
 
   do {
     const url = new URL(BASE_URL);
-    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    for (const [k, v] of Object.entries(params)) {
+      if (Array.isArray(v)) {
+        v.forEach(item => url.searchParams.append(`${k}[]`, item));
+      } else {
+        url.searchParams.set(k, v);
+      }
+    }
     if (offset) url.searchParams.set('offset', offset);
 
     const res  = await fetch(url.toString(), { headers });
@@ -103,8 +109,8 @@ async function upsertRecords(records) {
 async function syncIncremental(minutes = 10) {
   if (!API_KEY) return;
   try {
-    const since = new Date(Date.now() - minutes * 60 * 1000).toISOString();
-    const formula = `IS_AFTER({Data de atualização}, '${since}')`;
+    const since = new Date(Date.now() - minutes * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    const formula = `IS_AFTER({Data de atualização}, DATETIME_PARSE('${since}', 'YYYY-MM-DD HH:mm:ss'))`;
     const records = await fetchPages({ filterByFormula: formula, fields: Object.keys(FIELD_MAP) });
     if (!records.length) { console.log('[Airtable] Incremental: nenhum registro novo'); return; }
     const count = await upsertRecords(records);
