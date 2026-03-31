@@ -131,8 +131,22 @@
               <div class="multiselect-list" id="msFonteList">
                 <div class="multiselect-item" onclick="selectFonte('all','Todas as fontes')">Todas as fontes</div>
                 <div class="multiselect-item" onclick="selectFonte('paytcall','Paytcall')">Paytcall</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vendedora (somente admin) -->
+          <div class="multiselect-wrap" id="msVendedoraWrap">
+            <button type="button" class="multiselect-btn" id="msVendedoraBtn" onclick="toggleMs('msVendedora')">
+              <span id="msVendedoraLabel">Todas Vendedoras</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="multiselect-dropdown" id="msVendedoraDropdown">
+              <div class="multiselect-search"><input type="text" class="form-input" placeholder="Buscar..." oninput="filterMs('msVendedora', this.value)"></div>
+              <div class="multiselect-list" id="msVendedoraList">
+                <div class="multiselect-item" onclick="selectVendedora('all','Todas Vendedoras')">Todas Vendedoras</div>
                 <% colaboradores.forEach(c => { %>
-                  <div class="multiselect-item" onclick="selectFonte('<%= c.email %>','<%= c.email.split('@')[0] %>')"><%= c.email.split('@')[0] %></div>
+                  <div class="multiselect-item" onclick="selectVendedora('<%= c.email %>','<%= c.primeiro_nome || c.email.split('@')[0] %>')"><%= c.primeiro_nome || c.email.split('@')[0] %></div>
                 <% }) %>
               </div>
             </div>
@@ -380,19 +394,31 @@
     return [...document.getElementById(id + 'List').querySelectorAll('input:checked')].map(i => i.value);
   }
 
-  // Fonte: single-select dropdown
-  let currentFonte = 'all';
+  // Fonte e Vendedora: single-select dropdowns
+  let currentFonte    = 'all';
+  let currentVendedora = 'all';
+
   function selectFonte(value, label) {
     currentFonte = value;
+    if (value !== 'all') { currentVendedora = 'all'; document.getElementById('msVendedoraLabel').textContent = 'Todas Vendedoras'; document.getElementById('msVendedoraBtn').classList.remove('has-selection'); }
     document.getElementById('msFonteLabel').textContent = label;
     document.getElementById('msFonteBtn').classList.toggle('has-selection', value !== 'all');
     document.getElementById('msFonteDropdown').classList.remove('open');
     loadData();
   }
 
+  function selectVendedora(email, label) {
+    currentVendedora = email;
+    if (email !== 'all') { currentFonte = 'all'; document.getElementById('msFonteLabel').textContent = 'Todas as fontes'; document.getElementById('msFonteBtn').classList.remove('has-selection'); }
+    document.getElementById('msVendedoraLabel').textContent = label;
+    document.getElementById('msVendedoraBtn').classList.toggle('has-selection', email !== 'all');
+    document.getElementById('msVendedoraDropdown').classList.remove('open');
+    loadData();
+  }
+
   // Fecha dropdown ao clicar fora
   document.addEventListener('mousedown', e => {
-    ['msEmpresas','msProdutos','msFonte'].forEach(id => {
+    ['msEmpresas','msProdutos','msFonte','msVendedora'].forEach(id => {
       const wrap = document.getElementById(id + 'Wrap');
       if (wrap && !wrap.contains(e.target)) {
         document.getElementById(id + 'Dropdown').classList.remove('open');
@@ -431,7 +457,8 @@
       if (equipeEl) params.set('equipe', equipeEl.value);
       const tipoEl = document.getElementById('filterTipo');
       if (tipoEl && tipoEl.value !== 'all') params.set('tipo', tipoEl.value);
-      if (currentFonte !== 'all') params.set('fonte', currentFonte);
+      if (currentFonte === 'paytcall') params.set('fonte', 'paytcall');
+      else if (currentVendedora !== 'all') params.set('vendedora', currentVendedora);
       const formaEl = document.getElementById('filterForma');
       if (formaEl && formaEl.value !== 'all') params.set('forma', formaEl.value);
       const msE = getMs('msEmpresas');

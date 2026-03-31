@@ -386,20 +386,30 @@ router.post('/feedbacks/:id/excluir', requireHub, async (req, res) => {
 
 // ─── VENDAS ──────────────────────────────────────────────────────────────────
 
+// Cache de opções de filtro (evita timeout por DISTINCT em 1M+ linhas a cada page load)
+let _filterCache = null;
+let _filterCacheAt = 0;
+async function getFilterOptions() {
+  if (_filterCache && Date.now() - _filterCacheAt < 10 * 60 * 1000) return _filterCache;
+  const { data } = await db.rpc('get_vendas_filter_options');
+  if (data) { _filterCache = data; _filterCacheAt = Date.now(); }
+  return _filterCache || {};
+}
+
 // GET /gestao/vendas
 router.get('/vendas', async (req, res) => {
   try {
     const user = req.user;
     const role = user.role;
 
-    const [{ data: filterOpts }, { data: colaboradoresData }] = await Promise.all([
-      db.rpc('get_vendas_filter_options'),
+    const [filterOpts, { data: colaboradoresData }] = await Promise.all([
+      getFilterOptions(),
       role === 'admin'
-        ? db.from('vendas_colaboradores').select('email, equipe').eq('ativo', true).order('email')
+        ? db.from('vendas_colaboradores').select('email, equipe, primeiro_nome').eq('ativo', true).order('primeiro_nome')
         : Promise.resolve({ data: [] }),
     ]);
 
-    const opts         = filterOpts || {};
+    const opts         = filterOpts;
     const tipos        = (opts.tipos    || []).sort();
     const empresas     = (opts.empresas || []).sort();
     const produtos     = (opts.produtos || []).sort();
@@ -430,7 +440,7 @@ router.get('/vendas', async (req, res) => {
 // GET /gestao/api/vendas — endpoint de dados para o dashboard (chamado via fetch)
 router.get('/api/vendas', async (req, res) => {
   try {
-    const { period, dateFrom, dateTo, equipe, fonte, tipo, empresas: empresasParam, produtos: produtosParam, forma } = req.query;
+    const { period, dateFrom, dateTo, equipe, fonte, vendedora, tipo, empresas: empresasParam, produtos: produtosParam, forma } = req.query;
     const user = req.user;
     const role = user.role;
 
@@ -472,7 +482,8 @@ router.get('/api/vendas', async (req, res) => {
       p_empresas: empresasFiltro.length ? empresasFiltro : null,
       p_produtos: produtosFiltro.length ? produtosFiltro : null,
       p_forma:    (forma && forma !== 'all') ? forma : null,
-      p_fonte:    (fonte && fonte !== 'all') ? fonte : null,
+      p_fonte:    (vendedora && vendedora !== 'all') ? vendedora :
+                  (fonte && fonte !== 'all') ? fonte : null,
     });
 
     if (error) return res.status(500).json({ error: error.message });
