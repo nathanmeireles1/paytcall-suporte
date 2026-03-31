@@ -469,7 +469,7 @@ router.get('/api/vendas', requireHub, async (req, res) => {
     };
 
     const [
-      { data: kpiPaid },
+      { data: kpiPaid, error: e1 },
       { data: kpiCb },
       { data: formaPgto },
       { data: daily },
@@ -483,6 +483,8 @@ router.get('/api/vendas', requireHub, async (req, res) => {
       applyFilters(hub.from('vendas').select('empresa, f_saldo_da_venda, id')).eq('status_pagamento', 'paid').not('empresa', 'is', null),
       applyFilters(hub.from('vendas').select('produto, f_saldo_da_venda, id')).eq('status_pagamento', 'paid').not('produto', 'is', null),
     ]);
+
+    if (e1) return res.status(500).json({ error: e1.message + ' | hint: ' + (e1.hint || e1.details || '') });
 
     const totalPaid   = (kpiPaid || []).length;
     const faturamento = (kpiPaid || []).reduce((s, v) => s + (v.f_saldo_da_venda || 0), 0);
