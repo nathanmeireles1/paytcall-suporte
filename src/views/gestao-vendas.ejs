@@ -108,7 +108,7 @@
 
           <!-- Período -->
           <div style="display:flex;gap:4px;background:var(--surface-2);border-radius:var(--radius-md);padding:3px">
-            <% [['7d','7 dias'],['30d','30 dias'],['90d','90 dias'],['12m','12 meses'],['all','Tudo'],['custom','Período']].forEach(([val,lbl]) => { %>
+            <% [['today','Hoje'],['7d','7 dias'],['30d','30 dias'],['90d','90 dias'],['12m','12 meses'],['all','Tudo'],['custom','Período']].forEach(([val,lbl]) => { %>
               <button class="period-btn <%= val === '30d' ? 'active' : '' %>" data-period="<%= val %>" onclick="setPeriod('<%= val %>')"><%= lbl %></button>
             <% }) %>
           </div>
@@ -145,7 +145,13 @@
           <select id="filterForma" class="form-select" style="min-width:160px" onchange="loadData()">
             <option value="all">Todas as formas</option>
             <% formas.forEach(f => { %>
-              <option value="<%= f %>"><%= f === 'credit_card' ? 'Cartão' : f === 'pix' ? 'PIX' : f %></option>
+              <option value="<%= f %>"><%=
+                f === 'credit_card' ? 'Cartão de Crédito' :
+                f === 'debit_card'  ? 'Cartão de Débito'  :
+                f === 'pix'         ? 'PIX'               :
+                f === 'pix_cnpj'    ? 'PIX CNPJ'          :
+                f === 'boleto'      ? 'Boleto'             : f
+              %></option>
             <% }) %>
           </select>
           <% } %>
@@ -382,7 +388,12 @@
     setLoading(true);
     try {
       const params = new URLSearchParams({ period: currentPeriod });
-      if (currentPeriod === 'custom') {
+      if (currentPeriod === 'today') {
+        const t = new Date().toISOString().slice(0,10);
+        params.set('period', 'custom');
+        params.set('dateFrom', t);
+        params.set('dateTo',   t);
+      } else if (currentPeriod === 'custom') {
         params.set('dateFrom', document.getElementById('customFrom').value || '');
         params.set('dateTo',   document.getElementById('customTo').value   || '');
       }
