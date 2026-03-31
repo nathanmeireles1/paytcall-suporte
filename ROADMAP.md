@@ -23,7 +23,10 @@
 | 13 | Subdomínio / domínio definitivo | 🔲 Pendente |
 | 14 | Paginação universal (por página + ir para página) | ✅ Concluído |
 | 15 | Módulo Catálogo (Empresas, Produtos, Nichos, Feedbacks, Mídias) | 🟡 Em andamento |
-| 16 | Importador Excel/Airtable para Vendas | 🔲 Pendente |
+| 16 | Importador Excel/Airtable para Vendas | 🟡 Em andamento |
+| 17 | Log de auditoria global (Admin) — convites, imports, alterações | 🔲 Pendente |
+| 18 | Barra de progresso no import de planilhas | 🔲 Pendente |
+| 19 | Módulo Logística (mover /relatorios/logistica + renomear Relatórios) | 🔲 Pendente |
 
 ---
 

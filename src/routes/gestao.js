@@ -641,11 +641,17 @@ router.post('/vendas/import', requireHub, canEdit, upload.single('arquivo'), asy
     const headers = rows[0];
     const dataRows = rows.slice(1).filter(r => r.some(c => c !== '' && c !== null));
 
-    // Mapeia colunas presentes na planilha
+    // Descobre colunas reais da tabela vendas no Supabase
+    const { data: sampleRow } = await hub.from('vendas').select('*').limit(1);
+    const tableColumns = sampleRow && sampleRow.length > 0
+      ? new Set(Object.keys(sampleRow[0]))
+      : null; // se tabela vazia, aceita tudo do COL_MAP
+
+    // Mapeia colunas presentes na planilha E que existem na tabela
     const colIndexes = {}; // dbField → index na planilha
     headers.forEach((h, i) => {
       const dbField = COL_MAP[h?.toString().trim()];
-      if (dbField) colIndexes[dbField] = i;
+      if (dbField && (!tableColumns || tableColumns.has(dbField))) colIndexes[dbField] = i;
     });
 
     // Mapeia todas as linhas primeiro
