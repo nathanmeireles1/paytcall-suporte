@@ -98,8 +98,14 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 
 ## Design System — regras obrigatórias
 
+> **Regra absoluta: TODO elemento visual do portal deve usar o design system — sem exceções.**
+> Isso inclui tabelas, modais, botões, gráficos, dropdowns, filtros, badges, formulários, ícones, cores e espaçamentos.
+> Nunca criar componentes visuais fora do padrão, mesmo que seja "só um filtro" ou "só um botão".
+
 - **Sempre** usar classes do `global.css`: `card`, `card-header`, `card-body`, `card-footer`, `btn`, `btn-primary`, `btn-secondary`, `btn-sm`, `form-input`, `form-select`, `form-label`, `form-group`, `badge`, `table-wrap`, `toolbar`, `pagination`, `pagination-bar`
 - **Nunca** criar estilos inline que dupliquem o que o design system já oferece
+- **Dropdowns de filtro** usam o componente `multiselect-wrap` + `multiselect-btn` + `multiselect-dropdown` — nunca usar `<select>` nativo em barras de filtro de dashboards
+- **Labels de filtros** usam o nome da dimensão (ex: "Empresas", "Tipo", "Pagamento") — não prefixar com "Todos/Todas"
 - Modais seguem o padrão: overlay `rgba(0,0,0,.45)` + `class="card"` + `card-header` + `card-body` + `card-footer`
 - Page headers com título + botões: usar `p-page-header` > `p-page-header-left` + `p-page-header-right`
 - Formulários: sempre envolver `label` + `input` em `<div class="form-group">` (flex-column, gap:5px)

@@ -124,12 +124,12 @@
           <% if (isAdmin) { %>
           <div class="multiselect-wrap" id="msFonteWrap">
             <button type="button" class="multiselect-btn" id="msFonteBtn" onclick="toggleMs('msFonte')">
-              <span id="msFonteLabel">Todas as fontes</span>
+              <span id="msFonteLabel">Fonte</span>
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="multiselect-dropdown" id="msFonteDropdown">
               <div class="multiselect-list" id="msFonteList">
-                <div class="multiselect-item" onclick="selectFonte('all','Todas as fontes')">Todas as fontes</div>
+                <div class="multiselect-item" onclick="selectFonte('all','Fonte')">Todas</div>
                 <div class="multiselect-item" onclick="selectFonte('paytcall','Paytcall')">Paytcall</div>
               </div>
             </div>
@@ -138,13 +138,13 @@
           <!-- Vendedora (somente admin) -->
           <div class="multiselect-wrap" id="msVendedoraWrap">
             <button type="button" class="multiselect-btn" id="msVendedoraBtn" onclick="toggleMs('msVendedora')">
-              <span id="msVendedoraLabel">Todas Vendedoras</span>
+              <span id="msVendedoraLabel">Vendedora</span>
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="multiselect-dropdown" id="msVendedoraDropdown">
               <div class="multiselect-search"><input type="text" class="form-input" placeholder="Buscar..." oninput="filterMs('msVendedora', this.value)"></div>
               <div class="multiselect-list" id="msVendedoraList">
-                <div class="multiselect-item" onclick="selectVendedora('all','Todas Vendedoras')">Todas Vendedoras</div>
+                <div class="multiselect-item" onclick="selectVendedora('all','Vendedora')">Todas</div>
                 <% colaboradores.forEach(c => { %>
                   <div class="multiselect-item" onclick="selectVendedora('<%= c.email %>','<%= c.primeiro_nome || c.email.split('@')[0] %>')"><%= c.primeiro_nome || c.email.split('@')[0] %></div>
                 <% }) %>
@@ -155,45 +155,62 @@
 
           <!-- Equipe (somente admin) -->
           <% if (isAdmin && equipes.length > 0) { %>
-          <select id="filterEquipe" class="form-select" style="min-width:140px" onchange="loadData()">
-            <option value="all">Todas as equipes</option>
-            <% equipes.forEach(eq => { %>
-              <option value="<%= eq %>"><%= eq %></option>
-            <% }) %>
-          </select>
+          <div class="multiselect-wrap" id="msEquipeWrap">
+            <button type="button" class="multiselect-btn" id="msEquipeBtn" onclick="toggleMs('msEquipe')">
+              <span id="msEquipeLabel">Equipe</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="multiselect-dropdown" id="msEquipeDropdown">
+              <div class="multiselect-list" id="msEquipeList">
+                <div class="multiselect-item" onclick="selectSingle('msEquipe','all','Equipe')">Todas</div>
+                <% equipes.forEach(eq => { %>
+                  <div class="multiselect-item" onclick="selectSingle('msEquipe','<%= eq %>','<%= eq %>')"><%= eq %></div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
           <% } %>
 
           <!-- Tipo de venda -->
           <% if (tipos.length > 0) { %>
-          <select id="filterTipo" class="form-select" style="min-width:140px" onchange="loadData()">
-            <option value="all">Todos os tipos</option>
-            <% tipos.forEach(t => { %>
-              <option value="<%= t %>"><%= t %></option>
-            <% }) %>
-          </select>
+          <div class="multiselect-wrap" id="msTipoWrap">
+            <button type="button" class="multiselect-btn" id="msTipoBtn" onclick="toggleMs('msTipo')">
+              <span id="msTipoLabel">Tipo</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="multiselect-dropdown" id="msTipoDropdown">
+              <div class="multiselect-list" id="msTipoList">
+                <div class="multiselect-item" onclick="selectSingle('msTipo','all','Tipo')">Todos</div>
+                <% tipos.forEach(t => { %>
+                  <div class="multiselect-item" onclick="selectSingle('msTipo','<%= t %>','<%= t %>')"><%= t %></div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
           <% } %>
 
           <!-- Forma de pagamento -->
           <% if (formas.length > 0) { %>
-          <select id="filterForma" class="form-select" style="min-width:160px" onchange="loadData()">
-            <option value="all">Todas as formas</option>
-            <% formas.forEach(f => { %>
-              <option value="<%= f %>"><%=
-                f === 'credit_card'      ? 'Cartão de Crédito' :
-                f === 'debit_card'       ? 'Cartão de Débito'  :
-                f === 'pix'              ? 'PIX'               :
-                f === 'pix_cnpj'         ? 'PIX CNPJ'          :
-                f === 'boleto'           ? 'Boleto'            :
-                f === 'cash_on_delivery' ? 'Pag. na Entrega'   : f
-              %></option>
-            <% }) %>
-          </select>
+          <div class="multiselect-wrap" id="msFormaWrap">
+            <button type="button" class="multiselect-btn" id="msFormaBtn" onclick="toggleMs('msForma')">
+              <span id="msFormaLabel">Pagamento</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="multiselect-dropdown" id="msFormaDropdown">
+              <div class="multiselect-list" id="msFormaList">
+                <div class="multiselect-item" onclick="selectSingle('msForma','all','Pagamento')">Todas</div>
+                <% formas.forEach(f => { const lbl = f === 'credit_card' ? 'Cartão de Crédito' : f === 'debit_card' ? 'Cartão de Débito' : f === 'pix' ? 'PIX' : f === 'pix_cnpj' ? 'PIX CNPJ' : f === 'boleto' ? 'Boleto' : f === 'cash_on_delivery' ? 'Pag. na Entrega' : f; %>
+                  <div class="multiselect-item" onclick="selectSingle('msForma','<%= f %>','<%= lbl %>')"><%= lbl %></div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
           <% } %>
 
           <!-- MultiSelect: Empresas -->
           <div class="multiselect-wrap" id="msEmpresasWrap">
             <button type="button" class="multiselect-btn" id="msEmpresasBtn" onclick="toggleMs('msEmpresas')">
-              <span id="msEmpresasLabel">Todas Empresas</span>
+              <span id="msEmpresasLabel">Empresas</span>
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="multiselect-dropdown" id="msEmpresasDropdown">
@@ -213,7 +230,7 @@
           <!-- MultiSelect: Produtos -->
           <div class="multiselect-wrap" id="msProdutosWrap">
             <button type="button" class="multiselect-btn" id="msProdutosBtn" onclick="toggleMs('msProdutos')">
-              <span id="msProdutosLabel">Todos Produtos</span>
+              <span id="msProdutosLabel">Produtos</span>
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="multiselect-dropdown" id="msProdutosDropdown">
@@ -372,15 +389,15 @@
     const btn = document.getElementById(id + 'Btn');
     const label = document.getElementById(id + 'Label');
     const count = document.getElementById(id + 'Count');
-    const isEmpresas = id === 'msEmpresas';
+    const defaultLabel = id === 'msEmpresas' ? 'Empresas' : 'Produtos';
     if (checked.length === 0) {
-      label.textContent = isEmpresas ? 'Todas Empresas' : 'Todos Produtos';
+      label.textContent = defaultLabel;
       btn.classList.remove('has-selection');
     } else if (checked.length === 1) {
       label.textContent = checked[0].length > 20 ? checked[0].slice(0,18)+'…' : checked[0];
       btn.classList.add('has-selection');
     } else {
-      label.textContent = `${checked.length} ${isEmpresas ? 'empresas' : 'produtos'}`;
+      label.textContent = `${checked.length} ${id === 'msEmpresas' ? 'empresas' : 'produtos'}`;
       btn.classList.add('has-selection');
     }
     count.textContent = `${checked.length} selecionada${checked.length !== 1 ? 's' : ''}`;
@@ -394,13 +411,23 @@
     return [...document.getElementById(id + 'List').querySelectorAll('input:checked')].map(i => i.value);
   }
 
+  // Single-select genérico (Equipe, Tipo, Forma)
+  const _single = { msEquipe: 'all', msTipo: 'all', msForma: 'all' };
+  function selectSingle(id, value, label) {
+    _single[id] = value;
+    document.getElementById(id + 'Label').textContent = label;
+    document.getElementById(id + 'Btn').classList.toggle('has-selection', value !== 'all');
+    document.getElementById(id + 'Dropdown').classList.remove('open');
+    loadData();
+  }
+
   // Fonte e Vendedora: single-select dropdowns
   let currentFonte    = 'all';
   let currentVendedora = 'all';
 
   function selectFonte(value, label) {
     currentFonte = value;
-    if (value !== 'all') { currentVendedora = 'all'; document.getElementById('msVendedoraLabel').textContent = 'Todas Vendedoras'; document.getElementById('msVendedoraBtn').classList.remove('has-selection'); }
+    if (value !== 'all') { currentVendedora = 'all'; document.getElementById('msVendedoraLabel').textContent = 'Vendedora'; document.getElementById('msVendedoraBtn').classList.remove('has-selection'); }
     document.getElementById('msFonteLabel').textContent = label;
     document.getElementById('msFonteBtn').classList.toggle('has-selection', value !== 'all');
     document.getElementById('msFonteDropdown').classList.remove('open');
@@ -409,7 +436,7 @@
 
   function selectVendedora(email, label) {
     currentVendedora = email;
-    if (email !== 'all') { currentFonte = 'all'; document.getElementById('msFonteLabel').textContent = 'Todas as fontes'; document.getElementById('msFonteBtn').classList.remove('has-selection'); }
+    if (email !== 'all') { currentFonte = 'all'; document.getElementById('msFonteLabel').textContent = 'Fonte'; document.getElementById('msFonteBtn').classList.remove('has-selection'); }
     document.getElementById('msVendedoraLabel').textContent = label;
     document.getElementById('msVendedoraBtn').classList.toggle('has-selection', email !== 'all');
     document.getElementById('msVendedoraDropdown').classList.remove('open');
@@ -418,7 +445,7 @@
 
   // Fecha dropdown ao clicar fora
   document.addEventListener('mousedown', e => {
-    ['msEmpresas','msProdutos','msFonte','msVendedora'].forEach(id => {
+    ['msEmpresas','msProdutos','msFonte','msVendedora','msEquipe','msTipo','msForma'].forEach(id => {
       const wrap = document.getElementById(id + 'Wrap');
       if (wrap && !wrap.contains(e.target)) {
         document.getElementById(id + 'Dropdown').classList.remove('open');
@@ -453,14 +480,11 @@
         params.set('dateFrom', document.getElementById('customFrom').value || '');
         params.set('dateTo',   document.getElementById('customTo').value   || '');
       }
-      const equipeEl = document.getElementById('filterEquipe');
-      if (equipeEl) params.set('equipe', equipeEl.value);
-      const tipoEl = document.getElementById('filterTipo');
-      if (tipoEl && tipoEl.value !== 'all') params.set('tipo', tipoEl.value);
+      if (_single.msEquipe !== 'all') params.set('equipe', _single.msEquipe);
+      if (_single.msTipo   !== 'all') params.set('tipo',   _single.msTipo);
+      if (_single.msForma  !== 'all') params.set('forma',  _single.msForma);
       if (currentFonte === 'paytcall') params.set('fonte', 'paytcall');
       else if (currentVendedora !== 'all') params.set('vendedora', currentVendedora);
-      const formaEl = document.getElementById('filterForma');
-      if (formaEl && formaEl.value !== 'all') params.set('forma', formaEl.value);
       const msE = getMs('msEmpresas');
       if (msE.length) params.set('empresas', msE.join(','));
       const msP = getMs('msProdutos');
