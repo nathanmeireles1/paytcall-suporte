@@ -2,12 +2,14 @@ const cron = require('node-cron');
 const Shipment = require('../models/Shipment');
 const { queryH7ByCpf } = require('./haga7');
 const { db } = require('../config/database');
+const { syncIncremental, syncFull } = require('./airtable');
 
 /**
  * Scheduler — consulta H7 2x ao dia (08:00 e 14:00 BRT)
- * + verificação de rastreios em atraso
+ * + sync Airtable vendas a cada 5 min + full sync às 06:00 BRT
  */
 function startScheduler() {
+  // Rastreios H7
   cron.schedule('0 8,14 * * *', async () => {
     console.log('[Scheduler] Iniciando atualização via H7...');
     await refreshPendingShipments();
@@ -15,7 +17,21 @@ function startScheduler() {
     await checkTrackingDelays();
   }, { timezone: 'America/Sao_Paulo' });
 
-  console.log('[Scheduler] Agendado: 08:00 e 14:00 BRT');
+  // Airtable — sync incremental a cada 5 minutos
+  cron.schedule('*/5 * * * *', async () => {
+    await syncIncremental(10); // pega registros modificados nos últimos 10 min (margem)
+  }, { timezone: 'America/Sao_Paulo' });
+
+  // Airtable — full sync diário às 06:00 BRT
+  cron.schedule('0 6 * * *', async () => {
+    console.log('[Scheduler] Iniciando full sync Airtable...');
+    await syncFull();
+  }, { timezone: 'America/Sao_Paulo' });
+
+  console.log('[Scheduler] Agendado: H7 08:00/14:00 | Airtable a cada 5min + full sync 06:00 BRT');
+
+  // Roda full sync na inicialização para garantir dados atualizados
+  syncFull().catch(err => console.error('[Scheduler] Erro no full sync inicial:', err.message));
 }
 
 async function refreshPendingShipments(origin = 'agendado') {
