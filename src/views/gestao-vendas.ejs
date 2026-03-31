@@ -122,13 +122,21 @@
 
           <!-- Fonte (somente admin) -->
           <% if (isAdmin) { %>
-          <select id="filterFonte" class="form-select" style="min-width:150px" onchange="loadData()">
-            <option value="all">Todas as fontes</option>
-            <option value="paytcall">Paytcall</option>
-            <% colaboradores.forEach(c => { %>
-              <option value="<%= c.email %>"><%= c.email.split('@')[0] %></option>
-            <% }) %>
-          </select>
+          <div class="multiselect-wrap" id="msFonteWrap">
+            <button type="button" class="multiselect-btn" id="msFonteBtn" onclick="toggleMs('msFonte')">
+              <span id="msFonteLabel">Todas as fontes</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="multiselect-dropdown" id="msFonteDropdown">
+              <div class="multiselect-list" id="msFonteList">
+                <div class="multiselect-item" onclick="selectFonte('all','Todas as fontes')">Todas as fontes</div>
+                <div class="multiselect-item" onclick="selectFonte('paytcall','Paytcall')">Paytcall</div>
+                <% colaboradores.forEach(c => { %>
+                  <div class="multiselect-item" onclick="selectFonte('<%= c.email %>','<%= c.email.split('@')[0] %>')"><%= c.email.split('@')[0] %></div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
           <% } %>
 
           <!-- Equipe (somente admin) -->
@@ -372,9 +380,19 @@
     return [...document.getElementById(id + 'List').querySelectorAll('input:checked')].map(i => i.value);
   }
 
+  // Fonte: single-select dropdown
+  let currentFonte = 'all';
+  function selectFonte(value, label) {
+    currentFonte = value;
+    document.getElementById('msFonteLabel').textContent = label;
+    document.getElementById('msFonteBtn').classList.toggle('has-selection', value !== 'all');
+    document.getElementById('msFonteDropdown').classList.remove('open');
+    loadData();
+  }
+
   // Fecha dropdown ao clicar fora
   document.addEventListener('mousedown', e => {
-    ['msEmpresas','msProdutos'].forEach(id => {
+    ['msEmpresas','msProdutos','msFonte'].forEach(id => {
       const wrap = document.getElementById(id + 'Wrap');
       if (wrap && !wrap.contains(e.target)) {
         document.getElementById(id + 'Dropdown').classList.remove('open');
@@ -413,8 +431,7 @@
       if (equipeEl) params.set('equipe', equipeEl.value);
       const tipoEl = document.getElementById('filterTipo');
       if (tipoEl && tipoEl.value !== 'all') params.set('tipo', tipoEl.value);
-      const fonteEl = document.getElementById('filterFonte');
-      if (fonteEl && fonteEl.value !== 'all') params.set('fonte', fonteEl.value);
+      if (currentFonte !== 'all') params.set('fonte', currentFonte);
       const formaEl = document.getElementById('filterForma');
       if (formaEl && formaEl.value !== 'all') params.set('forma', formaEl.value);
       const msE = getMs('msEmpresas');
@@ -423,8 +440,8 @@
       if (msP.length) params.set('produtos', msP.join(','));
 
       const r = await fetch('/gestao/api/vendas?' + params);
-      if (!r.ok) throw new Error('Erro ' + r.status);
       const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || 'Erro ' + r.status);
 
       renderKpis(d.kpis);
       renderChart(d.daily);
@@ -433,6 +450,11 @@
       renderTopProdutos(d.topProdutos);
     } catch (err) {
       console.error('[Vendas]', err);
+      const msg = `<tr><td colspan="4" style="text-align:center;color:var(--danger);padding:16px">Erro: ${err.message}</td></tr>`;
+      ['tabelaDiaria','topEmpresas','topProdutos'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = msg;
+      });
     } finally {
       setLoading(false);
     }

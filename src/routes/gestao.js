@@ -477,7 +477,8 @@ router.get('/api/vendas', async (req, res) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
-    const r          = result;
+    const r          = Array.isArray(result) ? result[0] : result;
+    if (!r) return res.status(500).json({ error: 'Nenhum resultado retornado pelo banco' });
     const totalPaid  = Number(r.total_paid  || 0);
     const chargebacks= Number(r.chargebacks || 0);
     const faturamento= Number(r.faturamento || 0);
