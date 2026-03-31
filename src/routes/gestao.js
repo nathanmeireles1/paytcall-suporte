@@ -459,70 +459,29 @@ router.get('/api/vendas', async (req, res) => {
     const empresasFiltro = empresasParam ? empresasParam.split(',').filter(Boolean) : [];
     const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
 
-    const applyFilters = (q) => {
-      q = q.gte('dt_aprovacao', fromStr).lte('dt_aprovacao', toStr);
-      if (emailFilter)            q = q.in('email', emailFilter);
-      if (tipo && tipo !== 'all') q = q.eq('tipo_venda', tipo);
-      if (empresasFiltro.length)  q = q.in('empresa', empresasFiltro);
-      if (produtosFiltro.length)  q = q.in('produto', produtosFiltro);
-      return q.range(0, 99999);
-    };
+    const { data: result, error } = await db.rpc('get_vendas_dashboard', {
+      p_from:     fromStr,
+      p_to:       toStr,
+      p_emails:   emailFilter || null,
+      p_tipo:     (tipo && tipo !== 'all') ? tipo : null,
+      p_empresas: empresasFiltro.length ? empresasFiltro : null,
+      p_produtos: produtosFiltro.length ? produtosFiltro : null,
+    });
 
-    const [
-      { data: kpiPaid },
-      { data: kpiCb },
-      { data: formaPgto },
-      { data: daily },
-      { data: topEmpresas },
-      { data: topProdutos },
-    ] = await Promise.all([
-      applyFilters(db.from('vendas').select('saldo_venda, id')).eq('status_pagamento', 'paid'),
-      applyFilters(db.from('vendas').select('id')).eq('status_pagamento', 'chargeback'),
-      applyFilters(db.from('vendas').select('forma_pagamento, id')).eq('status_pagamento', 'paid'),
-      applyFilters(db.from('vendas').select('dt_aprovacao, saldo_venda, id')).eq('status_pagamento', 'paid').order('dt_aprovacao', { ascending: true }),
-      applyFilters(db.from('vendas').select('empresa, saldo_venda, id')).eq('status_pagamento', 'paid').not('empresa', 'is', null),
-      applyFilters(db.from('vendas').select('produto, saldo_venda, id')).eq('status_pagamento', 'paid').not('produto', 'is', null),
-    ]);
+    if (error) return res.status(500).json({ error: error.message });
 
-    const totalPaid   = (kpiPaid || []).length;
-    const faturamento = (kpiPaid || []).reduce((s, v) => s + (v.saldo_venda || 0), 0);
-    const ticketMedio = totalPaid ? faturamento / totalPaid : 0;
-    const chargebacks = (kpiCb || []).length;
-    const taxaCb = (totalPaid + chargebacks) ? (chargebacks / (totalPaid + chargebacks)) * 100 : 0;
-    const pix    = (formaPgto || []).filter(v => v.forma_pagamento === 'pix').length;
-    const cartao = (formaPgto || []).filter(v => v.forma_pagamento === 'credit_card').length;
-
-    const dailyMap = {};
-    for (const v of (daily || [])) {
-      const d = v.dt_aprovacao?.slice(0, 10);
-      if (!d) continue;
-      if (!dailyMap[d]) dailyMap[d] = { data: d, total: 0, count: 0 };
-      dailyMap[d].total += v.saldo_venda || 0;
-      dailyMap[d].count += 1;
-    }
-    const dailyData = Object.values(dailyMap).sort((a, b) => a.data.localeCompare(b.data));
-
-    const empMap = {};
-    for (const v of (topEmpresas || [])) {
-      if (!empMap[v.empresa]) empMap[v.empresa] = { label: v.empresa, total: 0, qtd: 0 };
-      empMap[v.empresa].total += v.saldo_venda || 0;
-      empMap[v.empresa].qtd  += 1;
-    }
-    const topEmpresasArr = Object.values(empMap).sort((a, b) => b.total - a.total).slice(0, 10);
-
-    const prodMap = {};
-    for (const v of (topProdutos || [])) {
-      if (!prodMap[v.produto]) prodMap[v.produto] = { label: v.produto, total: 0, qtd: 0 };
-      prodMap[v.produto].total += v.saldo_venda || 0;
-      prodMap[v.produto].qtd  += 1;
-    }
-    const topProdutosArr = Object.values(prodMap).sort((a, b) => b.qtd - a.qtd).slice(0, 10);
+    const r          = result;
+    const totalPaid  = Number(r.total_paid  || 0);
+    const chargebacks= Number(r.chargebacks || 0);
+    const faturamento= Number(r.faturamento || 0);
+    const ticketMedio= totalPaid ? faturamento / totalPaid : 0;
+    const taxaCb     = (totalPaid + chargebacks) ? (chargebacks / (totalPaid + chargebacks)) * 100 : 0;
 
     res.json({
-      kpis: { faturamento, ticketMedio, chargebacks, taxaCb, pix, cartao, totalPaid },
-      daily: dailyData,
-      topEmpresas: topEmpresasArr,
-      topProdutos: topProdutosArr,
+      kpis: { faturamento, ticketMedio, chargebacks, taxaCb, pix: Number(r.pix||0), cartao: Number(r.cartao||0), totalPaid },
+      daily:       (r.daily        || []).map(d => ({ data: d.data, total: Number(d.total), count: Number(d.count) })),
+      topEmpresas: (r.top_empresas || []).map(e => ({ label: e.label, total: Number(e.total), qtd: Number(e.qtd) })),
+      topProdutos: (r.top_produtos || []).map(p => ({ label: p.label, total: Number(p.total), qtd: Number(p.qtd) })),
     });
   } catch (err) {
     console.error('[Gestao/API/Vendas] Erro:', err.message);
