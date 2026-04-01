@@ -470,15 +470,15 @@ router.get('/api/vendas', async (req, res) => {
     const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
 
     const { data: result, error } = await db.rpc('get_vendas_dashboard', {
-      p_from:     fromStr,
-      p_to:       toStr,
-      p_emails:   emailFilter || null,
-      p_tipo:     (tipo && tipo !== 'all') ? tipo : null,
-      p_empresas: empresasFiltro.length ? empresasFiltro : null,
-      p_produtos: produtosFiltro.length ? produtosFiltro : null,
-      p_forma:    (forma && forma !== 'all') ? forma : null,
-      p_fonte:    (vendedora && vendedora !== 'all') ? vendedora :
-                  (fonte    && fonte    !== 'all') ? fonte    : null,
+      p_from:      fromStr,
+      p_to:        toStr,
+      p_emails:    emailFilter || null,
+      p_tipo:      (tipo      && tipo      !== 'all') ? tipo      : null,
+      p_empresas:  empresasFiltro.length ? empresasFiltro : null,
+      p_produtos:  produtosFiltro.length ? produtosFiltro : null,
+      p_forma:     (forma     && forma     !== 'all') ? forma     : null,
+      p_fonte:     (fonte     && fonte     !== 'all') ? fonte     : null,
+      p_vendedora: (vendedora && vendedora !== 'all') ? vendedora : null,
     });
 
     if (error) return res.status(500).json({ error: error.message });

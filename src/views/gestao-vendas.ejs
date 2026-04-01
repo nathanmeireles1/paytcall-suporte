@@ -130,7 +130,8 @@
             <div class="multiselect-dropdown" id="msFonteDropdown">
               <div class="multiselect-list" id="msFonteList">
                 <div class="multiselect-item" onclick="selectFonte('all','Fonte')">Todas</div>
-                <div class="multiselect-item" onclick="selectFonte('paytcall','Paytcall')">Paytcall</div>
+                <div class="multiselect-item" onclick="selectFonte('planilha','Planilha')">Planilha</div>
+                <div class="multiselect-item" onclick="selectFonte('airtable','Airtable')">Airtable</div>
               </div>
             </div>
           </div>
@@ -470,7 +471,8 @@
     try {
       const params = new URLSearchParams({ period: currentPeriod });
       if (currentPeriod === 'today') {
-        const t = new Date().toISOString().slice(0,10);
+        const now = new Date();
+        const t = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
         params.set('period', 'custom');
         params.set('dateFrom', t);
         params.set('dateTo',   t);
@@ -481,8 +483,8 @@
       if (_single.msEquipe !== 'all') params.set('equipe', _single.msEquipe);
       if (_single.msTipo   !== 'all') params.set('tipo',   _single.msTipo);
       if (_single.msForma  !== 'all') params.set('forma',  _single.msForma);
-      if (currentFonte === 'paytcall') params.set('fonte', 'paytcall');
-      else if (currentVendedora !== 'all') params.set('vendedora', currentVendedora);
+      if (currentFonte     !== 'all') params.set('fonte',     currentFonte);
+      if (currentVendedora !== 'all') params.set('vendedora', currentVendedora);
       const msE = getMs('msEmpresas');
       if (msE.length) params.set('empresas', msE.join(','));
       const msP = getMs('msProdutos');
