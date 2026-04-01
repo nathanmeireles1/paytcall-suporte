@@ -1,7 +1,7 @@
 # ROADMAP — Portal de Suporte Paytcall
 
-> Atualizado em: 30/03/2026
-> Status: 1–8, 12, 14 concluídos. Em andamento: 15 (Catálogo). Próximos: 16 (Importador Excel), 10 (Analytics).
+> Atualizado em: 01/04/2026
+> Status: 1–8, 12, 14, 15 concluídos. Em andamento: 16 (Importador Excel), 10 (Analytics).
 
 ---
 
@@ -22,7 +22,7 @@
 | 12 | Seleção múltipla + ações em lote (rastreios) | ✅ Concluído |
 | 13 | Subdomínio / domínio definitivo | 🔲 Pendente |
 | 14 | Paginação universal (por página + ir para página) | ✅ Concluído |
-| 15 | Módulo Catálogo (Empresas, Produtos, Nichos, Feedbacks, Mídias) | 🟡 Em andamento |
+| 15 | Módulo Catálogo (Empresas, Produtos, Nichos, Feedbacks, Mídias) | ✅ Concluído |
 | 16 | Importador Excel/Airtable para Vendas | 🟡 Em andamento |
 | 17 | Log de auditoria global (Admin) — convites, imports, alterações | 🔲 Pendente |
 | 18 | Barra de progresso no import de planilhas | 🔲 Pendente |
@@ -392,25 +392,17 @@ Seu portal **já está seguro** — código no GitHub, dados no Supabase. O que 
 
 ---
 
-## 15 — MÓDULO CATÁLOGO 🟡 Em andamento
+## 15 — MÓDULO CATÁLOGO ✅ Concluído
 
-### O que foi feito
-- [x] Rota `/gestao/*` em `src/routes/gestao.js` usando Supabase hub
+- [x] Rota `/gestao/*` em `src/routes/gestao.js`
 - [x] Página `/gestao/catalogo` com abas: Empresas | Produtos | Nichos
-- [x] CRUD completo de Empresas (criar, editar, excluir) com modal design system
-- [x] CRUD completo de Produtos (criar, editar, excluir) com modal design system
-- [x] Detalhe de Empresa: informações + feedbacks + modal editar
+- [x] CRUD completo de Empresas e Produtos com modal design system
+- [x] Detalhe de Empresa: informações + produtos vinculados + feedbacks (fix: campo `empresa` incluído na query de produtos)
 - [x] Detalhe de Produto: informações + upload/delete de fotos e depoimentos + feedbacks
 - [x] Sistema de Feedbacks (criar/editar/excluir) via partial `feedback-list.ejs`
-- [x] Nichos derivados do campo `produto.nicho` — modal próprio (sem browser prompt)
-- [x] Segmento exibido como tag laranja na tabela de empresas
 - [x] Permissões: `canEdit` (admin ou role_permission) / `canDelete` (admin only)
-- [x] Sidebar atualizada: item único "Catálogo" substituindo Empresas/Produtos/Segmentos
-
-### Pendente
-- [ ] PR e merge no `main` (branch atual: `feat/migracao-gestao`)
-- [ ] Importador Excel/Airtable para módulo Vendas (item 16)
-- [ ] Módulo Vendas (BI, dashboard de vendas) — aguardando colunas do Excel
+- [x] Migração hub → operacional concluída
+- [x] Fix 01/04: query de produtos incluía campos sem `empresa`, produtos não apareciam no detalhe da empresa
 
 ---
 
