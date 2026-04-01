@@ -259,12 +259,13 @@
   }
 
   async function excluir() {
-    if (!confirm('Excluir esta vendedora?')) return;
-    const id = document.getElementById('editId').value;
-    const r = await fetch(`/gestao/colaboradores/${id}/excluir`, { method: 'POST' });
-    const d = await r.json();
-    if (d.ok) location.reload();
-    else alert(d.error || 'Erro ao excluir');
+    showConfirm('Excluir esta vendedora? Esta ação não pode ser desfeita.', async () => {
+      const id = document.getElementById('editId').value;
+      const r = await fetch(`/gestao/colaboradores/${id}/excluir`, { method: 'POST' });
+      const d = await r.json();
+      if (d.ok) location.reload();
+      else alert(d.error || 'Erro ao excluir');
+    }, { okLabel: 'Excluir', okClass: 'btn-danger' });
   }
 
   filterTable();

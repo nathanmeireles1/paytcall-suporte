@@ -499,11 +499,12 @@ async function deleteInvite(id, name, isActive) {
   const msg = isActive
     ? `Remover acesso de "${name}"? O usuário será deletado e poderá ser convidado novamente.`
     : `Excluir convite de "${name}"?`;
-  if (!confirm(msg)) return;
-  const res = await fetch('/admin/users/' + id, { method: 'DELETE' });
-  const data = await res.json();
-  if (data.ok) location.reload();
-  else alert(data.error || 'Erro ao remover usuário');
+  showConfirm(msg, async () => {
+    const res = await fetch('/admin/users/' + id, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) location.reload();
+    else alert(data.error || 'Erro ao remover usuário');
+  }, { okLabel: 'Confirmar', okClass: 'btn-danger' });
 }
 
 async function resendInvite(id, btn) {

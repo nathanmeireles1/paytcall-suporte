@@ -130,4 +130,31 @@ document.addEventListener('click', (e) => {
   const btn = document.getElementById('notifBtn');
   if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) dd.classList.remove('open');
 });
+
+// Modal de confirmação global — substitui confirm() nativo
+function showConfirm(message, onOk, { okLabel = 'Confirmar', okClass = 'btn-primary' } = {}) {
+  let overlay = document.getElementById('__confirm-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = '__confirm-overlay';
+    overlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center';
+    overlay.innerHTML = `<div class="card" style="width:100%;max-width:380px;margin:0 16px">
+      <div class="card-header" style="padding:16px 20px"><span id="__confirm-msg" style="font-size:14px;color:var(--text-2);line-height:1.5"></span></div>
+      <div class="card-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:12px 20px">
+        <button id="__confirm-cancel" class="btn btn-secondary btn-sm">Cancelar</button>
+        <button id="__confirm-ok" class="btn btn-sm">Confirmar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+  }
+  document.getElementById('__confirm-msg').textContent = message;
+  const okBtn = document.getElementById('__confirm-ok');
+  okBtn.textContent = okLabel;
+  okBtn.className = `btn btn-sm ${okClass}`;
+  overlay.style.display = 'flex';
+  const close = () => { overlay.style.display = 'none'; };
+  okBtn.onclick = () => { close(); onOk(); };
+  document.getElementById('__confirm-cancel').onclick = close;
+  overlay.onclick = e => { if (e.target === overlay) close(); };
+}
 </script>
