@@ -216,9 +216,9 @@ document.querySelectorAll('[id^="modal-"]').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
 });
 function confirmarExclusao() {
-  if (confirm('Excluir a empresa "<%= empresa.nome %>"? Esta ação não pode ser desfeita.')) {
+  showConfirm('Excluir a empresa "<%= empresa.nome %>"? Esta ação não pode ser desfeita.', () => {
     document.getElementById('form-excluir').submit();
-  }
+  }, { okLabel: 'Excluir', okClass: 'btn-danger' });
 }
 function editarFb(id) {
   document.querySelector('.fb-view-' + id).style.display = 'none';

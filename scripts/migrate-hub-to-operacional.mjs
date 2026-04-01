@@ -98,6 +98,7 @@ async function run() {
   await migrateTable('empresas');
   await migrateTable('produtos');
   await migrateTable('feedbacks');
+  await migrateTable('configuracoes');
 
   // 2. Storage
   await migrateStorage('produtos-midias');

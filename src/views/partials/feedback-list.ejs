@@ -12,9 +12,9 @@
         <span style="font-size:11px;color:var(--text-4)"><%= new Date(f.dt_criacao).toLocaleDateString('pt-BR') %></span>
         <% if (isAdmin || f.autor === currentUserName) { %>
         <button onclick="editarFb('<%= f.id %>')" style="background:none;border:none;cursor:pointer;color:var(--text-4);padding:0;font-size:11px;text-decoration:underline">editar</button>
-        <form method="POST" action="/gestao/feedbacks/<%= f.id %>/excluir" style="display:inline" onsubmit="return confirm('Excluir este feedback?')">
+        <form id="form-del-fb-<%= f.id %>" method="POST" action="/gestao/feedbacks/<%= f.id %>/excluir" style="display:inline">
           <input type="hidden" name="redirect" value="<%= redirectUrl %>">
-          <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--danger);padding:0;font-size:11px;text-decoration:underline">excluir</button>
+          <button type="button" onclick="showConfirm('Excluir este feedback? Esta ação não pode ser desfeita.', () => document.getElementById('form-del-fb-<%= f.id %>').submit(), { okLabel: 'Excluir', okClass: 'btn-danger' })" style="background:none;border:none;cursor:pointer;color:var(--danger);padding:0;font-size:11px;text-decoration:underline">excluir</button>
         </form>
         <% } %>
       </div>

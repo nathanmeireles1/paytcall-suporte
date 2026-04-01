@@ -293,9 +293,9 @@ document.querySelectorAll('[id^="modal-"]').forEach(m => {
 });
 
 function confirmarExclusao() {
-  if (confirm('Excluir o produto "<%= produto.nome %>"? Esta ação não pode ser desfeita.')) {
+  showConfirm('Excluir o produto "<%= produto.nome %>"? Esta ação não pode ser desfeita.', () => {
     document.getElementById('form-excluir').submit();
-  }
+  }, { okLabel: 'Excluir', okClass: 'btn-danger' });
 }
 
 async function uploadMidias(input, tipo) {
@@ -358,24 +358,24 @@ async function uploadMidias(input, tipo) {
 }
 
 async function deletarMidia(path, el) {
-  if (!confirm('Remover esta mídia?')) return;
-  try {
-    const resp = await fetch('/gestao/api/delete-media', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path }),
-    });
-    const data = await resp.json();
-    if (!data.ok) { alert('Erro: ' + data.error); return; }
+  showConfirm('Remover esta mídia? Esta ação não pode ser desfeita.', async () => {
+    try {
+      const resp = await fetch('/gestao/api/delete-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      });
+      const data = await resp.json();
+      if (!data.ok) { alert('Erro: ' + data.error); return; }
 
-    // Determina tipo pelo path
-    const tipo = path.includes('/fotos/') ? 'fotos' : 'depoimentos';
-    const countEl = document.getElementById(tipo === 'fotos' ? 'fotos-count' : 'dep-count');
-    if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent || 1) - 1);
-    el.remove();
-  } catch (e) {
-    alert('Erro ao remover mídia');
-  }
+      const tipo = path.includes('/fotos/') ? 'fotos' : 'depoimentos';
+      const countEl = document.getElementById(tipo === 'fotos' ? 'fotos-count' : 'dep-count');
+      if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent || 1) - 1);
+      el.remove();
+    } catch (e) {
+      alert('Erro ao remover mídia');
+    }
+  }, { okLabel: 'Remover', okClass: 'btn-danger' });
 }
 </script>
 </body>
