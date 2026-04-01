@@ -94,7 +94,7 @@ router.get('/empresas/:id', async (req, res) => {
     const [{ data: empresa, error }, { data: feedbacks }, { data: todosProdutos }] = await Promise.all([
       db.from('empresas').select('*').eq('id', id).maybeSingle(),
       db.from('feedbacks').select('*').order('dt_criacao', { ascending: false }),
-      db.from('produtos').select('id,nome,nicho,sku,playbook_slug,status').order('nome'),
+      db.from('produtos').select('id,nome,nicho,sku,playbook_slug,status,empresa').order('nome'),
     ]);
 
     if (error) throw error;

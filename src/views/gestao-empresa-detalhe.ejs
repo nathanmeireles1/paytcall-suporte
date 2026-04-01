@@ -27,8 +27,7 @@
           <% if (empresa.segmento) { %>
             <p class="page-subtitle"><%= empresa.segmento %></p>
           <% } %>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
+          <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
           <% if (empresa.status === 'Ativo' || empresa.status === 'ativo') { %>
             <span class="badge badge-success">Ativo</span>
           <% } else if (empresa.status) { %>
@@ -40,6 +39,7 @@
           <% if (isAdmin) { %>
             <button class="btn btn-sm" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)" onclick="confirmarExclusao()">Excluir</button>
           <% } %>
+          </div>
         </div>
       </div>
 
