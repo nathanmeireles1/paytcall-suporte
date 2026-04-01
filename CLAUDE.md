@@ -11,7 +11,7 @@ Guia obrigatório para qualquer desenvolvedor ou agente IA que trabalhe neste pr
 |---|---|
 | Backend | Node.js + Express |
 | Templates | EJS (não React, não Next.js) |
-| Banco de dados | Supabase (PostgreSQL) |
+| Banco de dados | Supabase (PostgreSQL) — projeto operacional `mckldrujoktkhjzgdded` |
 | Autenticação | Supabase Auth customizado (tabela `user_profiles`) |
 | Email | Resend SDK (`resend` npm) |
 | IA (Lina) | Google Gemini 2.5 Flash via API REST |
@@ -23,10 +23,12 @@ Guia obrigatório para qualquer desenvolvedor ou agente IA que trabalhe neste pr
 
 ## Supabase
 
-- **Projeto operacional** (rastreios, tickets, usuários): `mckldrujoktkhjzgdded`
-- **Projeto hub** (vendas, empresas — em migração): `cclvcemrxpucpxaywopc`
-- Clientes configurados em `src/config/database.js`
+- **Projeto operacional** (ÚNICO banco em uso): `mckldrujoktkhjzgdded`
+- **Projeto hub** (`cclvcemrxpucpxaywopc`): migração concluída — pode ser deletado
+- Clientes configurados em `src/config/database.js` — usar sempre `db` (operacional)
 - Nunca usar anon key para operações admin — sempre service role key via variável de ambiente
+- Storage bucket `produtos-midias`: limite por arquivo configurado em 500MB (`storage.buckets.file_size_limit`)
+- Acesso à Management API via `SUPABASE_ACCESS_TOKEN` no `.env` local
 
 ---
 
@@ -36,7 +38,7 @@ Guia obrigatório para qualquer desenvolvedor ou agente IA que trabalhe neste pr
 src/
   app.js              — entrada da aplicação Express
   config/
-    database.js       — clientes Supabase (db = operacional, hubDb = hub)
+    database.js       — clientes Supabase (db = operacional)
   middleware/
     auth.js           — requireAuth, requirePermission, loadPermissions
   routes/
@@ -44,7 +46,7 @@ src/
     ai.js             — /api/ai/chat (Lina — Gemini)
     auth.js           — /login, /logout, /invite/:token
     dashboard.js      — /dashboard, /rastreios (handler compartilhado handleRastreios)
-    gestao.js         — /gestao/* (catálogo: empresas, produtos, nichos, feedbacks)
+    gestao.js         — /gestao/* (catálogo: empresas, produtos, nichos, feedbacks, vendas, BI)
     relatorios.js     — /relatorios/* (tickets, rastreio-log, cancelamentos, logística, retenção)
     tracking.js       — /rastreios, /pedido/:id, refresh
     webhook.js        — /webhook (Paytcall)
@@ -54,8 +56,8 @@ src/
     haga7.js          — integração API H7 (rastreio por CPF)
   views/
     partials/
-      sidebar.ejs       — navegação lateral (roles controlam visibilidade)
-      topbar.ejs        — barra superior com notificações
+      sidebar.ejs       — navegação lateral (roles controlam visibilidade) + toggle de tema
+      topbar.ejs        — barra superior com notificações + showConfirm() global
       ai-chat.ejs       — widget flutuante da Lina
       feedback-list.ejs — lista de feedbacks com edit/delete inline
       pagination.ejs    — paginação universal (info + ellipsis + ir para + por página)
@@ -64,8 +66,11 @@ src/
     dashboard.ejs       — tabela de rastreios com filtros
     shipment.ejs        — página do pedido individual
     gestao-catalogo.ejs         — Catálogo (abas: Empresas | Produtos | Nichos)
-    gestao-empresa-detalhe.ejs  — Detalhe de empresa + feedbacks
-    gestao-produto-detalhe.ejs  — Detalhe de produto + mídias + feedbacks
+    gestao-empresa-detalhe.ejs  — Detalhe de empresa + produtos vinculados + feedbacks
+    gestao-produto-detalhe.ejs  — Detalhe de produto + mídias (lightbox) + feedbacks
+    gestao-vendas.ejs           — Dashboard de vendas (RPC get_vendas_dashboard)
+    gestao-colaboradores.ejs    — Gerenciamento de colaboradores/vendedoras
+    gestao-bi.ejs               — Power BI embed (config em tabela configuracoes)
     relatorios-tickets.ejs
     relatorios-rastreio-log.ejs
     relatorios-cancelamentos.ejs
@@ -77,6 +82,9 @@ src/
     admin-mural.ejs   — mural de avisos
   public/
     css/global.css    — design system completo (NUNCA criar CSS inline fora do padrão)
+scripts/
+  migrate-hub-to-operacional.mjs  — migra empresas, produtos, feedbacks, configuracoes + storage
+  import-payt-pedidos.mjs         — importa pedidos de planilhas Excel Paytcall
 ```
 
 ---
@@ -99,7 +107,7 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 ## Design System — regras obrigatórias
 
 > **Regra absoluta: TODO elemento visual do portal deve usar o design system — sem exceções.**
-> Isso inclui tabelas, modais, botões, gráficos, dropdowns, filtros, badges, formulários, ícones, cores e espaçamentos.
+> Isso inclui tabelas, modais, botões, gráficos, dropdowns, filtros, badges, formulários, ícones, cores, espaçamentos e **janelas de confirmação**.
 > Nunca criar componentes visuais fora do padrão, mesmo que seja "só um filtro" ou "só um botão".
 
 - **Sempre** usar classes do `global.css`: `card`, `card-header`, `card-body`, `card-footer`, `btn`, `btn-primary`, `btn-secondary`, `btn-sm`, `form-input`, `form-select`, `form-label`, `form-group`, `badge`, `table-wrap`, `toolbar`, `pagination`, `pagination-bar`
@@ -107,6 +115,7 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 - **Dropdowns de filtro** usam o componente `multiselect-wrap` + `multiselect-btn` + `multiselect-dropdown` — nunca usar `<select>` nativo em barras de filtro de dashboards
 - **Labels de filtros** usam o nome da dimensão (ex: "Empresas", "Tipo", "Pagamento") — não prefixar com "Todos/Todas"
 - Modais seguem o padrão: overlay `rgba(0,0,0,.45)` + `class="card"` + `card-header` + `card-body` + `card-footer`
+- **Confirmações destrutivas:** usar `showConfirm(message, onOk, { okLabel, okClass })` — função global definida em `partials/topbar.ejs`. **NUNCA usar `confirm()`, `alert()` ou `prompt()` nativos do browser.**
 - Page headers com título + botões: usar `p-page-header` > `p-page-header-left` + `p-page-header-right`
 - Formulários: sempre envolver `label` + `input` em `<div class="form-group">` (flex-column, gap:5px)
 - Paginação: usar `<%- include('partials/pagination', { pages, currentPage, total, perPage }) %>` — NUNCA reimplementar manualmente
@@ -120,7 +129,7 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 ### Git — obrigatório
 - **Nunca commitar direto no `main`**
 - Cada feature/fix em branch separada: `feat/nome`, `fix/nome`
-- PR obrigatório — revisão antes de merge no `main`
+- PR obrigatório — merge via `gh pr merge` após revisão
 - Railway deploya automaticamente ao fazer merge no `main`
 - Push no `main` = vai direto para produção em `operacao.paytcall.com.br`
 
@@ -142,6 +151,7 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 |---|---|
 | `SUPABASE_URL` | URL do projeto Supabase operacional |
 | `SUPABASE_SERVICE_KEY` | Service role key do Supabase operacional |
+| `SUPABASE_ACCESS_TOKEN` | Personal access token Supabase (Management API — apenas .env local) |
 | `RESEND_API_KEY` | Chave da API Resend para envio de emails |
 | `SMTP_FROM` | Remetente dos emails: `Paytcall Operações <sistema@paytcall.com.br>` |
 | `APP_URL` | `https://operacao.paytcall.com.br` |
@@ -149,8 +159,8 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 | `SESSION_SECRET` | Secret para cookies de sessão |
 | `ADMIN_PASS` | Senha admin de emergência |
 | `WONCA_API_KEY` | Chave API H7 para consulta de rastreios por CPF |
-| `HUB_SUPABASE_URL` | URL do projeto Supabase hub (vendas, empresas, produtos) |
-| `HUB_SUPABASE_SERVICE_KEY` | Service role key do Supabase hub |
+| `HUB_SUPABASE_URL` | URL do projeto hub (apenas para scripts de migração) |
+| `HUB_SUPABASE_SERVICE_KEY` | Service role key do hub (apenas para scripts de migração) |
 
 ---
 
@@ -165,7 +175,7 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 
 ---
 
-## Tabelas principais do Supabase
+## Tabelas principais do Supabase operacional (`mckldrujoktkhjzgdded`)
 
 | Tabela | Descrição |
 |---|---|
@@ -179,14 +189,10 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 | `portal_settings` | Configurações do sistema (gemini_api_key, mural_notices) |
 | `notifications` | Notificações internas por usuário |
 | `cancelamentos` | Registros de cancelamento/chargeback |
-
-**Tabelas no Supabase hub (`cclvcemrxpucpxaywopc`) — acessadas via `hubDb`:**
-
-| Tabela | Descrição |
-|---|---|
-| `empresas` | Empresas parceiras (nome, segmento, cnpj, email, telefone, contato, cidade, estado, site, descricao, status) |
-| `produtos` | Produtos do catálogo (nome, nicho, sku, o_que_e, como_funciona, composicao, descricao, playbook_slug) |
-| `feedbacks` | Feedbacks sobre empresas/produtos (autor text, empresa text, produto text, texto, dt_criacao) — sem FK obrigatória |
+| `empresas` | Empresas parceiras (nome, segmento, cnpj, email, telefone, contato, cidade, estado, site, descricao, status, logo_url) |
+| `produtos` | Produtos do catálogo (nome, empresa, nicho, sku, o_que_e, como_funciona, composicao, descricao, imagem_url, playbook_slug, status) |
+| `feedbacks` | Feedbacks sobre empresas/produtos (autor, empresa, produto, texto, dt_criacao) |
+| `configuracoes` | Configurações variadas (id text PK, valor jsonb) — ex: powerbi embed URL |
 
 ---
 
@@ -203,25 +209,45 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 ## Módulo Catálogo (Gestão)
 
 - Rota base: `/gestao/*` em `src/routes/gestao.js`
-- Usa `hubDb` (Supabase hub) para empresas, produtos, feedbacks
+- Usa **`db` (Supabase operacional)** para todas as operações — migração do hub concluída
 - Permissões: `canEdit` = admin OU `role_permissions.catalogo.can_edit`; `canDelete` = admin only
-- Mídias de produtos: Supabase Storage bucket `produtos-midias`, path `playbooks/{slug}/fotos/` e `playbooks/{slug}/depoimentos/`
-- Nichos são derivados do campo `produto.nicho` (sem tabela própria) — "Novo Nicho" pré-preenche o modal de Novo Produto
+- Mídias de produtos: Storage bucket `produtos-midias`, path `playbooks/{slug}/fotos/` e `playbooks/{slug}/depoimentos/`
+  - Limite por arquivo: 500MB (configurado em `storage.buckets` via SQL)
+  - Layout: grade de miniaturas 110px; clique abre lightbox (`openLightbox(url, type)` definida em gestao-produto-detalhe.ejs)
+- Vinculação produto ↔ empresa: campo `produtos.empresa` (text) deve conter o nome exato da empresa
+- Nichos são derivados do campo `produto.nicho` (sem tabela própria)
 - Feedbacks: qualquer usuário cria; autor ou admin pode editar/excluir
+- Power BI: rota `/gestao/bi` lê `configuracoes` onde `id = 'powerbi'` (valor jsonb com `embedUrl` e `pageName`)
+
+---
+
+## Importação de pedidos (scripts/)
+
+### `import-payt-pedidos.mjs`
+- Importa pedidos de planilhas `.xlsx` da Paytcall
+- Pedidos com código de rastreio → `shipments`; sem código → `customer_queue`
+- Upsert `onConflict: 'tracking_code'` / `onConflict: 'order_id'` (ignora duplicados)
+- Sellers configurados no array `FILES` dentro do script
+
+### `migrate-hub-to-operacional.mjs`
+- Migra tabelas `empresas`, `produtos`, `feedbacks`, `configuracoes` do hub para operacional
+- Migra storage `produtos-midias` e `empresas-logos`
+- Pode ser re-executado (upsert idempotente)
+
+---
 
 ## Paginação universal
 
 Todas as páginas com tabelas usam o partial `partials/pagination.ejs`.
 
 **Como passar os dados:**
-1. Na rota, ler `perPage` do query: `const limit = parsePerPage(req.query.perPage)` (função helper em relatorios.js e inline em dashboard.js; valores válidos: 25, 50, 100, 200)
-2. Passar `limit` para o model como parâmetro `limit`
-3. Passar ao render: `{ pages, currentPage, total, perPage: limit }`
-4. Na view: `<%- include('partials/pagination', { pages, currentPage, total, perPage }) %>`
+1. Na rota, ler `perPage` do query: `const limit = parsePerPage(req.query.perPage)` (valores válidos: 25, 50, 100, 200)
+2. Passar ao render: `{ pages, currentPage, total, perPage: limit }`
+3. Na view: `<%- include('partials/pagination', { pages, currentPage, total, perPage }) %>`
 
-O partial preserva todos os query params automaticamente via `window.location` (não precisa conhecer os filtros).
+O partial preserva todos os query params automaticamente via `window.location`.
 
 ---
 
-*Atualizado em: 2026-03-30*
-*Próxima atualização necessária quando: migração do hub de vendas for concluída / importador Excel for implementado*
+*Atualizado em: 2026-04-01*
+*Migração hub → operacional: CONCLUÍDA. Hub pode ser deletado.*
