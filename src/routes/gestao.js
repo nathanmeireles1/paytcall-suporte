@@ -1,17 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { db, hub } = require('../config/database');
+const { db } = require('../config/database');
 const { requireRole } = require('../middleware/auth');
-
-// Middleware: garante que o hub está configurado
-function requireHub(req, res, next) {
-  if (!hub) {
-    return res.status(503).render('error', {
-      message: 'Módulo de gestão indisponível — configure HUB_SUPABASE_URL e HUB_SUPABASE_SERVICE_KEY.',
-    });
-  }
-  next();
-}
 
 // Permissão de edição: admin ou role_permissions.catalogo.can_edit
 function canEdit(req, res, next) {
@@ -37,20 +27,20 @@ function userCanEdit(req) {
 // ─── CATÁLOGO (Empresas + Produtos + Nichos unificados) ──────────────────────
 
 // Redirects de URLs antigas
-router.get('/empresas', requireHub, (req, res) => res.redirect('/gestao/catalogo?tab=empresas'));
-router.get('/produtos',  requireHub, (req, res) => res.redirect('/gestao/catalogo?tab=produtos'));
-router.get('/segmentos', requireHub, (req, res) => res.redirect('/gestao/catalogo?tab=nichos'));
-router.get('/segmentos/:slug', requireHub, (req, res) => res.redirect('/gestao/catalogo?tab=nichos'));
+router.get('/empresas', (req, res) => res.redirect('/gestao/catalogo?tab=empresas'));
+router.get('/produtos',  (req, res) => res.redirect('/gestao/catalogo?tab=produtos'));
+router.get('/segmentos', (req, res) => res.redirect('/gestao/catalogo?tab=nichos'));
+router.get('/segmentos/:slug', (req, res) => res.redirect('/gestao/catalogo?tab=nichos'));
 
 // GET /gestao/catalogo
-router.get('/catalogo', requireHub, async (req, res) => {
+router.get('/catalogo', async (req, res) => {
   try {
     const [
       { data: empresas, error: empErr },
       { data: produtos, error: prodErr },
     ] = await Promise.all([
-      hub.from('empresas').select('*').order('nome'),
-      hub.from('produtos').select('*').order('nome'),
+      db.from('empresas').select('*').order('nome'),
+      db.from('produtos').select('*').order('nome'),
     ]);
 
     if (empErr) throw empErr;
@@ -97,13 +87,13 @@ router.get('/catalogo', requireHub, async (req, res) => {
 // ─── EMPRESAS ────────────────────────────────────────────────────────────────
 
 // GET /gestao/empresas/:id
-router.get('/empresas/:id', requireHub, async (req, res) => {
+router.get('/empresas/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
     const [{ data: empresa, error }, { data: feedbacks }] = await Promise.all([
-      hub.from('empresas').select('*').eq('id', id).maybeSingle(),
-      hub.from('feedbacks').select('*').order('dt_criacao', { ascending: false }),
+      db.from('empresas').select('*').eq('id', id).maybeSingle(),
+      db.from('feedbacks').select('*').order('dt_criacao', { ascending: false }),
     ]);
 
     if (error) throw error;
@@ -127,14 +117,14 @@ router.get('/empresas/:id', requireHub, async (req, res) => {
 });
 
 // POST /gestao/empresas — criar
-router.post('/empresas', requireHub, canEdit, async (req, res) => {
+router.post('/empresas', canEdit, async (req, res) => {
   try {
     const campos = ['nome','segmento','status','cnpj','email','telefone','contato','site','cidade','estado','descricao'];
     const data = {};
     for (const c of campos) data[c] = req.body[c]?.trim() || null;
     if (!data.nome) return res.status(400).render('error', { message: 'Nome é obrigatório' });
 
-    const { data: nova, error } = await hub.from('empresas').insert(data).select().maybeSingle();
+    const { data: nova, error } = await db.from('empresas').insert(data).select().maybeSingle();
     if (error) throw error;
     res.redirect(`/gestao/empresas/${nova.id}`);
   } catch (err) {
@@ -144,7 +134,7 @@ router.post('/empresas', requireHub, canEdit, async (req, res) => {
 });
 
 // POST /gestao/empresas/:id/editar
-router.post('/empresas/:id/editar', requireHub, canEdit, async (req, res) => {
+router.post('/empresas/:id/editar', canEdit, async (req, res) => {
   try {
     const { id } = req.params;
     const campos = ['nome','segmento','status','cnpj','email','telefone','contato','site','cidade','estado','descricao'];
@@ -152,7 +142,7 @@ router.post('/empresas/:id/editar', requireHub, canEdit, async (req, res) => {
     for (const c of campos) data[c] = req.body[c]?.trim() || null;
     if (!data.nome) return res.status(400).render('error', { message: 'Nome é obrigatório' });
 
-    const { error } = await hub.from('empresas').update(data).eq('id', id);
+    const { error } = await db.from('empresas').update(data).eq('id', id);
     if (error) throw error;
     res.redirect(`/gestao/empresas/${id}`);
   } catch (err) {
@@ -162,9 +152,9 @@ router.post('/empresas/:id/editar', requireHub, canEdit, async (req, res) => {
 });
 
 // POST /gestao/empresas/:id/excluir
-router.post('/empresas/:id/excluir', requireHub, canDelete, async (req, res) => {
+router.post('/empresas/:id/excluir', canDelete, async (req, res) => {
   try {
-    const { error } = await hub.from('empresas').delete().eq('id', req.params.id);
+    const { error } = await db.from('empresas').delete().eq('id', req.params.id);
     if (error) throw error;
     res.redirect('/gestao/catalogo?tab=empresas');
   } catch (err) {
@@ -176,13 +166,13 @@ router.post('/empresas/:id/excluir', requireHub, canDelete, async (req, res) => 
 // ─── PRODUTOS ────────────────────────────────────────────────────────────────
 
 // GET /gestao/produtos/:id
-router.get('/produtos/:id', requireHub, async (req, res) => {
+router.get('/produtos/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
     const [{ data: produto, error }, { data: feedbacks }] = await Promise.all([
-      hub.from('produtos').select('*').eq('id', id).maybeSingle(),
-      hub.from('feedbacks').select('*').order('dt_criacao', { ascending: false }),
+      db.from('produtos').select('*').eq('id', id).maybeSingle(),
+      db.from('feedbacks').select('*').order('dt_criacao', { ascending: false }),
     ]);
 
     if (error) throw error;
@@ -196,11 +186,11 @@ router.get('/produtos/:id', requireHub, async (req, res) => {
     let depoimentos = [];
     const slug = produto.playbook_slug || produto.id;
     const [{ data: fotosData }, { data: depData }] = await Promise.all([
-      hub.storage.from('produtos-midias').list(`playbooks/${slug}/fotos`),
-      hub.storage.from('produtos-midias').list(`playbooks/${slug}/depoimentos`),
+      db.storage.from('produtos-midias').list(`playbooks/${slug}/fotos`),
+      db.storage.from('produtos-midias').list(`playbooks/${slug}/depoimentos`),
     ]);
 
-    const getUrl = (path) => hub.storage.from('produtos-midias').getPublicUrl(path).data.publicUrl;
+    const getUrl = (path) => db.storage.from('produtos-midias').getPublicUrl(path).data.publicUrl;
     fotos = (fotosData || []).filter(f => f.name !== '.emptyFolderPlaceholder').map(f => ({
       url: getUrl(`playbooks/${slug}/fotos/${f.name}`),
       path: `playbooks/${slug}/fotos/${f.name}`,
@@ -230,14 +220,14 @@ router.get('/produtos/:id', requireHub, async (req, res) => {
 });
 
 // POST /gestao/produtos — criar
-router.post('/produtos', requireHub, canEdit, async (req, res) => {
+router.post('/produtos', canEdit, async (req, res) => {
   try {
     const campos = ['nome','nicho','sku','o_que_e','composicao','como_funciona','descricao','playbook_slug'];
     const data = {};
     for (const c of campos) data[c] = req.body[c]?.trim() || null;
     if (!data.nome) return res.status(400).render('error', { message: 'Nome é obrigatório' });
 
-    const { data: novo, error } = await hub.from('produtos').insert(data).select().maybeSingle();
+    const { data: novo, error } = await db.from('produtos').insert(data).select().maybeSingle();
     if (error) throw error;
     res.redirect(`/gestao/produtos/${novo.id}`);
   } catch (err) {
@@ -247,7 +237,7 @@ router.post('/produtos', requireHub, canEdit, async (req, res) => {
 });
 
 // POST /gestao/produtos/:id/editar
-router.post('/produtos/:id/editar', requireHub, canEdit, async (req, res) => {
+router.post('/produtos/:id/editar', canEdit, async (req, res) => {
   try {
     const { id } = req.params;
     const campos = ['nome','nicho','sku','o_que_e','composicao','como_funciona','descricao','playbook_slug'];
@@ -255,7 +245,7 @@ router.post('/produtos/:id/editar', requireHub, canEdit, async (req, res) => {
     for (const c of campos) data[c] = req.body[c]?.trim() || null;
     if (!data.nome) return res.status(400).render('error', { message: 'Nome é obrigatório' });
 
-    const { error } = await hub.from('produtos').update(data).eq('id', id);
+    const { error } = await db.from('produtos').update(data).eq('id', id);
     if (error) throw error;
     res.redirect(`/gestao/produtos/${id}`);
   } catch (err) {
@@ -265,9 +255,9 @@ router.post('/produtos/:id/editar', requireHub, canEdit, async (req, res) => {
 });
 
 // POST /gestao/produtos/:id/excluir
-router.post('/produtos/:id/excluir', requireHub, canDelete, async (req, res) => {
+router.post('/produtos/:id/excluir', canDelete, async (req, res) => {
   try {
-    const { error } = await hub.from('produtos').delete().eq('id', req.params.id);
+    const { error } = await db.from('produtos').delete().eq('id', req.params.id);
     if (error) throw error;
     res.redirect('/gestao/catalogo?tab=produtos');
   } catch (err) {
@@ -279,7 +269,7 @@ router.post('/produtos/:id/excluir', requireHub, canDelete, async (req, res) => 
 // ─── MÍDIAS ──────────────────────────────────────────────────────────────────
 
 // POST /gestao/api/upload-media — base64 → Supabase Storage
-router.post('/api/upload-media', requireHub, canEdit, async (req, res) => {
+router.post('/api/upload-media', canEdit, async (req, res) => {
   try {
     const { base64, mimeType, tipo, slug } = req.body;
     if (!base64 || !tipo || !slug) return res.status(400).json({ error: 'Parâmetros inválidos' });
@@ -292,13 +282,13 @@ router.post('/api/upload-media', requireHub, canEdit, async (req, res) => {
     const path = `playbooks/${slug}/${tipo}/${filename}`;
     const buffer = Buffer.from(base64, 'base64');
 
-    const { error } = await hub.storage.from('produtos-midias').upload(path, buffer, {
+    const { error } = await db.storage.from('produtos-midias').upload(path, buffer, {
       contentType: mimeType,
       upsert: false,
     });
     if (error) throw error;
 
-    const url = hub.storage.from('produtos-midias').getPublicUrl(path).data.publicUrl;
+    const url = db.storage.from('produtos-midias').getPublicUrl(path).data.publicUrl;
     res.json({ ok: true, url, path, name: filename });
   } catch (err) {
     console.error('[Gestao/Upload] Erro:', err.message);
@@ -307,12 +297,12 @@ router.post('/api/upload-media', requireHub, canEdit, async (req, res) => {
 });
 
 // POST /gestao/api/delete-media
-router.post('/api/delete-media', requireHub, canEdit, async (req, res) => {
+router.post('/api/delete-media', canEdit, async (req, res) => {
   try {
     const { path } = req.body;
     if (!path || !path.startsWith('playbooks/')) return res.status(400).json({ error: 'Path inválido' });
 
-    const { error } = await hub.storage.from('produtos-midias').remove([path]);
+    const { error } = await db.storage.from('produtos-midias').remove([path]);
     if (error) throw error;
     res.json({ ok: true });
   } catch (err) {
@@ -324,12 +314,12 @@ router.post('/api/delete-media', requireHub, canEdit, async (req, res) => {
 // ─── FEEDBACKS ───────────────────────────────────────────────────────────────
 
 // POST /gestao/feedbacks — qualquer usuário autenticado pode registrar
-router.post('/feedbacks', requireHub, async (req, res) => {
+router.post('/feedbacks', async (req, res) => {
   try {
     const { texto, empresa, produto, redirect: redir } = req.body;
     if (!texto?.trim()) return res.status(400).render('error', { message: 'Texto do feedback obrigatório' });
 
-    const { error } = await hub.from('feedbacks').insert({
+    const { error } = await db.from('feedbacks').insert({
       texto: texto.trim(),
       empresa: empresa || null,
       produto: produto || null,
@@ -344,18 +334,18 @@ router.post('/feedbacks', requireHub, async (req, res) => {
 });
 
 // POST /gestao/feedbacks/:id/editar
-router.post('/feedbacks/:id/editar', requireHub, async (req, res) => {
+router.post('/feedbacks/:id/editar', async (req, res) => {
   try {
     const { texto, redirect: redir } = req.body;
     if (!texto?.trim()) return res.status(400).render('error', { message: 'Texto obrigatório' });
 
-    const { data: fb } = await hub.from('feedbacks').select('autor').eq('id', req.params.id).maybeSingle();
+    const { data: fb } = await db.from('feedbacks').select('autor').eq('id', req.params.id).maybeSingle();
     const autorAtual = req.user.name || req.user.email;
     if (req.user.role !== 'admin' && fb?.autor !== autorAtual) {
       return res.status(403).render('error', { message: 'Sem permissão para editar este feedback' });
     }
 
-    const { error } = await hub.from('feedbacks').update({ texto: texto.trim() }).eq('id', req.params.id);
+    const { error } = await db.from('feedbacks').update({ texto: texto.trim() }).eq('id', req.params.id);
     if (error) throw error;
     res.redirect(redir || '/gestao/catalogo');
   } catch (err) {
@@ -365,17 +355,17 @@ router.post('/feedbacks/:id/editar', requireHub, async (req, res) => {
 });
 
 // POST /gestao/feedbacks/:id/excluir
-router.post('/feedbacks/:id/excluir', requireHub, async (req, res) => {
+router.post('/feedbacks/:id/excluir', async (req, res) => {
   try {
     const { redirect: redir } = req.body;
 
-    const { data: fb } = await hub.from('feedbacks').select('autor').eq('id', req.params.id).maybeSingle();
+    const { data: fb } = await db.from('feedbacks').select('autor').eq('id', req.params.id).maybeSingle();
     const autorAtual = req.user.name || req.user.email;
     if (req.user.role !== 'admin' && fb?.autor !== autorAtual) {
       return res.status(403).render('error', { message: 'Sem permissão para excluir este feedback' });
     }
 
-    const { error } = await hub.from('feedbacks').delete().eq('id', req.params.id);
+    const { error } = await db.from('feedbacks').delete().eq('id', req.params.id);
     if (error) throw error;
     res.redirect(redir || '/gestao/catalogo');
   } catch (err) {
@@ -510,9 +500,9 @@ router.get('/api/vendas', async (req, res) => {
 
 // ─── BI ──────────────────────────────────────────────────────────────────────
 
-router.get('/bi', requireHub, requireRole(['admin']), async (req, res) => {
+router.get('/bi', requireRole(['admin']), async (req, res) => {
   try {
-    const { data: config } = await hub
+    const { data: config } = await db
       .from('configuracoes')
       .select('valor')
       .eq('id', 'powerbi')
