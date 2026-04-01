@@ -104,6 +104,40 @@
 
       </div>
 
+      <!-- Produtos da empresa -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+          <span style="font-weight:600;font-size:14px">Produtos (<%= produtos.length %>)</span>
+        </div>
+        <% if (produtos.length === 0) { %>
+        <div class="card-body" style="text-align:center;color:var(--text-4);font-size:13px;padding:24px">
+          Nenhum produto vinculado a esta empresa. Para vincular, edite o produto e preencha o campo "Empresa" com o nome exato: <strong><%= empresa.nome %></strong>
+        </div>
+        <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Nome</th>
+              <th>Nicho</th>
+              <th>SKU</th>
+              <th>Status</th>
+            </tr></thead>
+            <tbody>
+              <% produtos.forEach(p => { %>
+              <tr style="cursor:pointer" onclick="location.href='/gestao/produtos/<%= p.id %>'">
+                <td style="font-weight:500;color:var(--text)"><%= p.nome %></td>
+                <td style="color:var(--text-3)"><%= p.nicho || '—' %></td>
+                <td style="color:var(--text-3)"><%= p.sku || '—' %></td>
+                <td><% if (p.status) { %><span class="badge <%= p.status === 'Ativo' ? 'badge-success' : 'badge-neutral' %>"><%= p.status %></span><% } else { %><span style="color:var(--text-4)">—</span><% } %></td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+
       <!-- Formulário de feedback — largura total -->
       <div class="card" style="margin-top:20px">
         <div class="card-header">

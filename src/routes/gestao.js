@@ -91,9 +91,10 @@ router.get('/empresas/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [{ data: empresa, error }, { data: feedbacks }] = await Promise.all([
+    const [{ data: empresa, error }, { data: feedbacks }, { data: todosProdutos }] = await Promise.all([
       db.from('empresas').select('*').eq('id', id).maybeSingle(),
       db.from('feedbacks').select('*').order('dt_criacao', { ascending: false }),
+      db.from('produtos').select('id,nome,nicho,sku,playbook_slug,status').order('nome'),
     ]);
 
     if (error) throw error;
@@ -102,11 +103,15 @@ router.get('/empresas/:id', async (req, res) => {
     const feedbacksEmpresa = (feedbacks || []).filter(
       f => f.empresa && f.empresa.toLowerCase() === empresa.nome.toLowerCase()
     );
+    const produtosEmpresa = (todosProdutos || []).filter(
+      p => p.empresa && p.empresa.toLowerCase() === empresa.nome.toLowerCase()
+    );
 
     res.render('gestao-empresa-detalhe', {
       activePage: 'gestao-catalogo',
       empresa,
       feedbacks: feedbacksEmpresa,
+      produtos: produtosEmpresa,
       canEdit: userCanEdit(req),
       isAdmin: req.user.role === 'admin',
     });
@@ -222,7 +227,7 @@ router.get('/produtos/:id', async (req, res) => {
 // POST /gestao/produtos — criar
 router.post('/produtos', canEdit, async (req, res) => {
   try {
-    const campos = ['nome','nicho','sku','o_que_e','composicao','como_funciona','descricao','playbook_slug'];
+    const campos = ['nome','empresa','nicho','sku','o_que_e','composicao','como_funciona','descricao','playbook_slug'];
     const data = {};
     for (const c of campos) data[c] = req.body[c]?.trim() || null;
     if (!data.nome) return res.status(400).render('error', { message: 'Nome é obrigatório' });
@@ -240,7 +245,7 @@ router.post('/produtos', canEdit, async (req, res) => {
 router.post('/produtos/:id/editar', canEdit, async (req, res) => {
   try {
     const { id } = req.params;
-    const campos = ['nome','nicho','sku','o_que_e','composicao','como_funciona','descricao','playbook_slug'];
+    const campos = ['nome','empresa','nicho','sku','o_que_e','composicao','como_funciona','descricao','playbook_slug'];
     const data = {};
     for (const c of campos) data[c] = req.body[c]?.trim() || null;
     if (!data.nome) return res.status(400).render('error', { message: 'Nome é obrigatório' });
