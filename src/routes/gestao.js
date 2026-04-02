@@ -486,14 +486,19 @@ router.get('/api/vendas', async (req, res) => {
     const empresasFiltro = empresasParam ? empresasParam.split(',').filter(Boolean) : [];
     const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
 
-    // RPC principal + breakdown por forma de pagamento em paralelo
+    // RPC principal + breakdown por forma de pagamento em paralelo (somente vendas pagas)
     let formasQuery = db.from('vendas')
       .select('forma_pagamento, valor_venda, status_pagamento')
+      .eq('status_pagamento', 'paid')
       .gte('dt_aprovacao', fromStr)
       .lte('dt_aprovacao', toStr);
     if (emailFilter) formasQuery = formasQuery.in('email', emailFilter);
     if (fonte && fonte !== 'all') formasQuery = formasQuery.ilike('email', `%${fonte}%`);
     if (vendedora && vendedora !== 'all') formasQuery = formasQuery.eq('email', vendedora);
+    if (empresasFiltro.length) formasQuery = formasQuery.in('empresa', empresasFiltro);
+    if (produtosFiltro.length) formasQuery = formasQuery.in('produto', produtosFiltro);
+    if (tipo && tipo !== 'all') formasQuery = formasQuery.eq('tipo_venda', tipo);
+    if (forma && forma !== 'all') formasQuery = formasQuery.eq('forma_pagamento', forma);
 
     const [{ data: result, error }, { data: formasData }] = await Promise.all([
       db.rpc('get_vendas_dashboard', {
@@ -520,25 +525,20 @@ router.get('/api/vendas', async (req, res) => {
     const ticketMedio= totalPaid ? faturamento / totalPaid : 0;
     const taxaCb     = (totalPaid + chargebacks) ? (chargebacks / (totalPaid + chargebacks)) * 100 : 0;
 
-    // Agrega por forma de pagamento
+    // Agrega por forma de pagamento (já filtrado só paid)
     const formasMap = {};
-    let reembolsosCount = 0, reembolsosTotal = 0;
     for (const row of (formasData || [])) {
-      const status = (row.status_pagamento || '').toLowerCase();
-      if (status.includes('refund') || status.includes('reembolso')) {
-        reembolsosCount++;
-        reembolsosTotal += Number(row.valor_venda || 0);
-        continue;
-      }
       const f = row.forma_pagamento || 'outros';
       if (!formasMap[f]) formasMap[f] = { forma: f, count: 0, total: 0 };
       formasMap[f].count++;
       formasMap[f].total += Number(row.valor_venda || 0);
     }
     const formasPagamento = Object.values(formasMap).sort((a, b) => b.total - a.total);
+    const reembolsos = Number(r.reembolsos || 0);
+    const reembolsosTotal = Number(r.reembolsos_total || 0);
 
     res.json({
-      kpis: { faturamento, ticketMedio, chargebacks, taxaCb, pix: Number(r.pix||0), cartao: Number(r.cartao||0), totalPaid, reembolsos: reembolsosCount, reembolsosTotal },
+      kpis: { faturamento, ticketMedio, chargebacks, taxaCb, pix: Number(r.pix||0), cartao: Number(r.cartao||0), totalPaid, reembolsos, reembolsosTotal },
       formasPagamento,
       daily:       (r.daily        || []).map(d => ({ data: d.data, total: Number(d.total), count: Number(d.count) })),
       topEmpresas: (r.top_empresas || []).map(e => ({ label: e.label, total: Number(e.total), qtd: Number(e.qtd) })),
@@ -553,14 +553,14 @@ router.get('/api/vendas', async (req, res) => {
 // GET /gestao/api/vendas/ranking — ranking de vendedoras por faturamento
 router.get('/api/vendas/ranking', async (req, res) => {
   try {
-    const { period, dateFrom, dateTo, equipe, fonte } = req.query;
+    const { period, dateFrom, dateTo, equipe, fonte, vendedora, tipo, empresas: empresasParam, produtos: produtosParam, forma } = req.query;
     const user = req.user;
     const role = user.role;
 
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     let from = new Date();
-    from.setDate(from.getDate() - 30); // default 30d
+    from.setDate(from.getDate() - 30);
     if (period === '7d')   { from = new Date(today); from.setDate(from.getDate() - 7); }
     if (period === '30d')  { from = new Date(today); from.setDate(from.getDate() - 30); }
     if (period === '90d')  { from = new Date(today); from.setDate(from.getDate() - 90); }
@@ -582,16 +582,25 @@ router.get('/api/vendas/ranking', async (req, res) => {
       emailsPermitidos = (cols || []).map(c => c.email);
     }
 
+    const empresasFiltro = empresasParam ? empresasParam.split(',').filter(Boolean) : [];
+    const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
+
     let query = db.from('vendas')
       .select('email, valor_venda')
+      .eq('status_pagamento', 'paid')
       .gte('dt_aprovacao', fromStr)
       .lte('dt_aprovacao', toStr)
       .not('email', 'is', null);
 
     if (fonte && fonte !== 'all') query = query.ilike('email', `%${fonte}%`);
+    if (vendedora && vendedora !== 'all') query = query.eq('email', vendedora);
     if (emailsPermitidos) query = query.in('email', emailsPermitidos);
+    if (tipo && tipo !== 'all') query = query.eq('tipo_venda', tipo);
+    if (forma && forma !== 'all') query = query.eq('forma_pagamento', forma);
+    if (empresasFiltro.length) query = query.in('empresa', empresasFiltro);
+    if (produtosFiltro.length) query = query.in('produto', produtosFiltro);
 
-    const { data, error } = await query.limit(200000);
+    const { data, error } = await query.limit(300000);
     if (error) return res.status(500).json({ error: error.message });
 
     const map = {};
