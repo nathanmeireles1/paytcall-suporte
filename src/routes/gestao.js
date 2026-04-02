@@ -486,9 +486,9 @@ router.get('/api/vendas', async (req, res) => {
     const empresasFiltro = empresasParam ? empresasParam.split(',').filter(Boolean) : [];
     const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
 
-    // RPC principal + breakdown por forma de pagamento em paralelo (somente vendas pagas)
+    // RPC principal + breakdown por forma de pagamento/empresa em paralelo (somente vendas pagas)
     let formasQuery = db.from('vendas')
-      .select('forma_pagamento, valor_venda, status_pagamento')
+      .select('forma_pagamento, valor_venda, empresa, produto, dt_aprovacao')
       .eq('status_pagamento', 'paid')
       .gte('dt_aprovacao', fromStr)
       .lte('dt_aprovacao', toStr);
@@ -525,24 +525,67 @@ router.get('/api/vendas', async (req, res) => {
     const ticketMedio= totalPaid ? faturamento / totalPaid : 0;
     const taxaCb     = (totalPaid + chargebacks) ? (chargebacks / (totalPaid + chargebacks)) * 100 : 0;
 
-    // Agrega por forma de pagamento (já filtrado só paid)
+    // Agrega por forma de pagamento, empresa e produto (já filtrado só paid)
     const formasMap = {};
+    const dailyByEmpMap   = {}; // { [empresa]: { [date]: {total, count} } }
+    const prodByEmpMap    = {}; // { [empresa]: { [produto]: {total, qtd} } }
+
     for (const row of (formasData || [])) {
-      const f = row.forma_pagamento || 'outros';
+      const f    = row.forma_pagamento || 'outros';
+      const emp  = row.empresa || 'Outros';
+      const prod = row.produto || 'Outros';
+      const date = (row.dt_aprovacao || '').slice(0, 10);
+      const val  = Number(row.valor_venda || 0);
+
+      // formas
       if (!formasMap[f]) formasMap[f] = { forma: f, count: 0, total: 0 };
       formasMap[f].count++;
-      formasMap[f].total += Number(row.valor_venda || 0);
+      formasMap[f].total += val;
+
+      // daily por empresa
+      if (!dailyByEmpMap[emp]) dailyByEmpMap[emp] = {};
+      if (!dailyByEmpMap[emp][date]) dailyByEmpMap[emp][date] = { total: 0, count: 0 };
+      dailyByEmpMap[emp][date].total += val;
+      dailyByEmpMap[emp][date].count++;
+
+      // top produtos por empresa
+      if (!prodByEmpMap[emp]) prodByEmpMap[emp] = {};
+      if (!prodByEmpMap[emp][prod]) prodByEmpMap[emp][prod] = { label: prod, total: 0, qtd: 0 };
+      prodByEmpMap[emp][prod].total += val;
+      prodByEmpMap[emp][prod].qtd++;
     }
+
     const formasPagamento = Object.values(formasMap).sort((a, b) => b.total - a.total);
-    const reembolsos = Number(r.reembolsos || 0);
+    const reembolsos      = Number(r.reembolsos || 0);
     const reembolsosTotal = Number(r.reembolsos_total || 0);
+
+    // Alinha dailyByEmpresa às mesmas datas do array geral
+    const dailyDatesArr = (r.daily || []).map(d => d.data);
+    const dailyByEmpresa = {};
+    for (const emp of Object.keys(dailyByEmpMap)) {
+      dailyByEmpresa[emp] = dailyDatesArr.map(date => ({
+        data: date,
+        total: (dailyByEmpMap[emp][date] || {}).total || 0,
+        count: (dailyByEmpMap[emp][date] || {}).count || 0,
+      }));
+    }
+
+    // Top 5 produtos por empresa (por quantidade)
+    const topProdutosByEmpresa = {};
+    for (const emp of Object.keys(prodByEmpMap)) {
+      topProdutosByEmpresa[emp] = Object.values(prodByEmpMap[emp])
+        .sort((a, b) => b.qtd - a.qtd)
+        .slice(0, 5);
+    }
 
     res.json({
       kpis: { faturamento, ticketMedio, chargebacks, taxaCb, pix: Number(r.pix||0), cartao: Number(r.cartao||0), totalPaid, reembolsos, reembolsosTotal },
       formasPagamento,
-      daily:       (r.daily        || []).map(d => ({ data: d.data, total: Number(d.total), count: Number(d.count) })),
-      topEmpresas: (r.top_empresas || []).map(e => ({ label: e.label, total: Number(e.total), qtd: Number(e.qtd) })),
-      topProdutos: (r.top_produtos || []).map(p => ({ label: p.label, total: Number(p.total), qtd: Number(p.qtd) })),
+      daily:               (r.daily        || []).map(d => ({ data: d.data, total: Number(d.total), count: Number(d.count) })),
+      topEmpresas:         (r.top_empresas || []).map(e => ({ label: e.label, total: Number(e.total), qtd: Number(e.qtd) })),
+      topProdutos:         (r.top_produtos || []).map(p => ({ label: p.label, total: Number(p.total), qtd: Number(p.qtd) })),
+      dailyByEmpresa,
+      topProdutosByEmpresa,
     });
   } catch (err) {
     console.error('[Gestao/API/Vendas] Erro:', err.message);
@@ -586,7 +629,7 @@ router.get('/api/vendas/ranking', async (req, res) => {
     const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
 
     let query = db.from('vendas')
-      .select('email, valor_venda')
+      .select('email, valor_venda, empresa')
       .eq('status_pagamento', 'paid')
       .gte('dt_aprovacao', fromStr)
       .lte('dt_aprovacao', toStr)
@@ -604,15 +647,26 @@ router.get('/api/vendas/ranking', async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
 
     const map = {};
+    const mapByEmpresa = {};
     for (const row of (data || [])) {
       if (!row.email) continue;
-      const k = row.email.toLowerCase().trim();
+      const k   = row.email.toLowerCase().trim();
+      const emp = row.empresa || 'Outros';
+      const val = Number(row.valor_venda || 0);
       if (!map[k]) map[k] = { email: row.email, qtd: 0, total: 0 };
       map[k].qtd++;
-      map[k].total += Number(row.valor_venda || 0);
+      map[k].total += val;
+      if (!mapByEmpresa[emp]) mapByEmpresa[emp] = {};
+      if (!mapByEmpresa[emp][k]) mapByEmpresa[emp][k] = { email: row.email, qtd: 0, total: 0 };
+      mapByEmpresa[emp][k].qtd++;
+      mapByEmpresa[emp][k].total += val;
     }
-    const ranking = Object.values(map).sort((a, b) => b.total - a.total).slice(0, 30);
-    res.json({ ranking });
+    const ranking = Object.values(map).sort((a, b) => b.total - a.total).slice(0, 5);
+    const rankingByEmpresa = {};
+    for (const emp of Object.keys(mapByEmpresa)) {
+      rankingByEmpresa[emp] = Object.values(mapByEmpresa[emp]).sort((a, b) => b.total - a.total).slice(0, 5);
+    }
+    res.json({ ranking, rankingByEmpresa });
   } catch (err) {
     console.error('[Gestao/API/Ranking] Erro:', err.message);
     res.status(500).json({ error: err.message });
