@@ -10,12 +10,20 @@ if (!supabaseUrl || !supabaseKey) {
 
 const db = createClient(supabaseUrl, supabaseKey);
 
-// Projeto hub — vendas, empresas, produtos
+// Projeto hub — legado (não usar em código novo)
 const hubUrl = process.env.HUB_SUPABASE_URL;
 const hubKey = process.env.HUB_SUPABASE_SERVICE_KEY;
 
 const hub = hubUrl && hubKey
   ? createClient(hubUrl, hubKey)
+  : null;
+
+// Projeto Gestão — colaboradores/RH (leitura de rh_colaboradores)
+const gestaoUrl = process.env.GESTAO_SUPABASE_URL;
+const gestaoKey = process.env.GESTAO_SUPABASE_SERVICE_KEY;
+
+const dbGestao = gestaoUrl && gestaoKey
+  ? createClient(gestaoUrl, gestaoKey)
   : null;
 
 async function init() {
@@ -25,16 +33,16 @@ async function init() {
   }
   console.log('[DB] Conectado ao Supabase operacional com sucesso');
 
-  if (hub) {
-    const { error: hubError } = await hub.from('empresas').select('id').limit(1);
-    if (hubError && hubError.code !== 'PGRST116') {
-      console.warn('[DB] Hub Supabase conectado mas com aviso:', hubError.message);
+  if (dbGestao) {
+    const { error: gErr } = await dbGestao.from('rh_colaboradores').select('id').limit(1);
+    if (gErr && gErr.code !== 'PGRST116') {
+      console.warn('[DB] Gestão Supabase conectado mas com aviso:', gErr.message);
     } else {
-      console.log('[DB] Conectado ao Supabase hub com sucesso');
+      console.log('[DB] Conectado ao Supabase gestão (colaboradores) com sucesso');
     }
   } else {
-    console.warn('[DB] HUB_SUPABASE_URL/HUB_SUPABASE_SERVICE_KEY não configurados — módulos de vendas indisponíveis');
+    console.warn('[DB] GESTAO_SUPABASE_URL/GESTAO_SUPABASE_SERVICE_KEY não configurados — colaboradores do portal-gestao indisponíveis');
   }
 }
 
-module.exports = { db, hub, init };
+module.exports = { db, hub, dbGestao, init };
