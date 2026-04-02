@@ -606,11 +606,15 @@ router.get('/api/vendas', async (req, res) => {
         if (row.dt_aprovacao && row.email) {
           const reg = emailToRegiao[row.email.toLowerCase().trim()];
           if (reg) {
-            const dia = String(row.dt_aprovacao).slice(0, 10);
-            if (!dailyRegMap[reg]) dailyRegMap[reg] = {};
-            if (!dailyRegMap[reg][dia]) dailyRegMap[reg][dia] = { data: dia, total: 0, count: 0 };
-            dailyRegMap[reg][dia].total += val;
-            dailyRegMap[reg][dia].count++;
+            // Normaliza para YYYY-MM-DD independente do formato (date, timestamp, timestamptz)
+            const rawDt = String(row.dt_aprovacao);
+            const dia = rawDt.length >= 10 ? rawDt.slice(0, 10) : null;
+            if (dia) {
+              if (!dailyRegMap[reg]) dailyRegMap[reg] = {};
+              if (!dailyRegMap[reg][dia]) dailyRegMap[reg][dia] = { data: dia, total: 0, count: 0 };
+              dailyRegMap[reg][dia].total += val;
+              dailyRegMap[reg][dia].count++;
+            }
           }
         }
       }
@@ -622,6 +626,10 @@ router.get('/api/vendas', async (req, res) => {
           Object.values(dayMap).sort((a, b) => a.data.localeCompare(b.data)).map(d => ({ data: d.data, total: d.total, count: d.count })),
         ])
       );
+      // Diagnóstico: regiões detectadas e total de vendas por região
+      const regStats = Object.entries(dailyByRegiao).map(([r, days]) => `${r}:${days.reduce((s,d)=>s+d.count,0)}v/${days.reduce((s,d)=>s+d.total,0).toFixed(0)}`);
+      const emailsMapped = Object.values(dailyRegMap).reduce((s, m) => s + Object.values(m).reduce((ss, d) => ss + d.count, 0), 0);
+      console.log(`[Vendas/dailyByRegiao] formasData=${formasData.length} matched=${emailsMapped} regioes=[${regStats.join(', ')}] emailToRegiao_keys=${Object.keys(emailToRegiao).length}`);
     }
 
     const reembolsos      = Number(r.reembolsos || 0);
@@ -682,10 +690,12 @@ router.get('/api/vendas/ranking', async (req, res) => {
     const empresasFiltro = empresasParam ? empresasParam.split(',').filter(Boolean) : [];
     const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
 
-    // Mapa email → região
+    // Mapas email → região / nome
     const emailToRegiao = {};
+    const emailToNome   = {};
     for (const c of todosColabs) {
       if (c.email && c.regiao) emailToRegiao[c.email] = c.regiao;
+      if (c.email && c.nome)   emailToNome[c.email]   = { nome: c.nome, primeiro_nome: c.primeiro_nome };
     }
 
     let q = db.from('vendas')
@@ -710,12 +720,13 @@ router.get('/api/vendas/ranking', async (req, res) => {
       const k      = row.email.toLowerCase().trim();
       const regiao = emailToRegiao[k] || null;
       const val    = Number(row.valor_venda || 0);
-      if (!map[k]) map[k] = { email: row.email, qtd: 0, total: 0 };
+      const info   = emailToNome[k] || {};
+      if (!map[k]) map[k] = { email: row.email, nome: info.nome || null, primeiro_nome: info.primeiro_nome || null, qtd: 0, total: 0 };
       map[k].qtd++;
       map[k].total += val;
       if (regiao) {
         if (!mapByRegiao[regiao]) mapByRegiao[regiao] = {};
-        if (!mapByRegiao[regiao][k]) mapByRegiao[regiao][k] = { email: row.email, qtd: 0, total: 0 };
+        if (!mapByRegiao[regiao][k]) mapByRegiao[regiao][k] = { email: row.email, nome: info.nome || null, primeiro_nome: info.primeiro_nome || null, qtd: 0, total: 0 };
         mapByRegiao[regiao][k].qtd++;
         mapByRegiao[regiao][k].total += val;
       }

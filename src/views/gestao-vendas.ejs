@@ -814,17 +814,19 @@
   }
 
   function _renderRankingTable(rows) {
-    const fmtNome = email => email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     const trs = rows.length
-      ? rows.map((v, i) => `<tr>
+      ? rows.map((v, i) => {
+          const nome = v.nome || v.email.split('@')[0];
+          return `<tr>
           <td style="color:var(--text-4);width:22px;font-weight:${i<3?'700':'400'};font-size:11px">${i+1}</td>
           <td>
-            <div style="font-weight:500;font-size:13px">${fmtNome(v.email)}</div>
+            <div style="font-weight:500;font-size:13px">${nome}</div>
             <div style="font-size:11px;color:var(--text-4)">${v.email}</div>
           </td>
           <td style="text-align:right;color:var(--text-3);font-size:13px">${fmtN(v.qtd)}</td>
           <td style="text-align:right;font-weight:600;color:var(--brand-dark);font-size:13px">${fmt(v.total)}</td>
-        </tr>`).join('')
+        </tr>`;
+        }).join('')
       : `<tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:24px">Sem dados para este período</td></tr>`;
     return `<table style="width:100%">
       <thead><tr>
