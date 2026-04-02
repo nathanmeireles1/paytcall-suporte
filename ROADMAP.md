@@ -1,7 +1,7 @@
 # ROADMAP — Portal de Suporte Paytcall
 
 > Atualizado em: 01/04/2026
-> Status: 1–8, 10, 12, 14, 15, 17, 18, 19, 20–24 concluídos. Em andamento: 16 (Importador Excel — aguarda colunas). Novo: 25 (histórico nos módulos retenção/solicitações).
+> Status: 1–8, 10, 12, 14, 15, 17, 18, 19, 20–26 concluídos. Em andamento: 16 (Importador Excel — aguarda colunas), 27 (diagnóstico Natal no gráfico). Novo: 25 (histórico nos módulos retenção/solicitações).
 
 ---
 
@@ -33,6 +33,8 @@
 | 23 | Histórico de mudanças de ticket (timeline de status no shipment) | ✅ Concluído |
 | 24 | Modo compacto na tabela de rastreios | ✅ Concluído |
 | 25 | Histórico de ticket nos módulos retenção, tickets logística e solicitações | 🟡 Em andamento |
+| 26 | Responsividade ≤ 1200px + ranking de vendedoras por abas + gráfico multi-linha regional | ✅ Concluído |
+| 27 | Diagnóstico/fix: linha Natal no gráfico de faturamento | 🟡 Aguardando logs do Railway |
 
 ---
 
@@ -424,6 +426,40 @@ Seu portal **já está seguro** — código no GitHub, dados no Supabase. O que 
 - [ ] Criar rota de upload/import em `/gestao/vendas/import`
 - [ ] Mapear colunas Excel → tabela hub `vendas` (ou equivalente)
 - [ ] Interface de upload com preview antes de confirmar
+
+---
+
+## 26 — RESPONSIVIDADE + DASHBOARD DE VENDAS ✅ Concluído
+
+- [x] Breakpoint `≤ 1200px` no `global.css`: `.grid-2` e `.col-layout-2` colapsam para 1 coluna
+- [x] `.col-layout-2` nova classe utilitária — usada em gestao-empresa-detalhe e gestao-produto-detalhe
+- [x] `charts-grid` e `tables-grid` em vendas: media query 900px → 1200px
+- [x] Ranking de Vendedoras: substituída grade de colunas side-by-side por abas (Geral / Natal / Palhoça)
+- [x] Gráfico Faturamento por Dia: exibe 1 linha por região além do geral (Palhoça = indigo, Natal = verde)
+- [x] API `/api/vendas`: computa `dailyByRegiao` a partir de `formasData` + `emailToRegiao`
+- [x] Ranking: exibe nome real do colaborador (`rh_colaboradores.nome`) em vez de derivar do email
+- [x] Payment section: layout CSS classes (`.payment-section`, `.payment-cards`, `.payment-donut`) — sem overflow em telas largas
+- [x] Colaboradores movido para seção Administração na sidebar (admin only)
+- [x] Integração portal-gestao: `getColaboradores()` com cache 5 min; env vars no Railway
+
+---
+
+## 27 — FIX: LINHA NATAL NO GRÁFICO 🟡 Aguardando diagnóstico
+
+### Sintoma
+Linha Natal no gráfico Faturamento por Dia aparece próxima de zero enquanto Palhoça e Geral têm valores normais.
+
+### Diagnóstico em andamento
+Log adicionado no Railway: `[Vendas/dailyByRegiao] formasData=X matched=Y regioes=[...] emailToRegiao_keys=Z`
+
+### O que verificar nos logs
+- `emailToRegiao_keys=0` → `dbGestao` não conectando ou `unidade` nulo para todos
+- `matched=0` com keys > 0 → emails em `vendas.email` não coincidem com `rh_colaboradores.email_corporativo`
+- `regioes=[Natal:0v]` com keys > 0 → somente emails de Palhoça estão no mapa
+
+### Possíveis causas
+1. `rh_colaboradores.unidade` para vendedoras de Natal está com valor diferente de "Natal" (ex: "natal", "NATAL", "Natal - RN")
+2. `rh_colaboradores.email_corporativo` para Natal usa domínio diferente do que aparece em `vendas.email`
 
 ---
 

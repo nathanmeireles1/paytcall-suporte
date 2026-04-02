@@ -25,7 +25,8 @@ Guia obrigatório para qualquer desenvolvedor ou agente IA que trabalhe neste pr
 
 - **Projeto operacional** (ÚNICO banco em uso): `mckldrujoktkhjzgdded`
 - **Projeto hub** (`cclvcemrxpucpxaywopc`): migração concluída — pode ser deletado
-- Clientes configurados em `src/config/database.js` — usar sempre `db` (operacional)
+- **Projeto gestão** (`cclvcemrxpucpxaywopc` — portal-gestao): leitura de `rh_colaboradores` via `dbGestao`
+- Clientes configurados em `src/config/database.js` — usar sempre `db` (operacional); `dbGestao` para colaboradores
 - Nunca usar anon key para operações admin — sempre service role key via variável de ambiente
 - Storage bucket `produtos-midias`: limite por arquivo configurado em 500MB (`storage.buckets.file_size_limit`)
 - Acesso à Management API via `SUPABASE_ACCESS_TOKEN` no `.env` local
@@ -38,7 +39,7 @@ Guia obrigatório para qualquer desenvolvedor ou agente IA que trabalhe neste pr
 src/
   app.js              — entrada da aplicação Express
   config/
-    database.js       — clientes Supabase (db = operacional)
+    database.js       — clientes Supabase (db = operacional, dbGestao = portal-gestao)
   middleware/
     auth.js           — requireAuth, requirePermission, loadPermissions
   routes/
@@ -46,7 +47,7 @@ src/
     ai.js             — /api/ai/chat (Lina — Gemini)
     auth.js           — /login, /logout, /invite/:token
     dashboard.js      — /dashboard, /rastreios (handler compartilhado handleRastreios)
-    gestao.js         — /gestao/* (catálogo: empresas, produtos, nichos, feedbacks, vendas, BI)
+    gestao.js         — /gestao/* (catálogo: empresas, produtos, nichos, feedbacks, vendas; /gestao/bi redireciona para /admin/bi)
     relatorios.js     — /relatorios/* (tickets, rastreio-log, cancelamentos, logística, retenção)
     tracking.js       — /rastreios, /pedido/:id, refresh
     webhook.js        — /webhook (Paytcall)
@@ -68,9 +69,9 @@ src/
     gestao-catalogo.ejs         — Catálogo (abas: Empresas | Produtos | Nichos)
     gestao-empresa-detalhe.ejs  — Detalhe de empresa + produtos vinculados + feedbacks
     gestao-produto-detalhe.ejs  — Detalhe de produto + mídias (lightbox) + feedbacks
-    gestao-vendas.ejs           — Dashboard de vendas (RPC get_vendas_dashboard)
-    gestao-colaboradores.ejs    — Gerenciamento de colaboradores/vendedoras
-    gestao-bi.ejs               — Power BI embed (config em tabela configuracoes)
+    gestao-vendas.ejs           — Dashboard de vendas (RPC get_vendas_dashboard + dailyByRegiao + ranking por abas)
+    gestao-colaboradores.ejs    — Visualização de colaboradores (somente admin; fonte: rh_colaboradores do portal-gestao)
+    gestao-bi.ejs               — Power BI embed (config em tabela configuracoes) — acessado via /admin/bi
     relatorios-tickets.ejs
     relatorios-rastreio-log.ejs
     relatorios-cancelamentos.ejs
@@ -80,6 +81,7 @@ src/
     admin-docs.ejs    — documentação do sistema
     admin-ia.ejs      — página dedicada ao agente Lina
     admin-mural.ejs   — mural de avisos
+    admin-bi.ejs      — Power BI embed (admin only; rota GET /admin/bi)
   public/
     css/global.css    — design system completo (NUNCA criar CSS inline fora do padrão)
 scripts/
@@ -161,6 +163,8 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 | `WONCA_API_KEY` | Chave API H7 para consulta de rastreios por CPF |
 | `HUB_SUPABASE_URL` | URL do projeto hub (apenas para scripts de migração) |
 | `HUB_SUPABASE_SERVICE_KEY` | Service role key do hub (apenas para scripts de migração) |
+| `GESTAO_SUPABASE_URL` | URL do Supabase do portal-gestao (leitura de rh_colaboradores) |
+| `GESTAO_SUPABASE_SERVICE_KEY` | Service role key do portal-gestao |
 
 ---
 
@@ -217,9 +221,30 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 - Vinculação produto ↔ empresa: campo `produtos.empresa` (text) deve conter o nome exato da empresa
 - Nichos são derivados do campo `produto.nicho` (sem tabela própria)
 - Feedbacks: qualquer usuário cria; autor ou admin pode editar/excluir
-- Power BI: rota `/gestao/bi` lê `configuracoes` onde `id = 'powerbi'` (valor jsonb com `embedUrl` e `pageName`)
+- Power BI: rota `/admin/bi` (admin only) lê `configuracoes` onde `id = 'powerbi'` (valor jsonb com `embedUrl` e `pageName`); `/gestao/bi` redireciona para lá
 
 ---
+
+## Módulo Vendas (Dashboard)
+
+- Rota: `GET /gestao/vendas` e `GET /gestao/api/vendas` em `src/routes/gestao.js`
+- API principal usa RPC `get_vendas_dashboard` + agregação Node.js de `formasData`
+- **Cache em memória 45s**: chave por role + todos os parâmetros de filtro
+- **Colaboradores** (fonte única): `getColaboradores()` lê `rh_colaboradores` via `dbGestao`; cache 5 min
+- **dailyByRegiao**: computado a partir de `formasData` (email + dt_aprovacao) cruzado com `emailToRegiao` — alimenta linhas regionais no gráfico Faturamento por Dia
+- **Ranking de Vendedoras**: tab por região (Geral / Natal / Palhoça) no mesmo card; dados em `rankingByRegiao`; exibe `nome` real do colaborador (campo `rh_colaboradores.nome`)
+- **Lite mode** (`?lite=1`): skip de `formasData` — usado para chamada do período anterior (só KPIs)
+- Regiões usadas: valores do campo `rh_colaboradores.unidade` (ex: "Natal", "Palhoça")
+- **Diagnóstico**: ao carregar (sem cache), log `[Vendas/dailyByRegiao]` no Railway mostra contagem de matches por região
+
+## Responsividade
+
+- **Breakpoints em `public/css/global.css`**:
+  - `≤ 1200px`: `.grid-2` e `.col-layout-2` → 1 coluna; `.grid-3/.grid-4` → 2 colunas
+  - `≤ 1024px`: `.p-summary` → 4 colunas fixo
+  - `≤ 768px`: sidebar some; todos os grids → 1 coluna
+- **`.col-layout-2`**: classe utilitária para grids de 2 colunas com colapso em 1200px — usar em vez de `style="display:grid;grid-template-columns:1fr 1fr"` nas views
+- **gestao-vendas.ejs**: `.charts-grid` e `.tables-grid` colapsam em 1200px (não em 900px)
 
 ## Importação de pedidos (scripts/)
 
@@ -251,3 +276,4 @@ O partial preserva todos os query params automaticamente via `window.location`.
 
 *Atualizado em: 2026-04-01*
 *Migração hub → operacional: CONCLUÍDA. Hub pode ser deletado.*
+*Integração portal-gestao (rh_colaboradores): CONCLUÍDA. Variáveis GESTAO_SUPABASE_URL e GESTAO_SUPABASE_SERVICE_KEY já no Railway.*
