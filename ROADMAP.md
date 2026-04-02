@@ -1,7 +1,7 @@
 # ROADMAP — Portal de Suporte Paytcall
 
 > Atualizado em: 01/04/2026
-> Status: 1–8, 12, 14, 15 concluídos. Em andamento: 16 (Importador Excel), 10 (Analytics).
+> Status: 1–8, 10, 12, 14, 15, 17, 18, 19, 20–24 concluídos. Em andamento: 16 (Importador Excel — aguarda colunas). Novo: 25 (histórico nos módulos retenção/solicitações).
 
 ---
 
@@ -24,9 +24,15 @@
 | 14 | Paginação universal (por página + ir para página) | ✅ Concluído |
 | 15 | Módulo Catálogo (Empresas, Produtos, Nichos, Feedbacks, Mídias) | ✅ Concluído |
 | 16 | Importador Excel/Airtable para Vendas | 🟡 Em andamento |
-| 17 | Log de auditoria global (Admin) — convites, imports, alterações | 🔲 Pendente |
-| 18 | Barra de progresso no import de planilhas | 🔲 Pendente |
-| 19 | Módulo Logística (mover /relatorios/logistica + renomear Relatórios) | 🔲 Pendente |
+| 17 | Log de auditoria global (Admin) — convites, imports, alterações | ✅ Concluído |
+| 18 | Barra de progresso no import de planilhas | ✅ Concluído |
+| 19 | Módulo Logística (mover /relatorios/logistica + renomear Relatórios) | ✅ Concluído |
+| 20 | Comparativo de períodos no dashboard de Vendas | ✅ Concluído |
+| 21 | Ranking de vendedoras | ✅ Concluído |
+| 22 | Status de mídia no Catálogo (indicador visual por produto) | ✅ Concluído |
+| 23 | Histórico de mudanças de ticket (timeline de status no shipment) | ✅ Concluído |
+| 24 | Modo compacto na tabela de rastreios | ✅ Concluído |
+| 25 | Histórico de ticket nos módulos retenção, tickets logística e solicitações | 🟡 Em andamento |
 
 ---
 

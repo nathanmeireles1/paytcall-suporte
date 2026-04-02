@@ -561,7 +561,19 @@ const Shipment = {
     return data;
   },
 
-  async updateTicketStatus(id, newStatus) {
+  async _logTicketHistory(ticketId, changedBy, field, oldValue, newValue) {
+    try {
+      await db.from('ticket_history').insert({
+        ticket_id: ticketId,
+        changed_by: changedBy || null,
+        field,
+        old_value: oldValue != null ? String(oldValue) : null,
+        new_value: newValue != null ? String(newValue) : null,
+      });
+    } catch (_) { /* silencioso — tabela pode não existir ainda */ }
+  },
+
+  async updateTicketStatus(id, newStatus, changedBy) {
     const { data: ticket, error: fetchErr } = await db
       .from('tickets').select('*').eq('id', id).single();
     if (fetchErr) throw fetchErr;
@@ -578,6 +590,8 @@ const Shipment = {
 
     const { error } = await db.from('tickets').update(update).eq('id', id);
     if (error) throw error;
+
+    await this._logTicketHistory(id, changedBy, 'status', ticket.status, newStatus);
 
     // Notifica criador e responsável
     const tipoLabel = ticket.tipo === 'RETENCAO' ? 'Retenção' : 'Logística';

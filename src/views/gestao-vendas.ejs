@@ -252,10 +252,38 @@
 
       <!-- KPI Cards -->
       <div class="kpi-grid" id="kpiGrid">
-        <div class="kpi-card"><div class="kpi-label">Faturamento</div><div class="kpi-value" id="kpiFaturamento">—</div><div class="kpi-sub" id="kpiTotalVendas">carregando...</div></div>
-        <div class="kpi-card"><div class="kpi-label">Ticket Médio</div><div class="kpi-value" id="kpiTicket">—</div><div class="kpi-sub">por venda paga</div></div>
-        <div class="kpi-card"><div class="kpi-label">Chargebacks</div><div class="kpi-value" id="kpiChargebacks">—</div><div class="kpi-sub" id="kpiTaxaCb">taxa: —</div></div>
-        <div class="kpi-card"><div class="kpi-label">Pix</div><div class="kpi-value" id="kpiPix">—</div><div class="kpi-sub" id="kpiCartao">Cartão: —</div></div>
+        <div class="kpi-card">
+          <div class="kpi-label">Faturamento</div>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <div class="kpi-value" id="kpiFaturamento">—</div>
+            <span id="kpiDeltaFaturamento" style="font-size:12px;font-weight:600"></span>
+          </div>
+          <div class="kpi-sub" id="kpiTotalVendas">carregando...</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Ticket Médio</div>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <div class="kpi-value" id="kpiTicket">—</div>
+            <span id="kpiDeltaTicket" style="font-size:12px;font-weight:600"></span>
+          </div>
+          <div class="kpi-sub">por venda paga</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Chargebacks</div>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <div class="kpi-value" id="kpiChargebacks">—</div>
+            <span id="kpiDeltaCb" style="font-size:12px;font-weight:600"></span>
+          </div>
+          <div class="kpi-sub" id="kpiTaxaCb">taxa: —</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Pix</div>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <div class="kpi-value" id="kpiPix">—</div>
+            <span id="kpiDeltaPix" style="font-size:12px;font-weight:600"></span>
+          </div>
+          <div class="kpi-sub" id="kpiCartao">Cartão: —</div>
+        </div>
       </div>
 
       <!-- Gráfico de área + tabela diária -->
@@ -331,6 +359,28 @@
           <div class="loading-overlay" id="loadingProdutos"><div class="spinner"></div></div>
         </div>
       </div>
+
+      <!-- Ranking de Vendedoras (somente admin) -->
+      <% if (isAdmin) { %>
+      <div class="card" style="padding:0;position:relative;margin-bottom:16px">
+        <div class="card-header">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          <span style="font-weight:600;font-size:14px">Ranking de Vendedoras</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--text-3)" id="rankingPeriodLabel"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Vendedora</th><th style="text-align:right">Vendas</th><th style="text-align:right">Faturamento</th><th style="text-align:right">Ticket Médio</th></tr>
+            </thead>
+            <tbody id="tbodyRanking">
+              <tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:24px">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="loading-overlay" id="loadingRanking"><div class="spinner"></div></div>
+      </div>
+      <% } %>
 
     </div><!-- /.page -->
   </div><!-- /.main -->
@@ -453,10 +503,63 @@
 
   // ── Loading ─────────────────────────────────────────────────────────────────
   function setLoading(on) {
-    ['Chart','Tabela','Empresas','Produtos'].forEach(id => {
+    ['Chart','Tabela','Empresas','Produtos','Ranking'].forEach(id => {
       const el = document.getElementById('loading' + id);
       if (el) el.style.display = on ? 'flex' : 'none';
     });
+  }
+
+  // ── Cálculo de período anterior para comparação ───────────────────────────────
+  function buildParams(overridePeriod, overrideFrom, overrideTo) {
+    const p = new URLSearchParams({ period: overridePeriod || currentPeriod });
+    // Se datas explícitas foram passadas (período anterior), usa como custom diretamente
+    if (overrideFrom) {
+      p.set('period', 'custom');
+      p.set('dateFrom', overrideFrom);
+      p.set('dateTo',   overrideTo);
+    } else if ((overridePeriod || currentPeriod) === 'today') {
+      const now = new Date();
+      const t = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      p.set('period', 'custom');
+      p.set('dateFrom', t);
+      p.set('dateTo',   t);
+    } else if ((overridePeriod || currentPeriod) === 'custom') {
+      p.set('dateFrom', document.getElementById('customFrom').value || '');
+      p.set('dateTo',   document.getElementById('customTo').value   || '');
+    }
+    if (_single.msEquipe !== 'all') p.set('equipe', _single.msEquipe);
+    if (_single.msTipo   !== 'all') p.set('tipo',   _single.msTipo);
+    if (_single.msForma  !== 'all') p.set('forma',  _single.msForma);
+    if (currentFonte     !== 'all') p.set('fonte',     currentFonte);
+    if (currentVendedora !== 'all') p.set('vendedora', currentVendedora);
+    const msE = getMs('msEmpresas'); if (msE.length) p.set('empresas', msE.join(','));
+    const msP = getMs('msProdutos'); if (msP.length) p.set('produtos', msP.join(','));
+    return p;
+  }
+
+  function getPrevDates() {
+    // Retorna {from, to} do período anterior de mesmo tamanho, ou null para 'all'
+    if (currentPeriod === 'all') return null;
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const days = { 'today': 1, '7d': 7, '30d': 30, '90d': 90, '12m': 365 }[currentPeriod];
+    if (days) {
+      const prevTo = new Date(now); prevTo.setDate(prevTo.getDate() - days);
+      const prevFrom = new Date(prevTo); prevFrom.setDate(prevFrom.getDate() - days);
+      return { from: fmt(prevFrom), to: fmt(prevTo) };
+    }
+    if (currentPeriod === 'custom') {
+      const fromVal = document.getElementById('customFrom').value;
+      const toVal   = document.getElementById('customTo').value;
+      if (!fromVal || !toVal) return null;
+      const fromD = new Date(fromVal), toD = new Date(toVal);
+      const diff = Math.round((toD - fromD) / 86400000) + 1;
+      const prevTo = new Date(fromD); prevTo.setDate(prevTo.getDate() - 1);
+      const prevFrom = new Date(prevTo); prevFrom.setDate(prevFrom.getDate() - diff + 1);
+      return { from: fmt(prevFrom), to: fmt(prevTo) };
+    }
+    return null;
   }
 
   // ── Carga de dados ───────────────────────────────────────────────────────────
@@ -468,36 +571,35 @@
   async function _load() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ period: currentPeriod });
-      if (currentPeriod === 'today') {
-        const now = new Date();
-        const t = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-        params.set('period', 'custom');
-        params.set('dateFrom', t);
-        params.set('dateTo',   t);
-      } else if (currentPeriod === 'custom') {
-        params.set('dateFrom', document.getElementById('customFrom').value || '');
-        params.set('dateTo',   document.getElementById('customTo').value   || '');
-      }
-      if (_single.msEquipe !== 'all') params.set('equipe', _single.msEquipe);
-      if (_single.msTipo   !== 'all') params.set('tipo',   _single.msTipo);
-      if (_single.msForma  !== 'all') params.set('forma',  _single.msForma);
-      if (currentFonte     !== 'all') params.set('fonte',     currentFonte);
-      if (currentVendedora !== 'all') params.set('vendedora', currentVendedora);
-      const msE = getMs('msEmpresas');
-      if (msE.length) params.set('empresas', msE.join(','));
-      const msP = getMs('msProdutos');
-      if (msP.length) params.set('produtos', msP.join(','));
+      const params = buildParams();
+      const prevDates = getPrevDates();
 
-      const r = await fetch('/gestao/api/vendas?' + params);
+      const fetches = [fetch('/gestao/api/vendas?' + params)];
+      if (prevDates) fetches.push(fetch('/gestao/api/vendas?' + buildParams(null, prevDates.from, prevDates.to)));
+      fetches.push(fetch('/gestao/api/vendas/ranking?' + params));
+
+      const results = await Promise.all(fetches);
+      const [r, rPrev, rRank] = [results[0], prevDates ? results[1] : null, results[prevDates ? 2 : 1]];
+
       const d = await r.json();
       if (!r.ok || d.error) throw new Error(d.error || 'Erro ' + r.status);
 
-      renderKpis(d.kpis);
+      let prevKpis = null;
+      if (rPrev) {
+        const dp = await rPrev.json();
+        if (rPrev.ok && !dp.error) prevKpis = dp.kpis;
+      }
+
+      renderKpis(d.kpis, prevKpis);
       renderChart(d.daily);
       renderTabelaDiaria(d.daily);
       renderTopEmpresas(d.topEmpresas);
       renderTopProdutos(d.topProdutos);
+
+      if (rRank) {
+        const dRank = await rRank.json();
+        renderRanking(dRank.ranking || [], params);
+      }
     } catch (err) {
       console.error('[Vendas]', err);
       const msg = `<tr><td colspan="4" style="text-align:center;color:var(--danger);padding:16px">Erro: ${err.message}</td></tr>`;
@@ -511,7 +613,17 @@
   }
 
   // ── Renderização ─────────────────────────────────────────────────────────────
-  function renderKpis(k) {
+  function renderDelta(elId, current, prev, higherIsBetter = true) {
+    const el = document.getElementById(elId);
+    if (!el || prev === null || prev === undefined || prev === 0) { if (el) el.textContent = ''; return; }
+    const pct = ((current - prev) / Math.abs(prev)) * 100;
+    const up = pct >= 0;
+    const color = (up === higherIsBetter) ? 'var(--success)' : 'var(--danger)';
+    el.style.color = color;
+    el.textContent = `${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%`;
+  }
+
+  function renderKpis(k, prev) {
     document.getElementById('kpiFaturamento').textContent = fmt(k.faturamento);
     document.getElementById('kpiTotalVendas').textContent = `${fmtN(k.totalPaid)} vendas pagas`;
     document.getElementById('kpiTicket').textContent = fmt(k.ticketMedio);
@@ -521,6 +633,46 @@
     taxaEl.className = 'kpi-sub' + (k.taxaCb > 5 ? ' danger-text' : '');
     document.getElementById('kpiPix').textContent = fmtN(k.pix);
     document.getElementById('kpiCartao').textContent = `Cartão: ${fmtN(k.cartao)}`;
+
+    // Deltas vs período anterior
+    if (prev) {
+      renderDelta('kpiDeltaFaturamento', k.faturamento,  prev.faturamento,  true);
+      renderDelta('kpiDeltaTicket',      k.ticketMedio,  prev.ticketMedio,  true);
+      renderDelta('kpiDeltaCb',          k.chargebacks,  prev.chargebacks,  false);
+      renderDelta('kpiDeltaPix',         k.pix,          prev.pix,          true);
+    } else {
+      ['kpiDeltaFaturamento','kpiDeltaTicket','kpiDeltaCb','kpiDeltaPix'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.textContent = '';
+      });
+    }
+  }
+
+  function renderRanking(ranking, params) {
+    const tbody = document.getElementById('tbodyRanking');
+    if (!tbody) return;
+    const label = document.getElementById('rankingPeriodLabel');
+    if (label) {
+      const pStr = { 'today':'hoje', '7d':'últimos 7 dias', '30d':'últimos 30 dias', '90d':'últimos 90 dias', '12m':'últimos 12 meses', 'all':'todo o período' }[currentPeriod] || currentPeriod;
+      label.textContent = pStr;
+    }
+    if (!ranking || !ranking.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:20px">Sem dados de vendedoras no período</td></tr>';
+      return;
+    }
+    tbody.innerHTML = ranking.map((v, i) => {
+      const ticket = v.qtd ? v.total / v.qtd : 0;
+      const nome = v.email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return `<tr>
+        <td style="color:var(--text-4);width:28px;font-weight:${i<3?'700':'400'}">${i+1}</td>
+        <td>
+          <div style="font-weight:500">${nome}</div>
+          <div style="font-size:11px;color:var(--text-4)">${v.email}</div>
+        </td>
+        <td style="text-align:right;color:var(--text-3)">${fmtN(v.qtd)}</td>
+        <td style="text-align:right;font-weight:600;color:var(--brand-dark)">${fmt(v.total)}</td>
+        <td style="text-align:right;color:var(--text-3)">${fmt(ticket)}</td>
+      </tr>`;
+    }).join('');
   }
 
   function renderChart(daily) {

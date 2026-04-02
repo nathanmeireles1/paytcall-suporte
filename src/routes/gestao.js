@@ -67,6 +67,13 @@ router.get('/catalogo', async (req, res) => {
 
     const nichosUnicos = [...new Set((produtos || []).map(p => p.nicho).filter(Boolean))].sort();
 
+    // Slugs com mídia no storage (uma chamada para verificar quais pastas existem)
+    let slugsComMidia = new Set();
+    try {
+      const { data: slugFolders } = await db.storage.from('produtos-midias').list('playbooks', { limit: 500 });
+      if (slugFolders) slugFolders.forEach(f => { if (f.name) slugsComMidia.add(f.name); });
+    } catch (_) {}
+
     res.render('gestao-catalogo', {
       activePage: 'gestao-catalogo',
       empresas: empresas || [],
@@ -78,6 +85,7 @@ router.get('/catalogo', async (req, res) => {
       tab: req.query.tab || 'empresas',
       canEdit: userCanEdit(req),
       isAdmin: req.user.role === 'admin',
+      slugsComMidia: [...slugsComMidia],
     });
   } catch (err) {
     console.error('[Gestao/Catalogo] Erro:', err.message);
@@ -508,6 +516,66 @@ router.get('/api/vendas', async (req, res) => {
     });
   } catch (err) {
     console.error('[Gestao/API/Vendas] Erro:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /gestao/api/vendas/ranking — ranking de vendedoras por faturamento
+router.get('/api/vendas/ranking', async (req, res) => {
+  try {
+    const { period, dateFrom, dateTo, equipe, fonte } = req.query;
+    const user = req.user;
+    const role = user.role;
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    let from = new Date();
+    from.setDate(from.getDate() - 30); // default 30d
+    if (period === '7d')   { from = new Date(today); from.setDate(from.getDate() - 7); }
+    if (period === '30d')  { from = new Date(today); from.setDate(from.getDate() - 30); }
+    if (period === '90d')  { from = new Date(today); from.setDate(from.getDate() - 90); }
+    if (period === '12m')  { from = new Date(today); from.setDate(from.getDate() - 365); }
+    if (period === 'all')  { from = new Date('2000-01-01'); }
+    if (period === 'custom') {
+      from = dateFrom ? new Date(dateFrom) : new Date('2000-01-01');
+      if (dateTo) today.setTime(new Date(dateTo).setHours(23, 59, 59, 999));
+    }
+
+    const fromStr = from.toISOString().slice(0, 10);
+    const toStr   = today.toISOString().slice(0, 10);
+
+    let emailsPermitidos = null;
+    if (role !== 'admin') {
+      emailsPermitidos = [user.email];
+    } else if (equipe && equipe !== 'all') {
+      const { data: cols } = await db.from('vendas_colaboradores').select('email').eq('equipe', equipe).eq('ativo', true);
+      emailsPermitidos = (cols || []).map(c => c.email);
+    }
+
+    let query = db.from('vendas')
+      .select('email, valor_venda')
+      .gte('dt_aprovacao', fromStr)
+      .lte('dt_aprovacao', toStr)
+      .not('email', 'is', null);
+
+    if (fonte && fonte !== 'all') query = query.ilike('email', `%${fonte}%`);
+    if (emailsPermitidos) query = query.in('email', emailsPermitidos);
+
+    const { data, error } = await query.limit(200000);
+    if (error) return res.status(500).json({ error: error.message });
+
+    const map = {};
+    for (const row of (data || [])) {
+      if (!row.email) continue;
+      const k = row.email.toLowerCase().trim();
+      if (!map[k]) map[k] = { email: row.email, qtd: 0, total: 0 };
+      map[k].qtd++;
+      map[k].total += Number(row.valor_venda || 0);
+    }
+    const ranking = Object.values(map).sort((a, b) => b.total - a.total).slice(0, 30);
+    res.json({ ranking });
+  } catch (err) {
+    console.error('[Gestao/API/Ranking] Erro:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
