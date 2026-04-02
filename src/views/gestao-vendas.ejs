@@ -611,7 +611,8 @@
       const prevDates = getPrevDates();
 
       const fetches = [fetch('/gestao/api/vendas?' + params)];
-      if (prevDates) fetches.push(fetch('/gestao/api/vendas?' + buildParams(null, prevDates.from, prevDates.to)));
+      // Período anterior: lite=1 (só KPIs, sem formasQuery pesada)
+      if (prevDates) fetches.push(fetch('/gestao/api/vendas?' + buildParams(null, prevDates.from, prevDates.to) + '&lite=1'));
       fetches.push(fetch('/gestao/api/vendas/ranking?' + params));
 
       const results = await Promise.all(fetches);
@@ -626,17 +627,17 @@
         if (rPrev.ok && !dp.error) prevKpis = dp.kpis;
       }
 
-      renderKpis(d.kpis, prevKpis, d.daily, d.dailyByEmpresa || {});
+      renderKpis(d.kpis, prevKpis, d.daily);
       renderPaymentSection(d.formasPagamento || [], d.kpis);
-      renderChart(d.daily, d.dailyByEmpresa || {});
-      renderTabelaDiaria(d.daily, d.dailyByEmpresa || {});
+      renderChart(d.daily);
+      renderTabelaDiaria(d.daily);
       renderTopEmpresas(d.topEmpresas);
-      renderTopProdutos(d.topProdutos, d.topProdutosByEmpresa || {});
+      renderTopProdutos(d.topProdutos);
       renderNichos(d.topNichos || []);
 
       if (rRank) {
         const dRank = await rRank.json();
-        renderRanking(dRank.ranking || [], dRank.rankingByEmpresa || {}, params);
+        renderRanking(dRank.ranking || [], dRank.rankingByRegiao || {}, params);
       }
     } catch (err) {
       console.error('[Vendas]', err);
@@ -699,7 +700,7 @@
     if (refVar) refVar.chart = chart;
   }
 
-  function renderKpis(k, prev, daily, dailyByEmpresa) {
+  function renderKpis(k, prev, daily) {
     document.getElementById('kpiFaturamento').textContent = fmt(k.faturamento);
     document.getElementById('kpiTotalVendas').textContent = `${fmtN(k.totalPaid)} vendas pagas`;
     document.getElementById('kpiTicket').textContent = fmt(k.ticketMedio);
@@ -716,21 +717,10 @@
     const reembPct = k.totalPaid ? Math.min(((k.reembolsos || 0) / k.totalPaid) * 100, 100) : 0;
     document.getElementById('sparkReembBar').style.width = reembPct + '%';
 
-    // Sparklines de Faturamento e Ticket Médio (geral + por empresa)
+    // Sparklines de Faturamento e Ticket Médio
     if (daily && daily.length > 1) {
-      const empKeys = Object.keys(dailyByEmpresa || {});
-      const fatDs = empKeys.map((emp, i) => ({
-        values: (dailyByEmpresa[emp] || []).map(d => d.total),
-        color: EMPRESA_COLORS[i % EMPRESA_COLORS.length],
-        main: false,
-      })).concat([{ values: daily.map(d => d.total), color: 'rgb(228,124,36)', main: true }]);
-      const tktDs = empKeys.map((emp, i) => ({
-        values: (dailyByEmpresa[emp] || []).map(d => d.count ? d.total / d.count : 0),
-        color: EMPRESA_COLORS[i % EMPRESA_COLORS.length],
-        main: false,
-      })).concat([{ values: daily.map(d => d.count ? d.total / d.count : 0), color: 'rgb(99,102,241)', main: true }]);
-      renderSparkline('sparkFaturamento', fatDs, { get chart() { return sparkFat; }, set chart(v) { sparkFat = v; } });
-      renderSparkline('sparkTicket', tktDs, { get chart() { return sparkTkt; }, set chart(v) { sparkTkt = v; } });
+      renderSparkline('sparkFaturamento', [{ values: daily.map(d => d.total), color: 'rgb(228,124,36)', main: true }], { get chart() { return sparkFat; }, set chart(v) { sparkFat = v; } });
+      renderSparkline('sparkTicket', [{ values: daily.map(d => d.count ? d.total / d.count : 0), color: 'rgb(99,102,241)', main: true }], { get chart() { return sparkTkt; }, set chart(v) { sparkTkt = v; } });
     }
 
     // Deltas vs período anterior
@@ -813,7 +803,7 @@
     }
   }
 
-  function renderRanking(ranking, rankingByEmpresa, params) {
+  function renderRanking(ranking, rankingByRegiao, params) {
     const container = document.getElementById('rankingContainer');
     if (!container) return;
     const label = document.getElementById('rankingPeriodLabel');
@@ -822,10 +812,10 @@
       label.textContent = pStr;
     }
 
-    const empresas = Object.keys(rankingByEmpresa || {});
+    const regioes = Object.keys(rankingByRegiao || {}).sort();
     const columns = [
       { label: 'Geral', rows: ranking },
-      ...empresas.map(emp => ({ label: emp, rows: rankingByEmpresa[emp] || [] })),
+      ...regioes.map(reg => ({ label: reg, rows: rankingByRegiao[reg] || [] })),
     ];
 
     const fmtNome = email => email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -864,44 +854,29 @@
     }).join('');
   }
 
-  function renderChart(daily, dailyByEmpresa) {
+  function renderChart(daily) {
     const labels = daily.map(d => fmtDate(d.data));
-    const empresas = Object.keys(dailyByEmpresa || {});
-    const ptRadius = daily.length > 60 ? 0 : 3;
-
-    const datasets = empresas.map((emp, i) => ({
-      label: emp,
-      data: (dailyByEmpresa[emp] || []).map(d => d.total),
-      borderColor: EMPRESA_COLORS[i % EMPRESA_COLORS.length],
-      backgroundColor: 'transparent',
-      borderWidth: 1.5,
-      pointRadius: 0,
-      fill: false,
-      tension: 0.3,
-    }));
-    datasets.push({
-      label: 'Geral',
-      data: daily.map(d => d.total),
-      borderColor: '#e47c24',
-      backgroundColor: 'rgba(228,124,36,.1)',
-      borderWidth: 2.5,
-      pointRadius: ptRadius,
-      fill: true,
-      tension: 0.3,
-    });
-
     const ctx = document.getElementById('chartDiario').getContext('2d');
     if (chartDiario) chartDiario.destroy();
     chartDiario = new Chart(ctx, {
       type: 'line',
-      data: { labels, datasets },
+      data: {
+        labels,
+        datasets: [{
+          label: 'Faturamento',
+          data: daily.map(d => d.total),
+          borderColor: '#e47c24',
+          backgroundColor: 'rgba(228,124,36,.1)',
+          borderWidth: 2,
+          pointRadius: daily.length > 60 ? 0 : 3,
+          fill: true,
+          tension: 0.3,
+        }],
+      },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { display: empresas.length > 0, position: 'top', labels: { boxWidth: 10, font: { size: 11 }, padding: 10 } },
-          tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.raw)}` } },
-        },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 12 } },
           y: { ticks: { callback: v => `R$ ${(v/1000).toFixed(0)}k`, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,.05)' } },
@@ -910,40 +885,18 @@
     });
   }
 
-  function renderTabelaDiaria(daily, dailyByEmpresa) {
+  function renderTabelaDiaria(daily) {
     const tbody = document.getElementById('tabelaDiaria');
     const thead = document.getElementById('tabelaDiariaThead');
-    // Top 4 empresas por faturamento total
-    const empresas = Object.keys(dailyByEmpresa || {})
-      .sort((a, b) => {
-        const tA = (dailyByEmpresa[a] || []).reduce((s, d) => s + d.total, 0);
-        const tB = (dailyByEmpresa[b] || []).reduce((s, d) => s + d.total, 0);
-        return tB - tA;
-      })
-      .slice(0, 4);
-    if (thead) {
-      const empThs = empresas.map(emp => {
-        const short = emp.length > 14 ? emp.slice(0, 13) + '…' : emp;
-        return `<th style="text-align:right">${short}</th>`;
-      }).join('');
-      thead.innerHTML = `<tr><th>Data</th><th style="text-align:right">Geral</th>${empThs}</tr>`;
-    }
-    if (!daily.length) {
-      tbody.innerHTML = `<tr><td colspan="${2 + empresas.length}" style="text-align:center;color:var(--text-3);padding:20px">Sem dados no período</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = [...daily].reverse().map(d => {
-      const empCells = empresas.map(emp => {
-        const empDay = (dailyByEmpresa[emp] || []).find(ed => ed.data === d.data);
-        const total = empDay ? empDay.total : 0;
-        return `<td style="text-align:right;color:var(--text-3);font-size:12px">${total ? fmt(total) : '—'}</td>`;
-      }).join('');
-      return `<tr>
+    if (thead) thead.innerHTML = '<tr><th>Data</th><th style="text-align:right">Vendas</th><th style="text-align:right">Faturamento</th><th style="text-align:right">Ticket Médio</th></tr>';
+    if (!daily.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:20px">Sem dados no período</td></tr>'; return; }
+    tbody.innerHTML = [...daily].reverse().map(d => `
+      <tr>
         <td>${fmtDateFull(d.data)}</td>
+        <td style="text-align:right">${fmtN(d.count)}</td>
         <td style="text-align:right;font-weight:500">${fmt(d.total)}</td>
-        ${empCells}
-      </tr>`;
-    }).join('');
+        <td style="text-align:right;color:var(--text-3)">${d.count ? fmt(d.total / d.count) : '—'}</td>
+      </tr>`).join('');
   }
 
   function renderTopEmpresas(top) {
@@ -971,28 +924,20 @@
     return `<table style="width:100%"><thead><tr><th style="width:18px"></th>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
   }
 
-  function renderTopProdutos(topGeral, topByEmpresa) {
-    const container = document.getElementById('topProdutosContainer');
-    if (!container) return;
-    const empresas = Object.keys(topByEmpresa || {});
-    const cols = [
-      { key: 'label', label: 'Produto', align: 'left' },
-      { key: 'qtd',   label: 'Qtd',    align: 'right', fmt: v => fmtN(v) },
-      { key: 'total', label: 'Fat.',   align: 'right', bold: true, fmt: v => fmt(v) },
-    ];
-    const columns = [
-      { label: 'Geral', rows: topGeral.slice(0, 5) },
-      ...empresas.map(emp => ({ label: emp, rows: (topByEmpresa[emp] || []).slice(0, 5) })),
-    ];
-    const colCount = Math.min(columns.length, 4);
-    container.style.display = 'grid';
-    container.style.gridTemplateColumns = `repeat(${colCount}, 1fr)`;
-    container.style.gap = '20px';
-    container.innerHTML = columns.map(col => `
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px">${col.label}</div>
-        ${_miniRankTable(col.rows, cols)}
-      </div>`).join('');
+  function renderTopProdutos(top) {
+    const tbody = document.getElementById('topProdutosContainer');
+    if (!tbody) return;
+    tbody.style.display = '';
+    tbody.style.gridTemplateColumns = '';
+    if (!top || !top.length) { tbody.innerHTML = '<p style="color:var(--text-3);padding:8px 0">Sem dados</p>'; return; }
+    tbody.innerHTML = `<table style="width:100%"><thead><tr><th>#</th><th>Produto</th><th style="text-align:right">Qtd</th><th style="text-align:right">Faturamento</th></tr></thead><tbody>${
+      top.slice(0, 10).map((p, i) => `<tr>
+        <td style="color:var(--text-4);width:28px">${i + 1}</td>
+        <td style="font-weight:500">${p.label}</td>
+        <td style="text-align:right;color:var(--text-3)">${fmtN(p.qtd)}</td>
+        <td style="text-align:right;font-weight:600;color:var(--brand-dark)">${fmt(p.total)}</td>
+      </tr>`).join('')
+    }</tbody></table>`;
   }
 
   function renderNichos(nichos) {
