@@ -591,14 +591,16 @@ router.get('/vendas/import', (req, res) => {
 
 // POST /gestao/vendas/import
 router.post('/vendas/import', upload.single('arquivo'), async (req, res) => {
+  const isJson = req.headers['x-requested-with'] === 'XMLHttpRequest';
+  const sendErr = (msg) => isJson ? res.status(400).json({ error: msg }) : res.status(400).render('gestao-vendas-import', { activePage: 'gestao-vendas', result: { error: msg } });
   try {
-    if (!req.file) return res.status(400).render('gestao-vendas-import', { activePage: 'gestao-vendas', result: { error: 'Nenhum arquivo enviado.' } });
+    if (!req.file) return sendErr('Nenhum arquivo enviado.');
 
     const wb   = XLSX.read(req.file.buffer, { type: 'buffer' });
     const ws   = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-    if (rows.length < 2) return res.render('gestao-vendas-import', { activePage: 'gestao-vendas', result: { error: 'Planilha vazia ou sem dados.' } });
+    if (rows.length < 2) return sendErr('Planilha vazia ou sem dados.');
 
     const headers = rows[0];
     const dataRows = rows.slice(1).filter(r => r.some(c => c !== '' && c !== null));
@@ -660,12 +662,12 @@ router.post('/vendas/import', upload.single('arquivo'), async (req, res) => {
       } else { inserted += (data || []).length; }
     }
 
-    res.render('gestao-vendas-import', {
-      activePage: 'gestao-vendas',
-      result: { ok: true, total: dataRows.length, unique: uniqueRecords.length, inserted, errors, firstError: firstError || null, arquivo: req.file.originalname },
-    });
+    const result = { ok: true, total: dataRows.length, unique: uniqueRecords.length, inserted, errors, firstError: firstError || null, arquivo: req.file.originalname };
+    if (isJson) return res.json(result);
+    res.render('gestao-vendas-import', { activePage: 'gestao-vendas', result });
   } catch (err) {
     console.error('[Gestao/Import] Erro:', err.message);
+    if (isJson) return res.status(500).json({ error: err.message });
     res.render('gestao-vendas-import', { activePage: 'gestao-vendas', result: { error: err.message } });
   }
 });
