@@ -374,6 +374,33 @@
         </div>
       </div>
 
+      <!-- Faturamento por Nichos -->
+      <div class="card" style="padding:0;position:relative;margin-bottom:16px">
+        <div class="card-header">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/><path d="M2 12h20"/></svg>
+          <span style="font-weight:600;font-size:14px">Faturamento por Nicho</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--text-3)">vendas pagas</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nicho</th>
+                <th style="text-align:right">Qtd</th>
+                <th style="text-align:right">Faturamento</th>
+                <th style="text-align:right">% do total</th>
+                <th style="width:120px"></th>
+              </tr>
+            </thead>
+            <tbody id="topNichos">
+              <tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:24px">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="loading-overlay" id="loadingNichos"><div class="spinner"></div></div>
+      </div>
+
       <!-- Ranking de Vendedoras (somente admin) -->
       <% if (isAdmin) { %>
       <div class="card" style="padding:0;position:relative;margin-bottom:16px">
@@ -512,7 +539,7 @@
 
   // ── Loading ─────────────────────────────────────────────────────────────────
   function setLoading(on) {
-    ['Chart','Tabela','Empresas','Produtos','Ranking'].forEach(id => {
+    ['Chart','Tabela','Empresas','Produtos','Nichos','Ranking'].forEach(id => {
       const el = document.getElementById('loading' + id);
       if (el) el.style.display = on ? 'flex' : 'none';
     });
@@ -605,6 +632,7 @@
       renderTabelaDiaria(d.daily, d.dailyByEmpresa || {});
       renderTopEmpresas(d.topEmpresas);
       renderTopProdutos(d.topProdutos, d.topProdutosByEmpresa || {});
+      renderNichos(d.topNichos || []);
 
       if (rRank) {
         const dRank = await rRank.json();
@@ -965,6 +993,31 @@
         <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px">${col.label}</div>
         ${_miniRankTable(col.rows, cols)}
       </div>`).join('');
+  }
+
+  function renderNichos(nichos) {
+    const tbody = document.getElementById('topNichos');
+    if (!tbody) return;
+    if (!nichos.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:20px">Sem dados no período</td></tr>';
+      return;
+    }
+    const totalGeral = nichos.reduce((s, n) => s + n.total, 0) || 1;
+    tbody.innerHTML = nichos.map((n, i) => {
+      const pct = ((n.total / totalGeral) * 100).toFixed(1);
+      return `<tr>
+        <td style="color:var(--text-4);width:28px">${i + 1}</td>
+        <td style="font-weight:500">${n.nicho}</td>
+        <td style="text-align:right;color:var(--text-3)">${fmtN(n.qtd)}</td>
+        <td style="text-align:right;font-weight:600;color:var(--brand-dark)">${fmt(n.total)}</td>
+        <td style="text-align:right;color:var(--text-3)">${pct}%</td>
+        <td style="padding-right:16px">
+          <div style="height:4px;background:var(--surface-2);border-radius:99px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:var(--brand);border-radius:99px;transition:width .4s"></div>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────────

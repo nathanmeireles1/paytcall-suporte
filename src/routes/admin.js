@@ -412,4 +412,30 @@ router.get('/auditoria', requireAuth, async (req, res) => {
   }
 });
 
+// GET /admin/bi — Power BI embed (somente admin)
+router.get('/bi', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).render('error', { message: 'Acesso negado' });
+  try {
+    const { data: config } = await db
+      .from('configuracoes')
+      .select('valor')
+      .eq('id', 'powerbi')
+      .maybeSingle();
+
+    let embedUrl = null, pageName = null;
+    if (config?.valor) {
+      try {
+        const parsed = typeof config.valor === 'string' ? JSON.parse(config.valor) : config.valor;
+        embedUrl = parsed.embedUrl || null;
+        pageName = parsed.pageName || null;
+      } catch (_) {}
+    }
+
+    res.render('gestao-bi', { activePage: 'admin-bi', embedUrl, pageName });
+  } catch (err) {
+    console.error('[Admin/BI] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao carregar BI: ' + err.message });
+  }
+});
+
 module.exports = router;
