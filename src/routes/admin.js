@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { db } = require('../config/database');
 const { requireAuth, requirePermission, loadPermissions, invalidatePermissionsCache } = require('../middleware/auth');
 const { sendInviteEmail } = require('../services/mailer');
+const { logAudit } = require('../services/audit');
 
 // Módulos disponíveis no sistema
 const MODULES = [
@@ -122,6 +123,7 @@ router.post('/users/invite', requireAuth, requirePermission('admin_usuarios', 'c
       }
 
       await saveCompanyAccess(profile.id);
+      logAudit(req.user, 'usuario.criar', { entityType: 'usuario', entityId: profile.id, entityName: email, details: { role, immediate: true } });
       return res.json({ ok: true, immediate: true, emailSent: false });
     }
 
@@ -144,6 +146,7 @@ router.post('/users/invite', requireAuth, requirePermission('admin_usuarios', 'c
       to: email, name, inviteLink, inviterName: req.user.name,
     }).catch(err => { console.error('[Admin] Erro ao enviar email:', err.message); return false; });
 
+    logAudit(req.user, 'usuario.convidar', { entityType: 'usuario', entityId: profile.id, entityName: email, details: { role, emailSent } });
     res.json({ ok: true, immediate: false, inviteLink, emailSent });
   } catch (err) {
     console.error('[Admin] Erro ao criar usuário:', err.message);
@@ -158,8 +161,10 @@ router.post('/users/:id/role', requireAuth, requirePermission('admin_usuarios', 
     if (!ROLES.includes(role)) {
       return res.status(400).json({ error: 'Papel inválido' });
     }
+    const { data: target } = await db.from('user_profiles').select('email, name').eq('id', req.params.id).maybeSingle();
     const { error } = await db.from('user_profiles').update({ role }).eq('id', req.params.id);
     if (error) return res.status(400).json({ error: error.message });
+    logAudit(req.user, 'usuario.alterar_role', { entityType: 'usuario', entityId: req.params.id, entityName: target?.email, details: { novo_role: role } });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -172,7 +177,9 @@ router.post('/users/:id/toggle', requireAuth, requirePermission('admin_usuarios'
     const { data: user } = await db.from('user_profiles').select('active').eq('id', req.params.id).single();
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
+    const { data: tgt } = await db.from('user_profiles').select('email').eq('id', req.params.id).maybeSingle();
     await db.from('user_profiles').update({ active: !user.active, updated_at: new Date().toISOString() }).eq('id', req.params.id);
+    logAudit(req.user, user.active ? 'usuario.desativar' : 'usuario.ativar', { entityType: 'usuario', entityId: req.params.id, entityName: tgt?.email });
     res.json({ ok: true, active: !user.active });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -211,6 +218,7 @@ router.delete('/users/:id', requireAuth, requirePermission('admin_usuarios', 'ca
 
     await db.from('user_company_access').delete().eq('user_id', req.params.id);
     await db.from('user_profiles').delete().eq('id', req.params.id);
+    logAudit(req.user, 'usuario.excluir', { entityType: 'usuario', entityId: req.params.id, entityName: user.name });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -311,7 +319,7 @@ router.post('/permissions', requireAuth, requirePermission('admin_permissoes', '
 
     // Invalida cache
     invalidatePermissionsCache();
-
+    logAudit(req.user, 'permissoes.salvar', { entityType: 'permissao' });
     res.redirect('/admin/configuracoes?tab=permissoes&saved=permissoes');
   } catch (err) {
     console.error('[Admin] Erro ao salvar permissões:', err.message);
@@ -332,6 +340,7 @@ router.post('/settings', requireAuth, async (req, res) => {
   const { key, value } = req.body;
   if (!key) return res.redirect('/admin/settings');
   await db.from('portal_settings').upsert({ key, value, updated_at: new Date().toISOString(), updated_by: req.user.name });
+  logAudit(req.user, 'configuracao.salvar', { entityType: 'configuracao', entityName: key });
   res.redirect('/admin/configuracoes?tab=sistema&saved=sistema');
 });
 
@@ -371,6 +380,36 @@ router.get('/docs', requireAuth, requirePermission('admin_usuarios', 'can_view')
 router.get('/ia', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).render('error', { message: 'Acesso negado' });
   res.render('admin-ia');
+});
+
+// GET /admin/auditoria — Log de auditoria global
+router.get('/auditoria', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).render('error', { message: 'Acesso negado' });
+  try {
+    const { action, user: userFilter, page = 1 } = req.query;
+    const limit = 50;
+    const offset = (parseInt(page) - 1) * limit;
+
+    let query = db.from('audit_logs').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    if (action && action !== 'all') query = query.ilike('action', action + '%');
+    if (userFilter) query = query.ilike('user_email', '%' + userFilter + '%');
+
+    const { data: logs, count, error } = await query;
+    if (error) throw error;
+
+    const total = count || 0;
+    const pages = Math.ceil(total / limit);
+    res.render('admin-auditoria', {
+      logs: logs || [],
+      total, pages,
+      currentPage: parseInt(page),
+      perPage: limit,
+      filters: { action: action || '', user: userFilter || '' },
+    });
+  } catch (err) {
+    console.error('[Admin/Auditoria] Erro:', err.message);
+    res.status(500).render('error', { message: 'Erro ao carregar auditoria: ' + err.message });
+  }
 });
 
 module.exports = router;
