@@ -259,6 +259,7 @@
             <span id="kpiDeltaFaturamento" style="font-size:12px;font-weight:600"></span>
           </div>
           <div class="kpi-sub" id="kpiTotalVendas">carregando...</div>
+          <canvas id="sparkFaturamento" height="36" style="width:100%;margin-top:8px;display:block"></canvas>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Ticket Médio</div>
@@ -267,6 +268,7 @@
             <span id="kpiDeltaTicket" style="font-size:12px;font-weight:600"></span>
           </div>
           <div class="kpi-sub">por venda paga</div>
+          <canvas id="sparkTicket" height="36" style="width:100%;margin-top:8px;display:block"></canvas>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Chargebacks</div>
@@ -275,14 +277,33 @@
             <span id="kpiDeltaCb" style="font-size:12px;font-weight:600"></span>
           </div>
           <div class="kpi-sub" id="kpiTaxaCb">taxa: —</div>
+          <div id="sparkCb" style="margin-top:10px;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden">
+            <div id="sparkCbBar" style="height:100%;width:0%;background:var(--danger);border-radius:99px;transition:width .4s"></div>
+          </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Pix</div>
+          <div class="kpi-label">Reembolsos</div>
           <div style="display:flex;align-items:baseline;gap:8px">
-            <div class="kpi-value" id="kpiPix">—</div>
-            <span id="kpiDeltaPix" style="font-size:12px;font-weight:600"></span>
+            <div class="kpi-value" id="kpiReembolsos">—</div>
           </div>
-          <div class="kpi-sub" id="kpiCartao">Cartão: —</div>
+          <div class="kpi-sub" id="kpiReembolsosTotal">total: —</div>
+          <div id="sparkReemb" style="margin-top:10px;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden">
+            <div id="sparkReembBar" style="height:100%;width:0%;background:var(--warning);border-radius:99px;transition:width .4s"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formas de Pagamento -->
+      <div style="display:grid;grid-template-columns:1fr auto;gap:16px;margin-bottom:16px;align-items:start" id="paymentSection">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px" id="paymentCards">
+          <!-- preenchido pelo JS -->
+        </div>
+        <div class="card" style="padding:14px;width:180px;flex-shrink:0">
+          <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Distribuição</div>
+          <div style="position:relative;height:150px">
+            <canvas id="chartFormas"></canvas>
+          </div>
+          <div id="formasLegend" style="margin-top:10px;display:flex;flex-direction:column;gap:4px;font-size:11px"></div>
         </div>
       </div>
 
@@ -392,6 +413,8 @@
   // ── Estado ─────────────────────────────────────────────────────────────────
   let currentPeriod = '30d';
   let chartDiario = null;
+  let chartFormas = null;
+  let sparkFat = null, sparkTkt = null;
   let loadTimer = null;
 
   // ── Helpers de formatação ───────────────────────────────────────────────────
@@ -590,7 +613,8 @@
         if (rPrev.ok && !dp.error) prevKpis = dp.kpis;
       }
 
-      renderKpis(d.kpis, prevKpis);
+      renderKpis(d.kpis, prevKpis, d.daily);
+      renderPaymentSection(d.formasPagamento || [], d.kpis);
       renderChart(d.daily);
       renderTabelaDiaria(d.daily);
       renderTopEmpresas(d.topEmpresas);
@@ -623,7 +647,31 @@
     el.textContent = `${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%`;
   }
 
-  function renderKpis(k, prev) {
+  function renderSparkline(canvasId, values, color, refVar) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    if (refVar && refVar.chart) { refVar.chart.destroy(); refVar.chart = null; }
+    if (!values || values.length < 2) { canvas.style.display = 'none'; return; }
+    canvas.style.display = 'block';
+    const ctx = canvas.getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: values.map((_, i) => i),
+        datasets: [{ data: values, borderColor: color, borderWidth: 1.5, pointRadius: 0, fill: true,
+          backgroundColor: color.replace(')', ', 0.12)').replace('rgb', 'rgba'), tension: 0.3 }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: { x: { display: false }, y: { display: false } },
+        elements: { line: { borderCapStyle: 'round' } },
+      },
+    });
+    if (refVar) refVar.chart = chart;
+  }
+
+  function renderKpis(k, prev, daily) {
     document.getElementById('kpiFaturamento').textContent = fmt(k.faturamento);
     document.getElementById('kpiTotalVendas').textContent = `${fmtN(k.totalPaid)} vendas pagas`;
     document.getElementById('kpiTicket').textContent = fmt(k.ticketMedio);
@@ -631,19 +679,96 @@
     const taxaEl = document.getElementById('kpiTaxaCb');
     taxaEl.textContent = `taxa: ${k.taxaCb.toFixed(1)}%`;
     taxaEl.className = 'kpi-sub' + (k.taxaCb > 5 ? ' danger-text' : '');
-    document.getElementById('kpiPix').textContent = fmtN(k.pix);
-    document.getElementById('kpiCartao').textContent = `Cartão: ${fmtN(k.cartao)}`;
+    document.getElementById('kpiReembolsos').textContent = fmtN(k.reembolsos || 0);
+    document.getElementById('kpiReembolsosTotal').textContent = `total: ${fmt(k.reembolsosTotal || 0)}`;
+
+    // Barra de chargebacks (% do total)
+    const cbPct = k.totalPaid ? Math.min((k.chargebacks / k.totalPaid) * 100, 100) : 0;
+    document.getElementById('sparkCbBar').style.width = cbPct + '%';
+    const reembPct = k.totalPaid ? Math.min(((k.reembolsos || 0) / k.totalPaid) * 100, 100) : 0;
+    document.getElementById('sparkReembBar').style.width = reembPct + '%';
+
+    // Sparklines de Faturamento e Ticket Médio
+    if (daily && daily.length > 1) {
+      renderSparkline('sparkFaturamento', daily.map(d => d.total), 'rgb(228,124,36)', { get chart() { return sparkFat; }, set chart(v) { sparkFat = v; } });
+      renderSparkline('sparkTicket', daily.map(d => d.count ? d.total / d.count : 0), 'rgb(99,102,241)', { get chart() { return sparkTkt; }, set chart(v) { sparkTkt = v; } });
+    }
 
     // Deltas vs período anterior
     if (prev) {
-      renderDelta('kpiDeltaFaturamento', k.faturamento,  prev.faturamento,  true);
-      renderDelta('kpiDeltaTicket',      k.ticketMedio,  prev.ticketMedio,  true);
-      renderDelta('kpiDeltaCb',          k.chargebacks,  prev.chargebacks,  false);
-      renderDelta('kpiDeltaPix',         k.pix,          prev.pix,          true);
+      renderDelta('kpiDeltaFaturamento', k.faturamento, prev.faturamento, true);
+      renderDelta('kpiDeltaTicket',      k.ticketMedio, prev.ticketMedio, true);
+      renderDelta('kpiDeltaCb',          k.chargebacks, prev.chargebacks, false);
     } else {
-      ['kpiDeltaFaturamento','kpiDeltaTicket','kpiDeltaCb','kpiDeltaPix'].forEach(id => {
+      ['kpiDeltaFaturamento','kpiDeltaTicket','kpiDeltaCb'].forEach(id => {
         const el = document.getElementById(id); if (el) el.textContent = '';
       });
+    }
+  }
+
+  const FORMA_LABELS = {
+    pix: 'PIX', credit_card: 'Cartão de Crédito', debit_card: 'Cartão de Débito',
+    boleto: 'Boleto', pix_cnpj: 'PIX CNPJ', cash_on_delivery: 'Pag. na Entrega', outros: 'Outros',
+  };
+  const FORMA_COLORS = ['#e47c24','#6366f1','#22c55e','#0ea5e9','#f59e0b','#ec4899','#8b5cf6','#14b8a6'];
+
+  function renderPaymentSection(formas, kpis) {
+    const container = document.getElementById('paymentCards');
+    if (!container) return;
+
+    if (!formas.length) { container.innerHTML = '<span style="color:var(--text-3);font-size:13px">Sem dados de pagamento</span>'; return; }
+
+    const totalGeral = formas.reduce((s, f) => s + f.total, 0) || 1;
+
+    container.innerHTML = formas.map((f, i) => {
+      const pct = ((f.total / totalGeral) * 100).toFixed(1);
+      const label = FORMA_LABELS[f.forma] || f.forma;
+      const color = FORMA_COLORS[i % FORMA_COLORS.length];
+      const ticket = f.count ? f.total / f.count : 0;
+      return `<div class="kpi-card">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div style="width:8px;height:8px;border-radius:99px;background:${color};flex-shrink:0"></div>
+          <div class="kpi-label" style="margin:0">${label}</div>
+        </div>
+        <div class="kpi-value" style="font-size:18px">${fmtN(f.count)}</div>
+        <div class="kpi-sub" style="margin-top:2px">${fmt(f.total)}</div>
+        <div class="kpi-sub" style="margin-top:1px">Ticket: ${fmt(ticket)}</div>
+        <div style="margin-top:8px;height:4px;background:var(--surface-2);border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:99px;transition:width .4s"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-4);margin-top:3px;text-align:right">${pct}%</div>
+      </div>`;
+    }).join('');
+
+    // Gráfico de pizza
+    const labels = formas.map(f => FORMA_LABELS[f.forma] || f.forma);
+    const data   = formas.map(f => f.total);
+    const colors = formas.map((_, i) => FORMA_COLORS[i % FORMA_COLORS.length]);
+
+    const ctx = document.getElementById('chartFormas');
+    if (!ctx) return;
+    if (chartFormas) chartFormas.destroy();
+    chartFormas = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${c.label}: ${fmt(c.raw)} (${((c.raw/totalGeral)*100).toFixed(1)}%)` } },
+        },
+        cutout: '60%',
+      },
+    });
+
+    // Legenda manual
+    const legendEl = document.getElementById('formasLegend');
+    if (legendEl) {
+      legendEl.innerHTML = formas.slice(0,5).map((f, i) => `
+        <div style="display:flex;align-items:center;gap:5px">
+          <div style="width:8px;height:8px;border-radius:2px;background:${FORMA_COLORS[i % FORMA_COLORS.length]};flex-shrink:0"></div>
+          <span style="color:var(--text-3)">${FORMA_LABELS[f.forma] || f.forma}</span>
+        </div>`).join('');
     }
   }
 
