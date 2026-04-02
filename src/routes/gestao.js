@@ -500,7 +500,7 @@ router.get('/api/vendas', async (req, res) => {
     if (tipo && tipo !== 'all') formasQuery = formasQuery.eq('tipo_venda', tipo);
     if (forma && forma !== 'all') formasQuery = formasQuery.eq('forma_pagamento', forma);
 
-    const [{ data: result, error }, { data: formasData }] = await Promise.all([
+    const [{ data: result, error }, { data: formasData }, { data: produtosNicho }] = await Promise.all([
       db.rpc('get_vendas_dashboard', {
         p_from:      fromStr,
         p_to:        toStr,
@@ -513,6 +513,7 @@ router.get('/api/vendas', async (req, res) => {
         p_vendedora: (vendedora && vendedora !== 'all') ? vendedora : null,
       }),
       formasQuery.limit(300000),
+      db.from('produtos').select('nome, nicho'),
     ]);
 
     if (error) return res.status(500).json({ error: error.message });
@@ -525,17 +526,30 @@ router.get('/api/vendas', async (req, res) => {
     const ticketMedio= totalPaid ? faturamento / totalPaid : 0;
     const taxaCb     = (totalPaid + chargebacks) ? (chargebacks / (totalPaid + chargebacks)) * 100 : 0;
 
-    // Agrega por forma de pagamento, empresa e produto (já filtrado só paid)
+    // Mapa produto_nome → nicho
+    const nichoMap = {};
+    for (const p of (produtosNicho || [])) {
+      if (p.nome && p.nicho) nichoMap[p.nome] = p.nicho;
+    }
+
+    // Agrega por forma de pagamento, empresa, produto e nicho (já filtrado só paid)
     const formasMap = {};
     const dailyByEmpMap   = {}; // { [empresa]: { [date]: {total, count} } }
     const prodByEmpMap    = {}; // { [empresa]: { [produto]: {total, qtd} } }
+    const nichoAggMap     = {}; // { [nicho]: {total, qtd} }
 
     for (const row of (formasData || [])) {
-      const f    = row.forma_pagamento || 'outros';
-      const emp  = row.empresa || 'Outros';
-      const prod = row.produto || 'Outros';
-      const date = (row.dt_aprovacao || '').slice(0, 10);
-      const val  = Number(row.valor_venda || 0);
+      const f     = row.forma_pagamento || 'outros';
+      const emp   = row.empresa || 'Outros';
+      const prod  = row.produto || 'Outros';
+      const date  = (row.dt_aprovacao || '').slice(0, 10);
+      const val   = Number(row.valor_venda || 0);
+      const nicho = nichoMap[prod] || 'Sem nicho';
+
+      // nichos
+      if (!nichoAggMap[nicho]) nichoAggMap[nicho] = { nicho, total: 0, qtd: 0 };
+      nichoAggMap[nicho].total += val;
+      nichoAggMap[nicho].qtd++;
 
       // formas
       if (!formasMap[f]) formasMap[f] = { forma: f, count: 0, total: 0 };
@@ -556,6 +570,7 @@ router.get('/api/vendas', async (req, res) => {
     }
 
     const formasPagamento = Object.values(formasMap).sort((a, b) => b.total - a.total);
+    const topNichos = Object.values(nichoAggMap).sort((a, b) => b.total - a.total);
     const reembolsos      = Number(r.reembolsos || 0);
     const reembolsosTotal = Number(r.reembolsos_total || 0);
 
@@ -586,6 +601,7 @@ router.get('/api/vendas', async (req, res) => {
       topProdutos:         (r.top_produtos || []).map(p => ({ label: p.label, total: Number(p.total), qtd: Number(p.qtd) })),
       dailyByEmpresa,
       topProdutosByEmpresa,
+      topNichos,
     });
   } catch (err) {
     console.error('[Gestao/API/Vendas] Erro:', err.message);
@@ -674,30 +690,8 @@ router.get('/api/vendas/ranking', async (req, res) => {
 });
 
 // ─── BI ──────────────────────────────────────────────────────────────────────
-
-router.get('/bi', requireRole(['admin']), async (req, res) => {
-  try {
-    const { data: config } = await db
-      .from('configuracoes')
-      .select('valor')
-      .eq('id', 'powerbi')
-      .maybeSingle();
-
-    let embedUrl = null, pageName = null;
-    if (config?.valor) {
-      try {
-        const parsed = typeof config.valor === 'string' ? JSON.parse(config.valor) : config.valor;
-        embedUrl = parsed.embedUrl || null;
-        pageName = parsed.pageName || null;
-      } catch (_) {}
-    }
-
-    res.render('gestao-bi', { activePage: 'gestao-bi', embedUrl, pageName });
-  } catch (err) {
-    console.error('[Gestao/BI] Erro:', err.message);
-    res.status(500).render('error', { message: 'Erro ao carregar BI: ' + err.message });
-  }
-});
+// Movido para /admin/bi — redirect para não quebrar bookmarks
+router.get('/bi', (req, res) => res.redirect('/admin/bi'));
 
 // ─── IMPORTADOR EXCEL / VENDAS ────────────────────────────────────────────────
 
