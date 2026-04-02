@@ -4,13 +4,16 @@ const { db, dbGestao } = require('../config/database');
 
 // Helper: lê colaboradores ativos do portal-gestao (rh_colaboradores)
 // Retorna array normalizado com {email, nome, primeiro_nome, equipe, regiao, ativo}
+let _colabCache = null;
+let _colabCacheTs = 0;
 async function getColaboradores() {
+  if (_colabCache && Date.now() - _colabCacheTs < 5 * 60 * 1000) return _colabCache;
   if (!dbGestao) return [];
   const { data } = await dbGestao
     .from('rh_colaboradores')
     .select('email_corporativo, nome, setor, unidade, status')
     .not('email_corporativo', 'is', null);
-  return (data || []).map(c => ({
+  _colabCache = (data || []).map(c => ({
     email:        c.email_corporativo.toLowerCase().trim(),
     nome:         c.nome || '',
     primeiro_nome: (c.nome || '').split(' ')[0],
@@ -18,6 +21,8 @@ async function getColaboradores() {
     regiao:       c.unidade || null,
     ativo:        c.status === 'Ativo',
   }));
+  _colabCacheTs = Date.now();
+  return _colabCache;
 }
 const { requireRole } = require('../middleware/auth');
 const { logAudit } = require('../services/audit');
@@ -511,10 +516,19 @@ router.get('/api/vendas', async (req, res) => {
     // Se lite=1 (chamada de período anterior), só precisa dos KPIs — pula formasQuery
     const lite = req.query.lite === '1';
 
+    // Mapa email → região para dailyByRegiao (só admin, só no modo completo)
+    let emailToRegiao = {};
+    if (!lite && role === 'admin') {
+      const colabs = await getColaboradores();
+      for (const c of colabs) {
+        if (c.email && c.regiao) emailToRegiao[c.email.toLowerCase().trim()] = c.regiao;
+      }
+    }
+
     let formasData = null;
     if (!lite) {
       let formasQuery = db.from('vendas')
-        .select('forma_pagamento, valor_venda, produto, sku')
+        .select('forma_pagamento, valor_venda, produto, sku, email, dt_aprovacao')
         .eq('status_pagamento', 'paid')
         .gte('dt_aprovacao', fromStr)
         .lte('dt_aprovacao', toStr);
@@ -556,6 +570,7 @@ router.get('/api/vendas', async (req, res) => {
     // Agrega formas e nichos a partir das linhas pagas (somente no modo completo)
     let formasPagamento = [];
     let topNichos       = [];
+    let dailyByRegiao   = {};
     if (!lite && formasData) {
       // Nicho map em cache (produtos mudam raramente)
       if (!_nichoCache || Date.now() - _nichoCacheTs > 5 * 60 * 1000) {
@@ -571,6 +586,7 @@ router.get('/api/vendas', async (req, res) => {
 
       const formasMap   = {};
       const nichoAggMap = {};
+      const dailyRegMap = {};
       for (const row of formasData) {
         const f    = row.forma_pagamento || 'outros';
         const prod = (row.produto || '').toLowerCase().trim();
@@ -585,9 +601,27 @@ router.get('/api/vendas', async (req, res) => {
         if (!nichoAggMap[nicho]) nichoAggMap[nicho] = { nicho, total: 0, qtd: 0 };
         nichoAggMap[nicho].total += val;
         nichoAggMap[nicho].qtd++;
+
+        // Daily por região
+        if (row.dt_aprovacao && row.email) {
+          const reg = emailToRegiao[row.email.toLowerCase().trim()];
+          if (reg) {
+            const dia = String(row.dt_aprovacao).slice(0, 10);
+            if (!dailyRegMap[reg]) dailyRegMap[reg] = {};
+            if (!dailyRegMap[reg][dia]) dailyRegMap[reg][dia] = { data: dia, total: 0, count: 0 };
+            dailyRegMap[reg][dia].total += val;
+            dailyRegMap[reg][dia].count++;
+          }
+        }
       }
       formasPagamento = Object.values(formasMap).sort((a, b) => b.total - a.total);
       topNichos       = Object.values(nichoAggMap).sort((a, b) => b.total - a.total);
+      dailyByRegiao   = Object.fromEntries(
+        Object.entries(dailyRegMap).map(([reg, dayMap]) => [
+          reg,
+          Object.values(dayMap).sort((a, b) => a.data.localeCompare(b.data)).map(d => ({ data: d.data, total: d.total, count: d.count })),
+        ])
+      );
     }
 
     const reembolsos      = Number(r.reembolsos || 0);
@@ -596,9 +630,10 @@ router.get('/api/vendas', async (req, res) => {
     const payload = {
       kpis: { faturamento, ticketMedio, chargebacks, taxaCb, pix: Number(r.pix||0), cartao: Number(r.cartao||0), totalPaid, reembolsos, reembolsosTotal },
       formasPagamento,
-      daily:       (r.daily        || []).map(d => ({ data: d.data, total: Number(d.total), count: Number(d.count) })),
-      topEmpresas: (r.top_empresas || []).map(e => ({ label: e.label, total: Number(e.total), qtd: Number(e.qtd) })),
-      topProdutos: (r.top_produtos || []).map(p => ({ label: p.label, total: Number(p.total), qtd: Number(p.qtd) })),
+      daily:          (r.daily        || []).map(d => ({ data: d.data, total: Number(d.total), count: Number(d.count) })),
+      dailyByRegiao,
+      topEmpresas:    (r.top_empresas || []).map(e => ({ label: e.label, total: Number(e.total), qtd: Number(e.qtd) })),
+      topProdutos:    (r.top_produtos || []).map(p => ({ label: p.label, total: Number(p.total), qtd: Number(p.qtd) })),
       topNichos,
     };
     _apiCache.set(cacheKey, payload);

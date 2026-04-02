@@ -69,7 +69,14 @@
     .kpi-sub { font-size: 12px; color: var(--text-3); margin-top: 4px; }
     .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
     .tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-    @media (max-width: 900px) { .charts-grid, .tables-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 1200px) { .charts-grid, .tables-grid { grid-template-columns: 1fr; } }
+    .region-tab { padding: 5px 14px; font-size: 12px; font-weight: 600; border: none; background: transparent; color: var(--text-3); border-radius: var(--radius); cursor: pointer; transition: background .15s, color .15s; }
+    .region-tab.active { background: var(--brand-dim); color: var(--brand-dark); }
+    .region-tab:hover:not(.active) { background: var(--surface-2); color: var(--text); }
+    .payment-section { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .payment-cards { display: flex; flex-wrap: wrap; gap: 12px; flex: 1; min-width: 0; }
+    .payment-donut { width: 190px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
+    @media (max-width: 768px) { .payment-section { flex-direction: column; } .payment-donut { width: 100%; } }
     #customRange { display: none; gap: 8px; align-items: center; }
     #customRange.visible { display: flex; }
     .loading-overlay { position: absolute; inset: 0; background: rgba(255,255,255,.6); display: flex; align-items: center; justify-content: center; border-radius: inherit; z-index: 10; }
@@ -294,11 +301,11 @@
       </div>
 
       <!-- Formas de Pagamento -->
-      <div style="display:flex;gap:16px;margin-bottom:16px;align-items:start;flex-wrap:wrap" id="paymentSection">
-        <div style="display:flex;flex-wrap:wrap;gap:12px;flex:1;min-width:0" id="paymentCards">
+      <div class="payment-section" id="paymentSection">
+        <div class="payment-cards" id="paymentCards">
           <!-- preenchido pelo JS -->
         </div>
-        <div class="card" style="padding:14px;width:190px;flex-shrink:0">
+        <div class="payment-donut">
           <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Distribuição</div>
           <div style="position:relative;height:150px">
             <canvas id="chartFormas"></canvas>
@@ -407,7 +414,8 @@
         <div class="card-header">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
           <span style="font-weight:600;font-size:14px">Ranking de Vendedoras</span>
-          <span style="margin-left:auto;font-size:11px;color:var(--text-3)" id="rankingPeriodLabel"></span>
+          <div id="rankingTabs" style="margin-left:auto;display:flex;gap:4px;background:var(--surface-2);border-radius:var(--radius-md);padding:3px"></div>
+          <span style="font-size:11px;color:var(--text-3);margin-left:8px" id="rankingPeriodLabel"></span>
         </div>
         <div class="card-body" id="rankingContainer" style="padding:16px">
           <div style="text-align:center;color:var(--text-3);padding:20px">Carregando...</div>
@@ -429,6 +437,8 @@
   let chartFormas = null;
   let sparkFat = null, sparkTkt = null;
   let loadTimer = null;
+  let _rankingData = { geral: [], byRegiao: {} };
+  let _activeRankingTab = 'geral';
 
   // ── Helpers de formatação ───────────────────────────────────────────────────
   function fmt(v) {
@@ -629,7 +639,7 @@
 
       renderKpis(d.kpis, prevKpis, d.daily);
       renderPaymentSection(d.formasPagamento || [], d.kpis);
-      renderChart(d.daily);
+      renderChart(d.daily, d.dailyByRegiao || {});
       renderTabelaDiaria(d.daily);
       renderTopEmpresas(d.topEmpresas);
       renderTopProdutos(d.topProdutos);
@@ -803,80 +813,118 @@
     }
   }
 
+  function _renderRankingTable(rows) {
+    const fmtNome = email => email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const trs = rows.length
+      ? rows.map((v, i) => `<tr>
+          <td style="color:var(--text-4);width:22px;font-weight:${i<3?'700':'400'};font-size:11px">${i+1}</td>
+          <td>
+            <div style="font-weight:500;font-size:13px">${fmtNome(v.email)}</div>
+            <div style="font-size:11px;color:var(--text-4)">${v.email}</div>
+          </td>
+          <td style="text-align:right;color:var(--text-3);font-size:13px">${fmtN(v.qtd)}</td>
+          <td style="text-align:right;font-weight:600;color:var(--brand-dark);font-size:13px">${fmt(v.total)}</td>
+        </tr>`).join('')
+      : `<tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:24px">Sem dados para este período</td></tr>`;
+    return `<table style="width:100%">
+      <thead><tr>
+        <th style="width:22px"></th>
+        <th>Vendedora</th>
+        <th style="text-align:right">Qtd</th>
+        <th style="text-align:right">Faturamento</th>
+      </tr></thead>
+      <tbody>${trs}</tbody>
+    </table>`;
+  }
+
+  function switchRankingTab(tab) {
+    _activeRankingTab = tab;
+    document.querySelectorAll('.region-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    const rows = tab === 'geral' ? _rankingData.geral : (_rankingData.byRegiao[tab] || []);
+    const container = document.getElementById('rankingContainer');
+    if (container) container.innerHTML = _renderRankingTable(rows);
+  }
+
   function renderRanking(ranking, rankingByRegiao, params) {
     const container = document.getElementById('rankingContainer');
     if (!container) return;
+
     const label = document.getElementById('rankingPeriodLabel');
     if (label) {
       const pStr = { 'today':'hoje', '7d':'últimos 7 dias', '30d':'últimos 30 dias', '90d':'últimos 90 dias', '12m':'últimos 12 meses', 'all':'todo o período' }[currentPeriod] || currentPeriod;
       label.textContent = pStr;
     }
 
-    const regioes = Object.keys(rankingByRegiao || {}).sort();
-    const columns = [
-      { label: 'Geral', rows: ranking },
-      ...regioes.map(reg => ({ label: reg, rows: rankingByRegiao[reg] || [] })),
-    ];
+    _rankingData = { geral: ranking, byRegiao: rankingByRegiao || {} };
 
-    const fmtNome = email => email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    const colCount = Math.min(columns.length, 5);
-    container.style.display = 'grid';
-    container.style.gridTemplateColumns = `repeat(${colCount}, 1fr)`;
-    container.style.gap = '20px';
+    // Monta tabs
+    const tabsEl = document.getElementById('rankingTabs');
+    if (tabsEl) {
+      const regioes = Object.keys(rankingByRegiao || {}).sort();
+      const tabs = [{ key: 'geral', label: 'Geral' }, ...regioes.map(r => ({ key: r, label: r }))];
+      tabsEl.innerHTML = tabs.map(t =>
+        `<button class="region-tab${_activeRankingTab === t.key ? ' active' : ''}" data-tab="${t.key}" onclick="switchRankingTab('${t.key}')">${t.label}</button>`
+      ).join('');
+    }
 
-    container.innerHTML = columns.map(col => {
-      const rows = col.rows.length
-        ? col.rows.map((v, i) => {
-            const nome = fmtNome(v.email);
-            return `<tr>
-              <td style="color:var(--text-4);width:18px;font-weight:${i<3?'700':'400'};font-size:11px">${i+1}</td>
-              <td>
-                <div style="font-weight:500;font-size:12px">${nome}</div>
-                <div style="font-size:10px;color:var(--text-4)">${v.email}</div>
-              </td>
-              <td style="text-align:right;color:var(--text-3);font-size:12px">${fmtN(v.qtd)}</td>
-              <td style="text-align:right;font-weight:600;color:var(--brand-dark);font-size:12px">${fmt(v.total)}</td>
-            </tr>`;
-          }).join('')
-        : `<tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:12px;font-size:12px">Sem dados</td></tr>`;
-      return `<div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px">${col.label}</div>
-        <table style="width:100%">
-          <thead><tr>
-            <th style="width:18px"></th>
-            <th style="font-size:11px">Vendedora</th>
-            <th style="text-align:right;font-size:11px">Qtd</th>
-            <th style="text-align:right;font-size:11px">Fat.</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-    }).join('');
+    // Garante que a aba ativa ainda existe; se não, volta para geral
+    const regiaoKeys = Object.keys(rankingByRegiao || {});
+    if (_activeRankingTab !== 'geral' && !regiaoKeys.includes(_activeRankingTab)) _activeRankingTab = 'geral';
+
+    const rows = _activeRankingTab === 'geral' ? ranking : (rankingByRegiao[_activeRankingTab] || []);
+    container.style.display = '';
+    container.style.gridTemplateColumns = '';
+    container.style.gap = '';
+    container.innerHTML = _renderRankingTable(rows);
   }
 
-  function renderChart(daily) {
+  const REGIAO_COLORS = { 'Palhoça': '#6366f1', 'Natal': '#22c55e' };
+  const REGIAO_COLORS_BG = { 'Palhoça': 'rgba(99,102,241,.08)', 'Natal': 'rgba(34,197,94,.08)' };
+
+  function renderChart(daily, dailyByRegiao) {
     const labels = daily.map(d => fmtDate(d.data));
     const ctx = document.getElementById('chartDiario').getContext('2d');
     if (chartDiario) chartDiario.destroy();
+
+    const datasets = [{
+      label: 'Geral',
+      data: daily.map(d => d.total),
+      borderColor: '#e47c24',
+      backgroundColor: 'rgba(228,124,36,.08)',
+      borderWidth: 2,
+      pointRadius: daily.length > 60 ? 0 : 3,
+      fill: false,
+      tension: 0.3,
+    }];
+
+    // Sempre adiciona linhas por região quando disponíveis
+    const regioes = Object.keys(dailyByRegiao || {}).sort();
+    for (const reg of regioes) {
+      const regDays = dailyByRegiao[reg];
+      // Alinha com labels do geral (dias sem venda na região = 0)
+      const dataMap = Object.fromEntries(regDays.map(d => [d.data, d.total]));
+      datasets.push({
+        label: reg,
+        data: daily.map(d => dataMap[d.data] || 0),
+        borderColor: REGIAO_COLORS[reg] || '#0ea5e9',
+        backgroundColor: REGIAO_COLORS_BG[reg] || 'rgba(14,165,233,.08)',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0.3,
+      });
+    }
+
     chartDiario = new Chart(ctx, {
       type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Faturamento',
-          data: daily.map(d => d.total),
-          borderColor: '#e47c24',
-          backgroundColor: 'rgba(228,124,36,.1)',
-          borderWidth: 2,
-          pointRadius: daily.length > 60 ? 0 : 3,
-          fill: true,
-          tension: 0.3,
-        }],
-      },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
+        plugins: {
+          legend: { display: regioes.length > 0, position: 'top', labels: { font: { size: 11 }, boxWidth: 12, padding: 10 } },
+          tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw)}` } },
+        },
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 12 } },
           y: { ticks: { callback: v => `R$ ${(v/1000).toFixed(0)}k`, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,.05)' } },
