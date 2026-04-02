@@ -1,6 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../config/database');
+const { db, dbGestao } = require('../config/database');
+
+// Helper: lê colaboradores ativos do portal-gestao (rh_colaboradores)
+// Retorna array normalizado com {email, nome, primeiro_nome, equipe, regiao, ativo}
+async function getColaboradores() {
+  if (!dbGestao) return [];
+  const { data } = await dbGestao
+    .from('rh_colaboradores')
+    .select('email_corporativo, nome, setor, unidade, status')
+    .not('email_corporativo', 'is', null);
+  return (data || []).map(c => ({
+    email:        c.email_corporativo.toLowerCase().trim(),
+    nome:         c.nome || '',
+    primeiro_nome: (c.nome || '').split(' ')[0],
+    equipe:       c.setor   || null,
+    regiao:       c.unidade || null,
+    ativo:        c.status === 'Ativo',
+  }));
+}
 const { requireRole } = require('../middleware/auth');
 const { logAudit } = require('../services/audit');
 
@@ -420,11 +438,9 @@ router.get('/vendas', async (req, res) => {
     const user = req.user;
     const role = user.role;
 
-    const [filterOpts, { data: colaboradoresData }] = await Promise.all([
+    const [filterOpts, colaboradoresData] = await Promise.all([
       getFilterOptions(),
-      role === 'admin'
-        ? db.from('vendas_colaboradores').select('email, equipe, primeiro_nome').eq('ativo', true).order('primeiro_nome')
-        : Promise.resolve({ data: [] }),
+      role === 'admin' ? getColaboradores() : Promise.resolve([]),
     ]);
 
     const opts         = filterOpts;
@@ -432,10 +448,9 @@ router.get('/vendas', async (req, res) => {
     const empresas     = (opts.empresas || []).sort();
     const produtos     = (opts.produtos || []).sort();
     const formas       = (opts.formas   || []).sort();
-    const equipes      = [...new Set((colaboradoresData || []).map(r => r.equipe).filter(Boolean))].sort();
-    const colaboradores = [...new Map((colaboradoresData || [])
-      .filter(r => r.email)
-      .map(r => [r.email, r])).values()];
+    const ativos       = colaboradoresData.filter(c => c.ativo);
+    const equipes      = [...new Set(ativos.map(c => c.equipe).filter(Boolean))].sort();
+    const colaboradores = [...new Map(ativos.filter(c => c.email).map(c => [c.email, c])).values()];
 
     res.render('gestao-vendas', {
       activePage: 'gestao-vendas',
@@ -481,12 +496,8 @@ router.get('/api/vendas', async (req, res) => {
     if (role !== 'admin') {
       emailFilter = [user.email];
     } else if (equipe && equipe !== 'all') {
-      const { data: cols } = await db
-        .from('vendas_colaboradores')
-        .select('email')
-        .eq('equipe', equipe)
-        .eq('ativo', true);
-      emailFilter = (cols || []).map(c => c.email);
+      const cols = await getColaboradores();
+      emailFilter = cols.filter(c => c.ativo && c.equipe === equipe).map(c => c.email);
     }
 
     const empresasFiltro = empresasParam ? empresasParam.split(',').filter(Boolean) : [];
@@ -623,46 +634,39 @@ router.get('/api/vendas/ranking', async (req, res) => {
     const fromStr = from.toISOString().slice(0, 10);
     const toStr   = today.toISOString().slice(0, 10);
 
+    // Carrega colaboradores para filtro por equipe + mapa email→regiao
+    const todosColabs = role === 'admin' ? await getColaboradores() : [];
+
     let emailsPermitidos = null;
     if (role !== 'admin') {
       emailsPermitidos = [user.email];
     } else if (equipe && equipe !== 'all') {
-      const { data: cols } = await db.from('vendas_colaboradores').select('email').eq('equipe', equipe).eq('ativo', true);
-      emailsPermitidos = (cols || []).map(c => c.email);
+      emailsPermitidos = todosColabs.filter(c => c.ativo && c.equipe === equipe).map(c => c.email);
     }
 
     const empresasFiltro = empresasParam ? empresasParam.split(',').filter(Boolean) : [];
     const produtosFiltro = produtosParam  ? produtosParam.split(',').filter(Boolean)  : [];
 
-    // Busca mapa email → regiao em paralelo com a query de vendas
-    const [{ data }, { data: colabsData }, rankingError] = await Promise.all([
-      (async () => {
-        let q = db.from('vendas')
-          .select('email, valor_venda')
-          .eq('status_pagamento', 'paid')
-          .gte('dt_aprovacao', fromStr)
-          .lte('dt_aprovacao', toStr)
-          .not('email', 'is', null);
-        if (fonte && fonte !== 'all') q = q.ilike('email', `%${fonte}%`);
-        if (vendedora && vendedora !== 'all') q = q.eq('email', vendedora);
-        if (emailsPermitidos) q = q.in('email', emailsPermitidos);
-        if (tipo && tipo !== 'all') q = q.eq('tipo_venda', tipo);
-        if (forma && forma !== 'all') q = q.eq('forma_pagamento', forma);
-        if (empresasFiltro.length) q = q.in('empresa', empresasFiltro);
-        if (produtosFiltro.length) q = q.in('produto', produtosFiltro);
-        return q.limit(300000);
-      })(),
-      role === 'admin' ? db.from('vendas_colaboradores').select('email, regiao').eq('ativo', true) : Promise.resolve({ data: [] }),
-      Promise.resolve(null),
-    ]);
-
-    if (rankingError) return res.status(500).json({ error: rankingError.message });
-
     // Mapa email → região
     const emailToRegiao = {};
-    for (const c of (colabsData || [])) {
-      if (c.email && c.regiao) emailToRegiao[c.email.toLowerCase().trim()] = c.regiao;
+    for (const c of todosColabs) {
+      if (c.email && c.regiao) emailToRegiao[c.email] = c.regiao;
     }
+
+    let q = db.from('vendas')
+      .select('email, valor_venda')
+      .eq('status_pagamento', 'paid')
+      .gte('dt_aprovacao', fromStr)
+      .lte('dt_aprovacao', toStr)
+      .not('email', 'is', null);
+    if (fonte && fonte !== 'all') q = q.ilike('email', `%${fonte}%`);
+    if (vendedora && vendedora !== 'all') q = q.eq('email', vendedora);
+    if (emailsPermitidos) q = q.in('email', emailsPermitidos);
+    if (tipo && tipo !== 'all') q = q.eq('tipo_venda', tipo);
+    if (forma && forma !== 'all') q = q.eq('forma_pagamento', forma);
+    if (empresasFiltro.length) q = q.in('empresa', empresasFiltro);
+    if (produtosFiltro.length) q = q.in('produto', produtosFiltro);
+    const { data } = await q.limit(300000);
 
     const map = {};
     const mapByRegiao = {};
