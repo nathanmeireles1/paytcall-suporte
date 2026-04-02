@@ -199,7 +199,7 @@ router.post('/pedido/:orderId/ticket', requirePermission('tickets', 'can_create'
 // POST /ticket/:id/status — altera status do ticket
 router.post('/ticket/:id/status', requirePermission('tickets', 'can_edit'), async (req, res) => {
   try {
-    await Shipment.updateTicketStatus(req.params.id, req.body.status);
+    await Shipment.updateTicketStatus(req.params.id, req.body.status, req.user.name);
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -457,13 +457,46 @@ router.post('/api/tickets/bulk-status', requirePermission('tickets', 'can_edit')
   try {
     const { ids, status } = req.body;
     if (!ids?.length || !status) return res.status(400).json({ error: 'Campos obrigatórios ausentes' });
+
+    // Busca status atual para logar a mudança
+    const { data: current } = await db.from('tickets').select('id, status').in('id', ids);
+    const oldStatusMap = Object.fromEntries((current || []).map(t => [t.id, t.status]));
+
     const { error } = await db.from('tickets')
       .update({ status, closed_at: ['Concluído','Cancelado','Retido'].includes(status) ? new Date().toISOString() : null })
       .in('id', ids);
     if (error) throw error;
+
+    // Loga histórico silenciosamente
+    try {
+      const histRows = ids.map(id => ({
+        ticket_id: id,
+        changed_by: req.user.name,
+        field: 'status',
+        old_value: oldStatusMap[id] || null,
+        new_value: status,
+      }));
+      await db.from('ticket_history').insert(histRows);
+    } catch (_) {}
+
     res.json({ ok: true, updated: ids.length });
   } catch (err) {
     console.error('[BulkStatus] Erro:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/ticket/:id/history — retorna histórico de mudanças do ticket
+router.get('/api/ticket/:id/history', requirePermission('tickets', 'can_view'), async (req, res) => {
+  try {
+    const { data, error } = await db.from('ticket_history')
+      .select('*')
+      .eq('ticket_id', req.params.id)
+      .order('changed_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    res.json({ history: data || [] });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

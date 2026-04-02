@@ -180,9 +180,13 @@
         <% } %>
 
         <!-- Table meta -->
-        <div class="p-table-meta">
-          <strong><%= total.toLocaleString('pt-BR') %></strong> envios encontrados
-          <% if (pages > 1) { %> · Página <%= currentPage %> de <%= pages %><% } %>
+        <div class="p-table-meta" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <span><strong><%= total.toLocaleString('pt-BR') %></strong> envios encontrados
+          <% if (pages > 1) { %> · Página <%= currentPage %> de <%= pages %><% } %></span>
+          <button id="compactToggle" onclick="toggleCompact()" class="btn btn-ghost btn-sm" title="Alternar modo compacto">
+            <svg id="compactIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            Compacto
+          </button>
         </div>
 
         <!-- IndexTable -->
@@ -469,6 +473,12 @@ document.addEventListener('click', (e) => {
 
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
+.p-index-table-wrap.compact .p-index-table td,
+.p-index-table-wrap.compact .p-index-table th { padding-top: 5px !important; padding-bottom: 5px !important; }
+.p-index-table-wrap.compact .p-index-table td { font-size: 12px; }
+.p-index-table-wrap.compact .p-index-table td div { font-size: 12px !important; }
+.p-index-table-wrap.compact .p-index-table td span[style*="font-size:11px"] { display: none; }
+#compactToggle.active { background: var(--surface-2); color: var(--brand); border-color: var(--brand); }
 .modal-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
 .modal-section:last-child { border-bottom: none; }
 .modal-section h4 { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 12px; }
@@ -652,6 +662,22 @@ document.addEventListener('keydown', (e) => {
     closePedidoModal({ target: document.getElementById('pedidoModal') });
   }
 });
+
+// Modo compacto
+function toggleCompact() {
+  const wrap = document.querySelector('.p-index-table-wrap');
+  if (!wrap) return;
+  const btn = document.getElementById('compactToggle');
+  const isCompact = wrap.classList.toggle('compact');
+  btn.classList.toggle('active', isCompact);
+  localStorage.setItem('rastreios-compact', isCompact ? '1' : '');
+}
+(function () {
+  if (localStorage.getItem('rastreios-compact') === '1') {
+    const wrap = document.querySelector('.p-index-table-wrap');
+    if (wrap) { wrap.classList.add('compact'); document.getElementById('compactToggle').classList.add('active'); }
+  }
+})();
 </script>
 
 <!-- Toast & Confirm System -->
