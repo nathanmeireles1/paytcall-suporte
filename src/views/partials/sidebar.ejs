@@ -104,7 +104,7 @@
     </div>
 
     <!-- Relatórios -->
-    <% if (canView('relatorio_cancelamentos') || canView('relatorio_logistica') || _isAdmin) { %>
+    <% if (canView('relatorio_cancelamentos') || _isAdmin) { %>
     <div class="sidebar-section">
       <div class="sidebar-section-label">Relatórios</div>
 
@@ -123,15 +123,27 @@
         Retenção
       </a>
       <% } %>
+    </div>
+    <% } %>
 
-      <% if (canView('relatorio_logistica')) { %>
+    <!-- Logística -->
+    <% if (canView('relatorio_logistica') || _isAdmin) { %>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Logística</div>
+
       <a href="/relatorios/logistica" class="nav-item <%= _page === 'logistica' ? 'active' : '' %>">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
         </span>
-        Logística
+        Tickets Logística
       </a>
-      <% } %>
+
+      <a href="/relatorios/logistica/solicitacoes" class="nav-item <%= _page === 'solicitacoes' ? 'active' : '' %>">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        </span>
+        Solicitações
+      </a>
     </div>
     <% } %>
 

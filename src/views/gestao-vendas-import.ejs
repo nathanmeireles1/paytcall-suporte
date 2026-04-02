@@ -61,36 +61,49 @@
         <% } %>
       <% } %>
 
-      <div class="card" style="max-width:560px">
+      <div class="card" style="max-width:580px">
         <div class="card-header">
           <span style="font-weight:600;font-size:14px">Selecionar arquivo</span>
         </div>
-        <form method="POST" action="/gestao/vendas/import" enctype="multipart/form-data">
-          <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+        <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
 
-            <div class="form-group">
-              <label class="form-label">Arquivo Excel (.xlsx)</label>
-              <input type="file" name="arquivo" accept=".xlsx,.xls" class="form-input" required id="file-input">
-              <span id="file-name" style="font-size:12px;color:var(--text-4);margin-top:4px"></span>
-            </div>
-
-            <div class="card" style="background:var(--surface-2);padding:12px 16px;border:1px solid var(--border)">
-              <div style="font-size:12px;color:var(--text-3);line-height:1.7">
-                <strong style="color:var(--text-2)">Como funciona:</strong><br>
-                • A planilha deve ser exportada do Airtable no formato <strong>.xlsx</strong><br>
-                • Colunas ausentes são ignoradas automaticamente<br>
-                • Registros existentes (mesmo <strong>Código</strong>) são atualizados<br>
-                • Registros novos são inseridos<br>
-                • Arquivos grandes (70k+ linhas) podem levar alguns segundos
-              </div>
-            </div>
-
+          <div class="form-group">
+            <label class="form-label">Arquivo Excel (.xlsx)</label>
+            <input type="file" name="arquivo" accept=".xlsx,.xls" class="form-input" required id="file-input">
+            <span id="file-name" style="font-size:12px;color:var(--text-4);margin-top:4px;display:block"></span>
           </div>
-          <div class="card-footer" style="justify-content:flex-end;gap:8px">
-            <a href="/gestao/vendas" class="btn btn-secondary">Cancelar</a>
-            <button type="submit" class="btn btn-primary" id="submit-btn">Importar</button>
+
+          <!-- Barra de progresso — oculta até iniciar -->
+          <div id="progress-wrap" style="display:none;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-3)">
+              <span id="progress-label">Enviando arquivo...</span>
+              <span id="progress-pct">0%</span>
+            </div>
+            <div style="height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden">
+              <div id="progress-bar" style="height:100%;width:0%;background:var(--brand);border-radius:99px;transition:width .2s linear"></div>
+            </div>
+            <div id="progress-sub" style="font-size:11px;color:var(--text-4)"></div>
           </div>
-        </form>
+
+          <!-- Resultado inline -->
+          <div id="result-wrap" style="display:none"></div>
+
+          <div class="card" style="background:var(--surface-2);padding:12px 16px;border:1px solid var(--border)">
+            <div style="font-size:12px;color:var(--text-3);line-height:1.7">
+              <strong style="color:var(--text-2)">Como funciona:</strong><br>
+              • A planilha deve ser exportada do Airtable no formato <strong>.xlsx</strong><br>
+              • Colunas ausentes são ignoradas automaticamente<br>
+              • Registros existentes (mesmo <strong>Código</strong>) são atualizados<br>
+              • Registros novos são inseridos<br>
+              • Arquivos grandes (70k+ linhas) podem levar alguns segundos
+            </div>
+          </div>
+
+        </div>
+        <div class="card-footer" style="justify-content:flex-end;gap:8px">
+          <a href="/gestao/vendas" class="btn btn-secondary" id="cancel-btn">Cancelar</a>
+          <button class="btn btn-primary" id="submit-btn" onclick="startImport()">Importar</button>
+        </div>
       </div>
 
     </div>
@@ -101,14 +114,96 @@
 
 <script>
 document.getElementById('file-input').addEventListener('change', function() {
-  const name = this.files[0]?.name || '';
-  document.getElementById('file-name').textContent = name;
+  const f = this.files[0];
+  document.getElementById('file-name').textContent = f ? f.name + ' — ' + (f.size / 1024 / 1024).toFixed(2) + ' MB' : '';
+  document.getElementById('result-wrap').style.display = 'none';
 });
-document.querySelector('form').addEventListener('submit', function() {
-  const btn = document.getElementById('submit-btn');
+
+function startImport() {
+  const fileInput = document.getElementById('file-input');
+  if (!fileInput.files[0]) { alert('Selecione um arquivo primeiro.'); return; }
+
+  const btn        = document.getElementById('submit-btn');
+  const cancelBtn  = document.getElementById('cancel-btn');
+  const progressWrap = document.getElementById('progress-wrap');
+  const bar        = document.getElementById('progress-bar');
+  const pct        = document.getElementById('progress-pct');
+  const label      = document.getElementById('progress-label');
+  const sub        = document.getElementById('progress-sub');
+  const resultWrap = document.getElementById('result-wrap');
+
   btn.disabled = true;
   btn.textContent = 'Importando...';
-});
+  cancelBtn.style.pointerEvents = 'none';
+  cancelBtn.style.opacity = '0.4';
+  progressWrap.style.display = 'flex';
+  resultWrap.style.display = 'none';
+
+  const formData = new FormData();
+  formData.append('arquivo', fileInput.files[0]);
+
+  const xhr = new XMLHttpRequest();
+
+  // Fase 1 — upload
+  xhr.upload.addEventListener('progress', e => {
+    if (!e.lengthComputable) return;
+    const p = Math.round((e.loaded / e.total) * 100);
+    bar.style.width = p + '%';
+    pct.textContent = p + '%';
+    if (p < 100) {
+      label.textContent = 'Enviando arquivo...';
+      sub.textContent = (e.loaded / 1024 / 1024).toFixed(1) + ' MB de ' + (e.total / 1024 / 1024).toFixed(1) + ' MB';
+    } else {
+      label.textContent = 'Processando registros...';
+      sub.textContent = 'O servidor está lendo e salvando as linhas da planilha.';
+      bar.style.background = 'var(--warning)';
+      // anima a barra pulsando enquanto processa
+      bar.style.transition = 'none';
+      bar.style.width = '100%';
+    }
+  });
+
+  // Fase 2 — resposta
+  xhr.addEventListener('load', () => {
+    btn.disabled = false;
+    btn.textContent = 'Importar';
+    cancelBtn.style.pointerEvents = '';
+    cancelBtn.style.opacity = '';
+    progressWrap.style.display = 'none';
+    bar.style.background = 'var(--brand)';
+    bar.style.transition = 'width .2s linear';
+
+    let data;
+    try { data = JSON.parse(xhr.responseText); } catch(e) { data = { error: 'Resposta inválida do servidor.' }; }
+
+    if (data.error) {
+      resultWrap.innerHTML = `<div class="card" style="border-left:4px solid var(--danger)"><div class="card-body" style="padding:16px 20px"><div style="font-weight:600;color:var(--danger);margin-bottom:4px">Erro na importação</div><div style="font-size:13px;color:var(--text-3)">${data.error}</div></div></div>`;
+    } else {
+      const dedup = data.total !== data.unique ? `<span><strong style="font-size:18px;color:var(--warning)">${(data.total - data.unique).toLocaleString('pt-BR')}</strong><br><span style="color:var(--text-3)">Deduplicadas</span></span>` : '';
+      const errs  = data.errors > 0 ? `<span><strong style="font-size:18px;color:var(--danger)">${data.errors.toLocaleString('pt-BR')}</strong><br><span style="color:var(--text-3)">Erros</span></span>` : '';
+      const fe    = data.firstError ? `<div style="margin-top:10px;font-size:12px;color:var(--danger);background:var(--surface-2);padding:8px 12px;border-radius:var(--radius);font-family:monospace">${data.firstError}</div>` : '';
+      resultWrap.innerHTML = `<div class="card" style="border-left:4px solid var(--success)"><div class="card-body" style="padding:16px 20px"><div style="font-weight:600;color:var(--success);margin-bottom:10px">✓ Importação concluída — ${data.arquivo}</div><div style="display:flex;gap:24px;font-size:13px"><span><strong style="font-size:18px;color:var(--text)">${data.total.toLocaleString('pt-BR')}</strong><br><span style="color:var(--text-3)">Linhas lidas</span></span>${dedup}<span><strong style="font-size:18px;color:var(--success)">${data.inserted.toLocaleString('pt-BR')}</strong><br><span style="color:var(--text-3)">Inseridas/atualizadas</span></span>${errs}</div>${fe}</div></div>`;
+    }
+    resultWrap.style.display = 'block';
+    resultWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    fileInput.value = '';
+    document.getElementById('file-name').textContent = '';
+  });
+
+  xhr.addEventListener('error', () => {
+    btn.disabled = false;
+    btn.textContent = 'Importar';
+    cancelBtn.style.pointerEvents = '';
+    cancelBtn.style.opacity = '';
+    progressWrap.style.display = 'none';
+    resultWrap.innerHTML = `<div class="card" style="border-left:4px solid var(--danger)"><div class="card-body" style="padding:16px 20px"><div style="font-weight:600;color:var(--danger)">Erro de conexão. Tente novamente.</div></div></div>`;
+    resultWrap.style.display = 'block';
+  });
+
+  xhr.open('POST', '/gestao/vendas/import');
+  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+  xhr.send(formData);
+}
 </script>
 </body>
 </html>
