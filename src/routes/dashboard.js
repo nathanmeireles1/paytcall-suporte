@@ -315,16 +315,88 @@ router.get('/api/rastreios/export', requirePermission('dashboard', 'can_view'), 
 // GET /analytics — página de KPIs e gráficos analíticos
 router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req, res) => {
   try {
-    const { seller_id, date_from, date_to, carrier, status } = req.query;
-    const [stats, analytics, timeSeries, companies] = await Promise.all([
-      Shipment.getStats({ seller_id: seller_id || null, date_from: date_from || null, date_to: date_to || null }),
+    const { seller_id, date_from, date_to, carrier, status, period } = req.query;
+
+    // Resolve datas a partir do período se não forem informadas manualmente
+    let resolvedFrom = date_from || null;
+    let resolvedTo   = date_to   || null;
+    if (!resolvedFrom && period) {
+      const brtNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+      const pad = n => String(n).padStart(2,'0');
+      const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      const days = { '7d': 7, '30d': 30, '90d': 90 };
+      if (days[period]) {
+        const from = new Date(brtNow);
+        from.setDate(from.getDate() - days[period]);
+        resolvedFrom = fmtDate(from);
+        resolvedTo   = fmtDate(brtNow);
+      }
+    }
+
+    const [stats, analytics, timeSeries, companies, kpisExtra] = await Promise.all([
+      Shipment.getStats({ seller_id: seller_id || null, date_from: resolvedFrom, date_to: resolvedTo }),
       Shipment.getAnalytics(),
-      Shipment.getShipmentsPerDay({ sellerId: seller_id || null, dateFrom: date_from || null, dateTo: date_to || null }),
+      Shipment.getShipmentsPerDay({ sellerId: seller_id || null, dateFrom: resolvedFrom, dateTo: resolvedTo }),
       Shipment.getCompanies(),
+      // KPIs adicionais via queries diretas
+      (async () => {
+        const dateClause = resolvedFrom
+          ? ` AND paid_at >= '${resolvedFrom}' AND paid_at <= '${resolvedTo || new Date().toISOString().slice(0,10)}'T23:59:59Z'`
+          : '';
+        const sellerClause = seller_id ? ` AND seller_id = '${seller_id.replace(/'/g,"''")}' ` : '';
+
+        const [avgDelivery, ticketSla, evolucao] = await Promise.all([
+          // Tempo médio de entrega: dias entre paid_at e updated_at para entregues
+          db.rpc ? null : null, // fallback: usaremos queries diretas
+          db.from('tickets')
+            .select('tipo, created_at, closed_at')
+            .not('closed_at', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(500),
+          // Evolução mensal: últimos 6 meses a partir de shipments
+          db.from('shipments')
+            .select('paid_at, status')
+            .gte('paid_at', (() => { const d = new Date(); d.setMonth(d.getMonth()-6); return d.toISOString().slice(0,7)+'-01'; })())
+            .not('paid_at', 'is', null),
+        ]);
+
+        // Calcula SLA médio por tipo de ticket
+        const ticketRows = ticketSla.data || [];
+        const slaByTipo = {};
+        for (const t of ticketRows) {
+          if (!t.closed_at || !t.created_at) continue;
+          const hrs = (new Date(t.closed_at) - new Date(t.created_at)) / 3600000;
+          if (!slaByTipo[t.tipo]) slaByTipo[t.tipo] = { total: 0, count: 0 };
+          slaByTipo[t.tipo].total += hrs;
+          slaByTipo[t.tipo].count += 1;
+        }
+        const slaTickets = Object.entries(slaByTipo).map(([tipo, v]) => ({
+          tipo,
+          avgHoras: Math.round(v.total / v.count),
+          count: v.count,
+        }));
+
+        // Evolução mensal: agrupa por mês
+        const rows = evolucao.data || [];
+        const monthMap = {};
+        for (const r of rows) {
+          const mes = r.paid_at.slice(0, 7); // YYYY-MM
+          if (!monthMap[mes]) monthMap[mes] = { total: 0, entregues: 0 };
+          monthMap[mes].total += 1;
+          if (r.status === 'delivered') monthMap[mes].entregues += 1;
+        }
+        const evolucaoMensal = Object.entries(monthMap)
+          .sort(([a],[b]) => a.localeCompare(b))
+          .map(([mes, v]) => ({ mes, ...v }));
+
+        return { slaTickets, evolucaoMensal };
+      })(),
     ]);
+
     res.render('analytics', {
       stats, analytics, timeSeries, companies,
-      filters: { seller_id: seller_id || '', date_from: date_from || '', date_to: date_to || '', carrier: carrier || '', status: status || '' },
+      kpisExtra: kpisExtra || { slaTickets: [], evolucaoMensal: [] },
+      filters: { seller_id: seller_id || '', date_from: resolvedFrom || '', date_to: resolvedTo || '', carrier: carrier || '', status: status || '', period: period || '' },
     });
   } catch (err) {
     console.error('[Analytics] Erro:', err.message);

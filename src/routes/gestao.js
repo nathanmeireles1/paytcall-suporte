@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../config/database');
 const { requireRole } = require('../middleware/auth');
+const { logAudit } = require('../services/audit');
 
 // Permissão de edição: admin ou role_permissions.catalogo.can_edit
 function canEdit(req, res, next) {
@@ -131,6 +132,7 @@ router.post('/empresas', canEdit, async (req, res) => {
 
     const { data: nova, error } = await db.from('empresas').insert(data).select().maybeSingle();
     if (error) throw error;
+    logAudit(req.user, 'empresa.criar', { entityType: 'empresa', entityId: nova.id, entityName: data.nome });
     res.redirect(`/gestao/empresas/${nova.id}`);
   } catch (err) {
     console.error('[Gestao/Empresa/Criar] Erro:', err.message);
@@ -149,6 +151,7 @@ router.post('/empresas/:id/editar', canEdit, async (req, res) => {
 
     const { error } = await db.from('empresas').update(data).eq('id', id);
     if (error) throw error;
+    logAudit(req.user, 'empresa.editar', { entityType: 'empresa', entityId: id, entityName: data.nome });
     res.redirect(`/gestao/empresas/${id}`);
   } catch (err) {
     console.error('[Gestao/Empresa/Editar] Erro:', err.message);
@@ -159,8 +162,10 @@ router.post('/empresas/:id/editar', canEdit, async (req, res) => {
 // POST /gestao/empresas/:id/excluir
 router.post('/empresas/:id/excluir', canDelete, async (req, res) => {
   try {
+    const { data: emp } = await db.from('empresas').select('nome').eq('id', req.params.id).maybeSingle();
     const { error } = await db.from('empresas').delete().eq('id', req.params.id);
     if (error) throw error;
+    logAudit(req.user, 'empresa.excluir', { entityType: 'empresa', entityId: req.params.id, entityName: emp?.nome });
     res.redirect('/gestao/catalogo?tab=empresas');
   } catch (err) {
     console.error('[Gestao/Empresa/Excluir] Erro:', err.message);
@@ -234,6 +239,7 @@ router.post('/produtos', canEdit, async (req, res) => {
 
     const { data: novo, error } = await db.from('produtos').insert(data).select().maybeSingle();
     if (error) throw error;
+    logAudit(req.user, 'produto.criar', { entityType: 'produto', entityId: novo.id, entityName: data.nome });
     res.redirect(`/gestao/produtos/${novo.id}`);
   } catch (err) {
     console.error('[Gestao/Produto/Criar] Erro:', err.message);
@@ -252,6 +258,7 @@ router.post('/produtos/:id/editar', canEdit, async (req, res) => {
 
     const { error } = await db.from('produtos').update(data).eq('id', id);
     if (error) throw error;
+    logAudit(req.user, 'produto.editar', { entityType: 'produto', entityId: id, entityName: data.nome });
     res.redirect(`/gestao/produtos/${id}`);
   } catch (err) {
     console.error('[Gestao/Produto/Editar] Erro:', err.message);
@@ -262,8 +269,10 @@ router.post('/produtos/:id/editar', canEdit, async (req, res) => {
 // POST /gestao/produtos/:id/excluir
 router.post('/produtos/:id/excluir', canDelete, async (req, res) => {
   try {
+    const { data: prd } = await db.from('produtos').select('nome').eq('id', req.params.id).maybeSingle();
     const { error } = await db.from('produtos').delete().eq('id', req.params.id);
     if (error) throw error;
+    logAudit(req.user, 'produto.excluir', { entityType: 'produto', entityId: req.params.id, entityName: prd?.nome });
     res.redirect('/gestao/catalogo?tab=produtos');
   } catch (err) {
     console.error('[Gestao/Produto/Excluir] Erro:', err.message);
