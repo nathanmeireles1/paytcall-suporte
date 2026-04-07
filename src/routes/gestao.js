@@ -495,7 +495,8 @@ router.get('/api/vendas', async (req, res) => {
     }
 
     const fromStr = from.toISOString().slice(0, 10);
-    const toStr   = today.toISOString().slice(0, 10);
+    // Mantém o horário 23:59:59 para que dt_aprovacao <= toStr inclua todo o último dia
+    const toStr   = today.toISOString().slice(0, 19);
 
     let emailFilter = null;
     if (role !== 'admin') {
@@ -675,7 +676,7 @@ router.get('/api/vendas/ranking', async (req, res) => {
     }
 
     const fromStr = from.toISOString().slice(0, 10);
-    const toStr   = today.toISOString().slice(0, 10);
+    const toStr   = today.toISOString().slice(0, 19);
 
     // Carrega colaboradores para filtro por equipe + mapa email→regiao
     const todosColabs = role === 'admin' ? await getColaboradores() : [];
