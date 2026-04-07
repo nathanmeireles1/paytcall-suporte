@@ -128,6 +128,11 @@
             <option value="<%= n.nicho %>"><%= n.nicho %></option>
             <% }) %>
           </select>
+          <select id="prod-midia" class="form-select" style="max-width:160px" onchange="filterProdutos()">
+            <option value="">Mídias</option>
+            <option value="fotos">Com fotos</option>
+            <option value="videos">Com vídeos</option>
+          </select>
         </div>
 
         <% Object.keys(porNicho).sort().forEach(nicho => { %>
@@ -135,15 +140,13 @@
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text-4);margin:0 0 10px;padding-left:2px"><%= nicho %></div>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:24px">
             <% porNicho[nicho].forEach(p => { %>
-            <% const _temMidia = p.playbook_slug && slugsComMidia.includes(p.playbook_slug); %>
-            <a href="/gestao/produtos/<%= p.id %>" class="prod-card" data-nome="<%= (p.nome||'').toLowerCase() %>" data-nicho="<%= (p.nicho||'').toLowerCase() %>" style="display:block;text-decoration:none">
+            <% const _temFotos  = p.playbook_slug && slugsComFotos.includes(p.playbook_slug); %>
+            <% const _temVideos = p.playbook_slug && slugsComVideos.includes(p.playbook_slug); %>
+            <a href="/gestao/produtos/<%= p.id %>" class="prod-card" data-nome="<%= (p.nome||'').toLowerCase() %>" data-nicho="<%= (p.nicho||'').toLowerCase() %>" data-fotos="<%= _temFotos ? '1' : '' %>" data-videos="<%= _temVideos ? '1' : '' %>" style="display:block;text-decoration:none">
               <div class="card" style="padding:16px;height:100%;box-sizing:border-box;transition:box-shadow .15s,transform .1s">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
                   <div style="font-weight:700;font-size:14px;color:var(--text);line-height:1.3"><%= p.nome %></div>
-                  <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:8px">
-                    <% if (_temMidia) { %><span title="Tem mídias no Storage" style="font-size:11px;color:var(--success);background:rgba(34,197,94,.1);border-radius:4px;padding:2px 6px;font-weight:600">📷</span><% } %>
-                    <% if (p.sku) { %><span style="font-size:10px;color:var(--text-4);background:var(--bg-2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;white-space:nowrap">SKU <%= p.sku %></span><% } %>
-                  </div>
+                  <% if (p.sku) { %><span style="font-size:10px;color:var(--text-4);background:var(--bg-2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;white-space:nowrap;flex-shrink:0;margin-left:8px">SKU <%= p.sku %></span><% } %>
                 </div>
                 <% if (p.o_que_e) { %>
                 <div style="font-size:12px;color:var(--text-3);line-height:1.5;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden"><%= p.o_que_e %></div>
@@ -152,8 +155,8 @@
                   <% if (p.nicho) { %><span style="font-size:11px;color:var(--brand);background:var(--brand-bg,rgba(255,140,0,.08));border-radius:4px;padding:2px 7px"><%= p.nicho %></span><% } %>
                   <% if (p.composicao) { %><span style="font-size:11px;color:var(--text-4);background:var(--bg-2);border:1px solid var(--border);border-radius:4px;padding:2px 7px">Composição</span><% } %>
                   <% if (p.como_funciona) { %><span style="font-size:11px;color:var(--text-4);background:var(--bg-2);border:1px solid var(--border);border-radius:4px;padding:2px 7px">Como funciona</span><% } %>
-                  <% if (p.playbook_slug) { %><span style="font-size:11px;color:var(--success);background:rgba(34,197,94,.08);border-radius:4px;padding:2px 7px">Playbook</span><% } %>
-                  <% if (!_temMidia && p.playbook_slug) { %><span title="Sem mídias cadastradas" style="font-size:11px;color:var(--text-4);background:var(--bg-2);border:1px dashed var(--border);border-radius:4px;padding:2px 7px">Sem mídia</span><% } %>
+                  <% if (_temFotos)  { %><span style="font-size:11px;color:var(--info,#0ea5e9);background:rgba(14,165,233,.1);border-radius:4px;padding:2px 7px;font-weight:600">FOTO</span><% } %>
+                  <% if (_temVideos) { %><span style="font-size:11px;color:var(--success);background:rgba(34,197,94,.1);border-radius:4px;padding:2px 7px;font-weight:600">VÍDEOS</span><% } %>
                 </div>
               </div>
             </a>
@@ -382,10 +385,12 @@ function filterEmpresas() {
 function filterProdutos() {
   const search = document.getElementById('prod-search').value.toLowerCase();
   const nicho  = document.getElementById('prod-nicho').value.toLowerCase();
+  const midia  = document.getElementById('prod-midia').value;
   let visible  = 0;
   document.querySelectorAll('.prod-card').forEach(card => {
     const ok = (!search || card.dataset.nome.includes(search))
-            && (!nicho  || card.dataset.nicho === nicho);
+            && (!nicho  || card.dataset.nicho === nicho)
+            && (!midia  || (midia === 'fotos' ? card.dataset.fotos === '1' : card.dataset.videos === '1'));
     card.style.display = ok ? '' : 'none';
     if (ok) visible++;
   });

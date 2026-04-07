@@ -96,11 +96,22 @@ router.get('/catalogo', async (req, res) => {
 
     const nichosUnicos = [...new Set((produtos || []).map(p => p.nicho).filter(Boolean))].sort();
 
-    // Slugs com mídia no storage (uma chamada para verificar quais pastas existem)
-    let slugsComMidia = new Set();
+    // Slugs com fotos e/ou vídeos no storage (verifica subpastas de cada slug)
+    const slugsComFotos  = new Set();
+    const slugsComVideos = new Set();
     try {
       const { data: slugFolders } = await db.storage.from('produtos-midias').list('playbooks', { limit: 500 });
-      if (slugFolders) slugFolders.forEach(f => { if (f.name) slugsComMidia.add(f.name); });
+      if (slugFolders && slugFolders.length) {
+        await Promise.all(slugFolders.map(async (f) => {
+          if (!f.name) return;
+          const { data: subs } = await db.storage.from('produtos-midias').list(`playbooks/${f.name}`, { limit: 10 });
+          if (subs) {
+            const subNames = subs.map(s => s.name);
+            if (subNames.includes('fotos'))       slugsComFotos.add(f.name);
+            if (subNames.includes('depoimentos')) slugsComVideos.add(f.name);
+          }
+        }));
+      }
     } catch (_) {}
 
     res.render('gestao-catalogo', {
@@ -114,7 +125,8 @@ router.get('/catalogo', async (req, res) => {
       tab: req.query.tab || 'empresas',
       canEdit: userCanEdit(req),
       isAdmin: req.user.role === 'admin',
-      slugsComMidia: [...slugsComMidia],
+      slugsComFotos:  [...slugsComFotos],
+      slugsComVideos: [...slugsComVideos],
     });
   } catch (err) {
     console.error('[Gestao/Catalogo] Erro:', err.message);

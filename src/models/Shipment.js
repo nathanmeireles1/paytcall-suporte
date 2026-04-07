@@ -293,7 +293,7 @@ const Shipment = {
     if (error) throw error;
   },
 
-  async getCancelamentos({ tipo, payment_status, status_atendimento, search, page = 1, limit = 50 } = {}) {
+  async getCancelamentos({ tipo, payment_status, status_atendimento, status_objeto, search, page = 1, limit = 50 } = {}) {
     const offset = (page - 1) * limit;
     let query = db.from('cancelamentos').select('*', { count: 'exact' });
 
@@ -306,12 +306,31 @@ const Shipment = {
       );
     }
 
+    // Filtro por status do objeto (join com shipments via tracking_code)
+    if (status_objeto) {
+      const { data: ships } = await db.from('shipments').select('tracking_code').eq('status', status_objeto).limit(5000);
+      const codes = (ships || []).map(s => s.tracking_code).filter(Boolean);
+      if (codes.length) query = query.in('tracking_code', codes);
+      else return { rows: [], total: 0, page: 1, pages: 0 };
+    }
+
     const { data, error, count } = await query
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return { rows: data || [], total: count || 0, page, pages: Math.ceil((count || 0) / limit) };
+
+    // Enriquece com status atual do objeto (shipments.status)
+    const rows = data || [];
+    const codes = rows.filter(r => r.tracking_code).map(r => r.tracking_code);
+    if (codes.length) {
+      const { data: ships } = await db.from('shipments').select('tracking_code, status').in('tracking_code', codes);
+      const statusMap = {};
+      for (const s of (ships || [])) statusMap[s.tracking_code] = s.status;
+      rows.forEach(r => { r.status_objeto = statusMap[r.tracking_code] || null; });
+    }
+
+    return { rows, total: count || 0, page, pages: Math.ceil((count || 0) / limit) };
   },
 
   async updateCancelamento(id, fields) {
