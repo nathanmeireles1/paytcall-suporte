@@ -157,11 +157,26 @@
                   <td onclick="window.location='<%= rowHref %>'"><%= s.customer_name || '—' %></td>
                   <td onclick="window.location='<%= rowHref %>'" class="text-sm"><%= s.customer_doc ? s.customer_doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—' %></td>
                   <td onclick="window.location='<%= rowHref %>'"><span class="badge badge-neutral"><%= t.status %></span></td>
-                  <td onclick="window.location='<%= rowHref %>'" title="<%= t.motivo_cancelamento || '' %>"><%= t.motivo %></td>
+                  <td onclick="window.location='<%= rowHref %>'">
+                    <div><%= t.motivo %></div>
+                    <% if (t.motivo_cancelamento) { %><div style="font-size:11px;color:var(--text-3)"><%= t.motivo_cancelamento %></div><% } %>
+                  </td>
                   <td onclick="window.location='<%= rowHref %>'" class="text-sm"><%= shipStatusLabel %></td>
                   <td onclick="window.location='<%= rowHref %>'"><%= t.assigned_to %></td>
                   <td onclick="window.location='<%= rowHref %>'" class="prio-<%= t.priority %>"><%= prioLabel[t.priority] || t.priority %></td>
-                  <td onclick="window.location='<%= rowHref %>'" class="<%= slaClass %>"><%= hoursOpen %>h<%= isTerminal ? '' : (hoursOpen >= 72 ? ' SLA!' : '') %></td>
+                  <td onclick="window.location='<%= rowHref %>'">
+                    <%
+                      let slaColor, slaBg;
+                      if (isTerminal) { slaColor='var(--text-4)'; slaBg='var(--surface-2)'; }
+                      else if (hoursOpen >= 72) { slaColor='var(--danger)'; slaBg='rgba(220,38,38,.08)'; }
+                      else if (hoursOpen >= 48) { slaColor='var(--warning)'; slaBg='rgba(202,138,4,.08)'; }
+                      else { slaColor='var(--success)'; slaBg='rgba(22,163,74,.08)'; }
+                    %>
+                    <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;background:<%= slaBg %>;color:<%= slaColor %>">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      <%= hoursOpen %>h<%= (!isTerminal && hoursOpen >= 72) ? ' SLA!' : '' %>
+                    </span>
+                  </td>
                 </tr>
                 <% }) %>
               </tbody>
@@ -176,29 +191,7 @@
   </div>
 </div>
 
-<div id="toast" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#fff;padding:13px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.22);min-width:220px;max-width:400px;text-align:center;pointer-events:none"></div>
-<div id="confirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-    <p id="confirmMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5"></p>
-    <div style="display:flex;justify-content:flex-end;gap:8px">
-      <button onclick="confirmResolve(false)" class="btn btn-secondary btn-sm">Cancelar</button>
-      <button onclick="confirmResolve(true)" class="btn btn-primary btn-sm">Confirmar</button>
-    </div>
-  </div>
-</div>
 <script>
-let _toastTimer, confirmResolve;
-function showToast(msg, type='success') {
-  const t=document.getElementById('toast'); const icon=type==='error'?'✕':type==='warning'?'⚠':'✓';
-  t.innerHTML=`<span style="font-size:16px;margin-right:8px">${icon}</span>${msg}`;
-  t.style.background=type==='error'?'#dc2626':type==='warning'?'#c2800a':'#16a34a';
-  t.style.display='block';t.style.opacity='1';clearTimeout(_toastTimer);
-  _toastTimer=setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.style.display='none',200);},3000);
-}
-function showConfirm(msg) {
-  return new Promise(resolve => { confirmResolve=resolve; document.getElementById('confirmMsg').textContent=msg; document.getElementById('confirmOverlay').style.display='flex'; });
-}
-document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)confirmResolve(false);});
 
 function toggleAllTix(cb) { document.querySelectorAll('.row-chk-t').forEach(c=>c.checked=cb.checked); updateBulkTix(); }
 function updateBulkTix() {
@@ -208,33 +201,31 @@ function updateBulkTix() {
   document.getElementById('bulkCountTix').textContent = checked.length + ' selecionado(s)';
 }
 function clearSelTix() { document.querySelectorAll('.row-chk-t').forEach(c=>c.checked=false); document.getElementById('selAllTix').checked=false; updateBulkTix(); }
-async function bulkRefreshTracking() {
+function bulkRefreshTracking() {
   const codes = [...document.querySelectorAll('.row-chk-t:checked')]
     .map(c => c.dataset.tracking).filter(Boolean);
   if (!codes.length) { showToast('Nenhum ticket com código de rastreio selecionado', 'warning'); return; }
-  const ok = await showConfirm(`Atualizar rastreio de ${codes.length} pedido(s)?`);
-  document.getElementById('confirmOverlay').style.display = 'none';
-  if (!ok) return;
-  showToast(`Atualizando ${codes.length} rastreio(s)...`, 'warning');
-  const r = await fetch('/api/tracking/refresh-batch', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ codes }),
+  showConfirm(`Atualizar rastreio de ${codes.length} pedido(s)?`, async () => {
+    showToast(`Atualizando ${codes.length} rastreio(s)...`, 'warning');
+    const r = await fetch('/api/tracking/refresh-batch', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes }),
+    });
+    const d = await r.json();
+    if (d.total !== undefined) showToast(`Atualização iniciada para ${d.total} rastreio(s)`);
+    else showToast(d.error || 'Erro ao atualizar', 'error');
   });
-  const d = await r.json();
-  if (d.total !== undefined) showToast(`Atualização iniciada para ${d.total} rastreio(s)`);
-  else showToast(d.error || 'Erro ao atualizar', 'error');
 }
 
-async function bulkResolveTix(status) {
+function bulkResolveTix(status) {
   const ids = [...document.querySelectorAll('.row-chk-t:checked')].map(c=>c.value);
   if (!ids.length) return;
-  const ok = await showConfirm(`Alterar ${ids.length} ticket(s) para "${status}"?`);
-  document.getElementById('confirmOverlay').style.display='none';
-  if (!ok) return;
-  const r = await fetch('/api/tickets/bulk-status', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids, status}) });
-  const d = await r.json();
-  if (d.ok) { showToast(d.updated + ' ticket(s) atualizados.'); setTimeout(()=>location.reload(),1200); }
-  else showToast(d.error||'Erro', 'error');
+  showConfirm(`Alterar ${ids.length} ticket(s) para "${status}"?`, async () => {
+    const r = await fetch('/api/tickets/bulk-status', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids, status}) });
+    const d = await r.json();
+    if (d.ok) { showToast(d.updated + ' ticket(s) atualizados.'); setTimeout(()=>location.reload(),1200); }
+    else showToast(d.error||'Erro', 'error');
+  });
 }
 
 // Motivos dinâmicos por tipo

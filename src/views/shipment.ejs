@@ -363,39 +363,7 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
   </div>
 </div>
 
-<!-- Toast & Confirm -->
-<div id="toast" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#fff;padding:13px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.22);min-width:220px;max-width:400px;text-align:center;pointer-events:none"></div>
-<div id="confirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-    <p id="confirmMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.5"></p>
-    <div style="display:flex;justify-content:flex-end;gap:8px">
-      <button onclick="confirmResolve(false)" class="btn btn-secondary btn-sm">Cancelar</button>
-      <button onclick="confirmResolve(true)" class="btn btn-primary btn-sm">Confirmar</button>
-    </div>
-  </div>
-</div>
 <script>
-let _toastTimer;
-function showToast(msg, type='success') {
-  const t = document.getElementById('toast');
-  const icon = type==='error' ? '✕' : type==='warning' ? '⚠' : '✓';
-  t.innerHTML = `<span style="font-size:16px;margin-right:8px">${icon}</span>${msg}`;
-  t.style.background = type==='error' ? '#dc2626' : type==='warning' ? '#c2800a' : '#16a34a';
-  t.style.display = 'block'; t.style.opacity = '1';
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.style.display='none',200); }, 3000);
-}
-let confirmResolve;
-function showConfirm(msg) {
-  return new Promise(resolve => {
-    confirmResolve = resolve;
-    document.getElementById('confirmMsg').textContent = msg;
-    document.getElementById('confirmOverlay').style.display = 'flex';
-  });
-}
-document.getElementById('confirmOverlay').addEventListener('click', function(e) {
-  if (e.target === this) confirmResolve(false);
-});
 
 function copyText(text) {
   navigator.clipboard.writeText(text).then(() => showToast('Copiado!')).catch(() => {});
@@ -478,19 +446,18 @@ async function toggleTicketHistory(id) {
   }
 }
 
-async function updateTicketStatus(id, selectEl) {
+function updateTicketStatus(id, selectEl) {
   const newStatus = selectEl.value;
   if (!newStatus) return;
-  const ok = await showConfirm('Alterar status para "' + newStatus + '"?');
-  if (!ok) { selectEl.value = ''; document.getElementById('confirmOverlay').style.display='none'; return; }
-  document.getElementById('confirmOverlay').style.display='none';
-  fetch('/ticket/' + id + '/status', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: newStatus }),
-  })
-  .then(r => r.json())
-  .then(d => { if (d.ok) location.reload(); else showToast(d.error || 'Erro ao alterar status.', 'error'); })
-  .catch(() => { selectEl.value = ''; showToast('Erro ao alterar status.', 'error'); });
+  showConfirm('Alterar status para "' + newStatus + '"?', () => {
+    fetch('/ticket/' + id + '/status', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    })
+    .then(r => r.json())
+    .then(d => { if (d.ok) location.reload(); else showToast(d.error || 'Erro ao alterar status.', 'error'); })
+    .catch(() => { selectEl.value = ''; showToast('Erro ao alterar status.', 'error'); });
+  }, { okLabel: 'Alterar' });
 }
 
 const NOTIF_USER = '<%= typeof currentUser !== "undefined" ? currentUser.name : "" %>';
