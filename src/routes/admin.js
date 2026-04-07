@@ -379,7 +379,7 @@ router.get('/docs', requireAuth, requirePermission('admin_usuarios', 'can_view')
 // GET /admin/ia — Agente Lina
 router.get('/ia', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).render('error', { message: 'Acesso negado' });
-  res.render('admin-ia');
+  res.render('admin-ia', { currentUser: req.user });
 });
 
 // GET /admin/auditoria — Log de auditoria global

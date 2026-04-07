@@ -186,34 +186,45 @@
 
 <script>
 (function() {
-  const STORAGE_KEY = 'payt_ai_history';
-  const STORAGE_HTML = 'payt_ai_messages_html';
-  const STORAGE_SUSED = 'payt_ai_suggestions_used';
-
-  let aiHistory = [];
+  const STORAGE_HTML = 'payt_ai_messages_html_v2';
   let aiOpen = false;
+  let historyLoaded = false;
   let suggestionsUsed = false;
 
-  // Restaurar conversa anterior
+  // Restaurar HTML da sessão (visual apenas)
   try {
-    const savedHistory = sessionStorage.getItem(STORAGE_KEY);
     const savedHtml = sessionStorage.getItem(STORAGE_HTML);
-    const savedSugg = sessionStorage.getItem(STORAGE_SUSED);
-    if (savedHistory) aiHistory = JSON.parse(savedHistory);
     if (savedHtml) {
       document.getElementById('aiMessages').innerHTML = savedHtml;
-    }
-    if (savedSugg === '1') {
       suggestionsUsed = true;
       document.getElementById('aiSuggestions').style.display = 'none';
+      historyLoaded = true;
     }
   } catch(e) {}
 
-  function saveState() {
+  function saveHtml() {
+    try { sessionStorage.setItem(STORAGE_HTML, document.getElementById('aiMessages').innerHTML); } catch(e) {}
+  }
+
+  async function loadServerHistory() {
+    if (historyLoaded) return;
+    historyLoaded = true;
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(aiHistory));
-      sessionStorage.setItem(STORAGE_HTML, document.getElementById('aiMessages').innerHTML);
-      sessionStorage.setItem(STORAGE_SUSED, suggestionsUsed ? '1' : '0');
+      const res = await fetch('/api/ai/history');
+      const { history } = await res.json();
+      if (!history || history.length === 0) return;
+      const msgs = document.getElementById('aiMessages');
+      msgs.innerHTML = '';
+      for (const msg of history) {
+        const div = document.createElement('div');
+        div.className = 'ai-msg ' + (msg.role === 'user' ? 'user' : 'bot');
+        div.innerHTML = '<div class="bubble">' + renderMarkdown(msg.content) + '</div><div class="time">' + fmtHistoryTime(msg.created_at) + '</div>';
+        msgs.appendChild(div);
+      }
+      suggestionsUsed = true;
+      document.getElementById('aiSuggestions').style.display = 'none';
+      saveHtml();
+      scrollAI();
     } catch(e) {}
   }
 
@@ -224,18 +235,22 @@
     btn.classList.toggle('open', aiOpen);
     panel.classList.toggle('open', aiOpen);
     if (aiOpen) {
+      loadServerHistory();
       setTimeout(() => document.getElementById('aiInput').focus(), 150);
       scrollAI();
     }
   };
 
   window.clearChat = function() {
-    aiHistory = [];
-    suggestionsUsed = false;
-    const msgs = document.getElementById('aiMessages');
-    msgs.innerHTML = '<div class="ai-msg bot"><div class="bubble">Conversa reiniciada. Como posso ajudar?</div><div class="time">agora</div></div>';
-    document.getElementById('aiSuggestions').style.display = 'flex';
-    saveState();
+    showConfirm('Apagar todo o histórico de conversa com a Lina?', async () => {
+      await fetch('/api/ai/history', { method: 'DELETE' });
+      historyLoaded = false;
+      suggestionsUsed = false;
+      try { sessionStorage.removeItem(STORAGE_HTML); } catch(e) {}
+      const msgs = document.getElementById('aiMessages');
+      msgs.innerHTML = '<div class="ai-msg bot"><div class="bubble">Histórico apagado. Como posso ajudar?</div><div class="time">agora</div></div>';
+      document.getElementById('aiSuggestions').style.display = 'flex';
+    }, { okLabel: 'Apagar', okClass: 'btn-danger' });
   };
 
   window.useSuggestion = function(el, text) {
@@ -254,6 +269,21 @@
     return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
 
+  function fmtHistoryTime(iso) {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch(e) { return ''; }
+  }
+
+  function renderMarkdown(text) {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`(.*?)`/g, '<code style="background:var(--surface-3);padding:1px 5px;border-radius:4px;font-size:11.5px;font-family:monospace">$1</code>')
+      .replace(/\n/g, '<br>');
+  }
+
   function appendMsg(role, text) {
     if (!suggestionsUsed) {
       document.getElementById('aiSuggestions').style.display = 'none';
@@ -262,15 +292,10 @@
     const msgs = document.getElementById('aiMessages');
     const div = document.createElement('div');
     div.className = 'ai-msg ' + role;
-    const html = text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code style="background:var(--surface-3);padding:1px 5px;border-radius:4px;font-size:11.5px;font-family:monospace">$1</code>')
-      .replace(/\n/g, '<br>');
-    div.innerHTML = '<div class="bubble">' + html + '</div><div class="time">' + fmtTime() + '</div>';
+    div.innerHTML = '<div class="bubble">' + renderMarkdown(text) + '</div><div class="time">' + fmtTime() + '</div>';
     msgs.appendChild(div);
     scrollAI();
-    saveState();
+    saveHtml();
   }
 
   window.sendAIMessage = async function() {
@@ -282,7 +307,6 @@
     input.value = '';
     input.style.height = 'auto';
     appendMsg('user', message);
-    aiHistory.push({ role: 'user', content: message });
 
     const typing = document.getElementById('aiTyping');
     typing.classList.add('visible');
@@ -293,7 +317,7 @@
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, history: aiHistory.slice(-10) }),
+        body: JSON.stringify({ message }),
       });
       const data = await res.json();
       typing.classList.remove('visible');
@@ -303,8 +327,6 @@
         appendMsg('bot', '⚠️ ' + data.error);
       } else {
         appendMsg('bot', data.reply);
-        aiHistory.push({ role: 'assistant', content: data.reply });
-        saveState();
       }
     } catch (e) {
       typing.classList.remove('visible');
