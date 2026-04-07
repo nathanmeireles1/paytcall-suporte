@@ -340,40 +340,62 @@ router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req,
       Shipment.getCompanies(),
       // KPIs adicionais via queries diretas
       (async () => {
-        const dateClause = resolvedFrom
-          ? ` AND paid_at >= '${resolvedFrom}' AND paid_at <= '${resolvedTo || new Date().toISOString().slice(0,10)}'T23:59:59Z'`
-          : '';
-        const sellerClause = seller_id ? ` AND seller_id = '${seller_id.replace(/'/g,"''")}' ` : '';
-
+        const resolvedTo_ = resolvedTo || new Date().toISOString().slice(0, 10);
         const sixMonthsAgo = (() => { const d = new Date(); d.setMonth(d.getMonth()-6); return d.toISOString().slice(0,7)+'-01'; })();
 
+        // builder de query com filtros de período e empresa
+        const applyFilters = (q, { dateField = 'paid_at' } = {}) => {
+          if (resolvedFrom) {
+            q = q.gte(dateField, resolvedFrom).lte(dateField, resolvedTo_ + 'T23:59:59Z');
+          }
+          if (seller_id) q = q.eq('seller_id', seller_id);
+          return q;
+        };
+
         const [ticketSla, evolucao, deliveryTimes, cbCount, totalCount, topEstadosRaw] = await Promise.all([
+          // SLA de tickets — sempre geral (benchmark de performance)
           db.from('tickets')
             .select('tipo, created_at, closed_at')
             .not('closed_at', 'is', null)
             .order('created_at', { ascending: false })
             .limit(1000),
+          // Evolução mensal — sempre últimos 6 meses (gráfico de contexto)
           db.from('shipments')
             .select('paid_at, status')
             .gte('paid_at', sixMonthsAgo)
             .not('paid_at', 'is', null),
-          // Tempo médio de entrega: paid_at → last_event_date para entregues
-          db.from('shipments')
-            .select('paid_at, last_event_date')
-            .eq('status', 'delivered')
-            .not('paid_at', 'is', null)
-            .not('last_event_date', 'is', null)
-            .limit(5000),
-          // Taxa de chargeback — contagem
-          db.from('cancelamentos').select('id', { count: 'exact', head: true }).eq('tipo', 'chargeback'),
-          // Total geral de shipments (para calcular %)
-          db.from('shipments').select('id', { count: 'exact', head: true }),
-          // Top estados com pedidos pendentes/em atraso
-          db.from('shipments')
-            .select('shipping_address')
-            .not('shipping_address', 'is', null)
-            .in('status', ['pending', 'in_transit', 'out_for_delivery', 'delivery_attempt', 'tracking_delayed'])
-            .limit(10000),
+          // Tempo médio de entrega: respeita período
+          applyFilters(
+            db.from('shipments')
+              .select('paid_at, last_event_date')
+              .eq('status', 'delivered')
+              .not('paid_at', 'is', null)
+              .not('last_event_date', 'is', null)
+              .limit(5000)
+          ),
+          // Chargebacks no período
+          (() => {
+            let q = db.from('cancelamentos').select('id', { count: 'exact', head: true }).eq('tipo', 'chargeback');
+            if (resolvedFrom) q = q.gte('created_at', resolvedFrom).lte('created_at', resolvedTo_ + 'T23:59:59Z');
+            return q;
+          })(),
+          // Total de shipments no período (denominador do chargeback rate)
+          (() => {
+            let q = db.from('shipments').select('id', { count: 'exact', head: true });
+            if (resolvedFrom) q = q.gte('paid_at', resolvedFrom).lte('paid_at', resolvedTo_ + 'T23:59:59Z');
+            if (seller_id) q = q.eq('seller_id', seller_id);
+            return q;
+          })(),
+          // Top estados: pedidos pendentes atuais (estado atual, sem filtro de período)
+          (() => {
+            let q = db.from('shipments')
+              .select('shipping_address')
+              .not('shipping_address', 'is', null)
+              .in('status', ['pending', 'in_transit', 'out_for_delivery', 'delivery_attempt', 'tracking_delayed'])
+              .limit(10000);
+            if (seller_id) q = q.eq('seller_id', seller_id);
+            return q;
+          })(),
         ]);
 
         // Calcula SLA médio por tipo de ticket
@@ -450,6 +472,51 @@ router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req,
   } catch (err) {
     console.error('[Analytics] Erro:', err.message);
     res.status(500).render('error', { message: 'Erro ao carregar analytics: ' + err.message });
+  }
+});
+
+// GET /api/search — busca global (Cmd+K)
+router.get('/api/search', requireAuth, async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q || q.length < 2) return res.json({ results: [] });
+
+    const like = `%${q}%`;
+
+    const [{ data: ships }, { data: queue }] = await Promise.all([
+      db.from('shipments')
+        .select('order_id, tracking_code, customer_name, customer_doc, status, company_name')
+        .or(`order_id.ilike.${like},tracking_code.ilike.${like},customer_name.ilike.${like},customer_doc.ilike.${like}`)
+        .order('updated_at', { ascending: false })
+        .limit(7),
+      db.from('customer_queue')
+        .select('order_id, customer_name, customer_doc, company_name')
+        .or(`order_id.ilike.${like},customer_name.ilike.${like},customer_doc.ilike.${like}`)
+        .order('created_at', { ascending: false })
+        .limit(4),
+    ]);
+
+    const results = [
+      ...(ships || []).map(s => ({
+        type: 'shipment',
+        href: s.order_id ? `/pedido/${s.order_id}` : `/shipment/${s.tracking_code}`,
+        title: s.customer_name || s.order_id || s.tracking_code,
+        sub: [s.order_id || s.tracking_code, s.company_name].filter(Boolean).join(' · '),
+        status: s.status,
+      })),
+      ...(queue || []).map(q => ({
+        type: 'queue',
+        href: `/pedido/${q.order_id}`,
+        title: q.customer_name || q.order_id,
+        sub: [q.order_id, q.company_name, 'Sem rastreio'].filter(Boolean).join(' · '),
+        status: 'no_tracking',
+      })),
+    ].slice(0, 10);
+
+    res.json({ results });
+  } catch (err) {
+    console.error('[Search] Erro:', err.message);
+    res.status(500).json({ results: [] });
   }
 });
 

@@ -1,7 +1,7 @@
 # ROADMAP — Portal de Suporte Paytcall
 
-> Atualizado em: 01/04/2026
-> Status: 1–8, 10, 12, 14, 15, 17, 18, 19, 20–26 concluídos. Em andamento: 16 (Importador Excel — aguarda colunas), 27 (diagnóstico Natal no gráfico). Novo: 25 (histórico nos módulos retenção/solicitações).
+> Atualizado em: 07/04/2026
+> Status: 1–10, 12, 14, 15, 17, 18, 19, 20–26 concluídos. Em andamento: 16 (Importador Excel — aguarda colunas), 27 (diagnóstico Natal no gráfico), 25 (histórico nos módulos retenção/solicitações). Recente: #9 memória persistente + FAQs, #10 KPIs extras (tempo médio entrega, chargeback rate, top estados), #2/5 SLA pill visual + motivo_cancelamento visível.
 
 ---
 
@@ -16,8 +16,8 @@
 | 5 | SLA com timer e semáforo | ✅ Concluído |
 | 7 | Relatório de Tickets | ✅ Concluído |
 | 8 | Rastreio em Atraso (1 dia / 3 dias) | ✅ Concluído |
-| 9 | AI Agent / Chat (Lina — Gemini) | ✅ Concluído |
-| 10 | Analytics/KPIs avançado | 🟡 Em andamento |
+| 9 | AI Agent / Chat (Lina — Gemini) + memória persistente + FAQs | ✅ Concluído |
+| 10 | Analytics/KPIs avançado | ✅ Concluído |
 | 11 | UX/UI — refinamentos visuais | 🟡 Em andamento |
 | 12 | Seleção múltipla + ações em lote (rastreios) | ✅ Concluído |
 | 13 | Subdomínio / domínio definitivo | 🔲 Pendente |
