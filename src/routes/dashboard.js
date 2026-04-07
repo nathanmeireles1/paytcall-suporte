@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Shipment = require('../models/Shipment');
 const { TICKET_CONFIG, MOTIVOS_CANCELAMENTO } = require('../models/Shipment');
-const { requirePermission } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 const { db } = require('../config/database');
 
 function getNextWindow() {
