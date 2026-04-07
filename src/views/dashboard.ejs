@@ -25,7 +25,7 @@
         <div class="p-page-header-left">
           <h1>Rastreios</h1>
           <p class="p-subtitle">
-            <%= stats.total.toLocaleString('pt-BR') %> envios
+            <%= Number(stats.total || 0).toLocaleString('pt-BR') %> envios
             <% if (lastLog) { %> · Atualizado <%= lastLog.ran_at_fmt %><% } %>
             · Próxima consulta: <strong><%= nextWindow %></strong>
           </p>
@@ -58,7 +58,7 @@
         <% summaries.forEach(s => { %>
         <a href="/rastreios?status=<%= s.key %><%= filters.seller_id ? '&seller_id=' + filters.seller_id : '' %>" class="p-summary-item <%= filters.status === s.key ? 'active' : '' %>" style="text-decoration:none">
           <div class="p-summary-label"><%= s.label %></div>
-          <div class="p-summary-value"><%= (s.value || 0).toLocaleString('pt-BR') %></div>
+          <div class="p-summary-value"><%= Number(s.value || 0).toLocaleString('pt-BR') %></div>
         </a>
         <% }) %>
       </div>

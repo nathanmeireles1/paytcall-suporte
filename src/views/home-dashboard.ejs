@@ -58,39 +58,39 @@
       <div class="stats-grid">
         <a href="/rastreios<%= fqs ? '?' + fqs : '' %>" class="stat-card" style="text-decoration:none;cursor:pointer;border-left:3px solid var(--brand)">
           <div class="stat-label">Total de Pedidos</div>
-          <div class="stat-value" style="color:var(--brand)"><%= totalOrders.toLocaleString('pt-BR') %></div>
+          <div class="stat-value" style="color:var(--brand)"><%= Number(totalOrders || 0).toLocaleString('pt-BR') %></div>
         </a>
         <a href="/rastreios<%= fqs ? '?' + fqs : '' %>" class="stat-card" style="text-decoration:none;cursor:pointer">
           <div class="stat-label">Total de Envios</div>
-          <div class="stat-value" style="color:var(--gray-900)"><%= stats.total %></div>
+          <div class="stat-value" style="color:var(--gray-900)"><%= Number(stats.total || 0).toLocaleString('pt-BR') %></div>
         </a>
         <a href="/rastreios?status=delivered<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
           <div class="stat-label">Entregues</div>
-          <div class="stat-value" style="color:var(--success)"><%= stats.delivered %></div>
+          <div class="stat-value" style="color:var(--success)"><%= Number(stats.delivered || 0).toLocaleString('pt-BR') %></div>
         </a>
         <a href="/rastreios?status=forwarded<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
           <div class="stat-label">Em Trânsito</div>
-          <div class="stat-value" style="color:var(--info)"><%= stats.in_transit %></div>
+          <div class="stat-value" style="color:var(--info)"><%= Number(stats.in_transit || 0).toLocaleString('pt-BR') %></div>
         </a>
         <a href="/rastreios?status=delivering<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
           <div class="stat-label">Saiu p/ Entrega</div>
-          <div class="stat-value" style="color:var(--purple)"><%= stats.out_for_delivery %></div>
+          <div class="stat-value" style="color:var(--purple)"><%= Number(stats.out_for_delivery || 0).toLocaleString('pt-BR') %></div>
         </a>
         <a href="/rastreios?status=recipient_not_found<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
           <div class="stat-label">Tentativa</div>
-          <div class="stat-value" style="color:var(--warning)"><%= stats.delivery_attempt %></div>
+          <div class="stat-value" style="color:var(--warning)"><%= Number(stats.delivery_attempt || 0).toLocaleString('pt-BR') %></div>
         </a>
         <a href="/rastreios?status=returned<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
           <div class="stat-label">Devolvidos</div>
-          <div class="stat-value" style="color:var(--danger)"><%= stats.returned %></div>
+          <div class="stat-value" style="color:var(--danger)"><%= Number(stats.returned || 0).toLocaleString('pt-BR') %></div>
         </a>
         <a href="/rastreios?status=waiting_client<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
           <div class="stat-label">Ag. Retirada</div>
-          <div class="stat-value" style="color:#854d0e"><%= stats.waiting_client %></div>
+          <div class="stat-value" style="color:#854d0e"><%= Number(stats.waiting_client || 0).toLocaleString('pt-BR') %></div>
         </a>
         <a href="/rastreios?status=tracking_delayed<%= fqp %>" class="stat-card" style="text-decoration:none;cursor:pointer">
           <div class="stat-label">Em Atraso</div>
-          <div class="stat-value" style="color:var(--danger)"><%= stats.tracking_delayed || 0 %></div>
+          <div class="stat-value" style="color:var(--danger)"><%= Number(stats.tracking_delayed || 0).toLocaleString('pt-BR') %></div>
         </a>
       </div>
 
