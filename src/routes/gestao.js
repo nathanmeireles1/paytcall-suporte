@@ -4,6 +4,37 @@ const { db, dbGestao } = require('../config/database');
 
 // Helper: lê colaboradores ativos do portal-gestao (rh_colaboradores)
 // Retorna array normalizado com {email, nome, primeiro_nome, equipe, regiao, ativo}
+// Cache para slugs com mídia no Storage (5 min)
+let _midiasCache = null;
+let _midiasCacheTs = 0;
+async function getSlugsMidias() {
+  if (_midiasCache && Date.now() - _midiasCacheTs < 5 * 60 * 1000) return _midiasCache;
+  const slugsComFotos  = new Set();
+  const slugsComVideos = new Set();
+  try {
+    const { data: slugFolders, error } = await db.storage.from('produtos-midias').list('playbooks', { limit: 500 });
+    if (error) { console.error('[Midias] Erro ao listar playbooks:', error.message); }
+    if (slugFolders && slugFolders.length) {
+      await Promise.all(slugFolders.map(async (f) => {
+        if (!f.name) return;
+        const { data: subs, error: subErr } = await db.storage.from('produtos-midias').list(`playbooks/${f.name}`, { limit: 10 });
+        if (subErr) return;
+        if (subs) {
+          const subNames = subs.map(s => s.name);
+          if (subNames.includes('fotos'))       slugsComFotos.add(f.name);
+          if (subNames.includes('depoimentos')) slugsComVideos.add(f.name);
+        }
+      }));
+    }
+    console.log(`[Midias] fotos=${slugsComFotos.size} videos=${slugsComVideos.size}`);
+  } catch (e) {
+    console.error('[Midias] Erro inesperado:', e.message);
+  }
+  _midiasCache = { slugsComFotos: [...slugsComFotos], slugsComVideos: [...slugsComVideos] };
+  _midiasCacheTs = Date.now();
+  return _midiasCache;
+}
+
 let _colabCache = null;
 let _colabCacheTs = 0;
 async function getColaboradores() {
@@ -96,23 +127,8 @@ router.get('/catalogo', async (req, res) => {
 
     const nichosUnicos = [...new Set((produtos || []).map(p => p.nicho).filter(Boolean))].sort();
 
-    // Slugs com fotos e/ou vídeos no storage (verifica subpastas de cada slug)
-    const slugsComFotos  = new Set();
-    const slugsComVideos = new Set();
-    try {
-      const { data: slugFolders } = await db.storage.from('produtos-midias').list('playbooks', { limit: 500 });
-      if (slugFolders && slugFolders.length) {
-        await Promise.all(slugFolders.map(async (f) => {
-          if (!f.name) return;
-          const { data: subs } = await db.storage.from('produtos-midias').list(`playbooks/${f.name}`, { limit: 10 });
-          if (subs) {
-            const subNames = subs.map(s => s.name);
-            if (subNames.includes('fotos'))       slugsComFotos.add(f.name);
-            if (subNames.includes('depoimentos')) slugsComVideos.add(f.name);
-          }
-        }));
-      }
-    } catch (_) {}
+    // Slugs com fotos e/ou vídeos no storage (cache 5 min)
+    const { slugsComFotos, slugsComVideos } = await getSlugsMidias();
 
     res.render('gestao-catalogo', {
       activePage: 'gestao-catalogo',
@@ -604,7 +620,7 @@ router.get('/api/vendas', async (req, res) => {
         const f    = row.forma_pagamento || 'outros';
         const prod = (row.produto || '').toLowerCase().trim();
         const sku  = (row.sku    || '').toLowerCase().trim();
-        const val  = Number(row.valor_venda || 0);
+        const val  = Number(row.valor_venda || 0) / 100; // centavos → reais
         const nicho = _nichoCache[prod] || _nichoSkuCache[sku] || 'Sem nicho';
 
         if (!formasMap[f]) formasMap[f] = { forma: f, count: 0, total: 0 };
@@ -732,7 +748,7 @@ router.get('/api/vendas/ranking', async (req, res) => {
       if (!row.email) continue;
       const k      = row.email.toLowerCase().trim();
       const regiao = emailToRegiao[k] || null;
-      const val    = Number(row.valor_venda || 0);
+      const val    = Number(row.valor_venda || 0) / 100; // centavos → reais
       const info   = emailToNome[k] || {};
       if (!map[k]) map[k] = { email: row.email, nome: info.nome || null, primeiro_nome: info.primeiro_nome || null, qtd: 0, total: 0 };
       map[k].qtd++;
