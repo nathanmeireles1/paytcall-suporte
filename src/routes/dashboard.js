@@ -345,19 +345,35 @@ router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req,
           : '';
         const sellerClause = seller_id ? ` AND seller_id = '${seller_id.replace(/'/g,"''")}' ` : '';
 
-        const [avgDelivery, ticketSla, evolucao] = await Promise.all([
-          // Tempo médio de entrega: dias entre paid_at e updated_at para entregues
-          db.rpc ? null : null, // fallback: usaremos queries diretas
+        const sixMonthsAgo = (() => { const d = new Date(); d.setMonth(d.getMonth()-6); return d.toISOString().slice(0,7)+'-01'; })();
+
+        const [ticketSla, evolucao, deliveryTimes, cbCount, totalCount, topEstadosRaw] = await Promise.all([
           db.from('tickets')
             .select('tipo, created_at, closed_at')
             .not('closed_at', 'is', null)
             .order('created_at', { ascending: false })
-            .limit(500),
-          // Evolução mensal: últimos 6 meses a partir de shipments
+            .limit(1000),
           db.from('shipments')
             .select('paid_at, status')
-            .gte('paid_at', (() => { const d = new Date(); d.setMonth(d.getMonth()-6); return d.toISOString().slice(0,7)+'-01'; })())
+            .gte('paid_at', sixMonthsAgo)
             .not('paid_at', 'is', null),
+          // Tempo médio de entrega: paid_at → last_event_date para entregues
+          db.from('shipments')
+            .select('paid_at, last_event_date')
+            .eq('status', 'delivered')
+            .not('paid_at', 'is', null)
+            .not('last_event_date', 'is', null)
+            .limit(5000),
+          // Taxa de chargeback — contagem
+          db.from('cancelamentos').select('id', { count: 'exact', head: true }).eq('tipo', 'chargeback'),
+          // Total geral de shipments (para calcular %)
+          db.from('shipments').select('id', { count: 'exact', head: true }),
+          // Top estados com pedidos pendentes/em atraso
+          db.from('shipments')
+            .select('shipping_address')
+            .not('shipping_address', 'is', null)
+            .in('status', ['pending', 'in_transit', 'out_for_delivery', 'delivery_attempt', 'tracking_delayed'])
+            .limit(10000),
         ]);
 
         // Calcula SLA médio por tipo de ticket
@@ -380,7 +396,7 @@ router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req,
         const rows = evolucao.data || [];
         const monthMap = {};
         for (const r of rows) {
-          const mes = r.paid_at.slice(0, 7); // YYYY-MM
+          const mes = r.paid_at.slice(0, 7);
           if (!monthMap[mes]) monthMap[mes] = { total: 0, entregues: 0 };
           monthMap[mes].total += 1;
           if (r.status === 'delivered') monthMap[mes].entregues += 1;
@@ -389,7 +405,40 @@ router.get('/analytics', requirePermission('dashboard', 'can_view'), async (req,
           .sort(([a],[b]) => a.localeCompare(b))
           .map(([mes, v]) => ({ mes, ...v }));
 
-        return { slaTickets, evolucaoMensal };
+        // Tempo médio de entrega (dias)
+        const dtRows = deliveryTimes.data || [];
+        let avgEntregaDias = null;
+        if (dtRows.length > 0) {
+          const soma = dtRows.reduce((s, r) => {
+            const diff = (new Date(r.last_event_date) - new Date(r.paid_at)) / 86400000;
+            return diff > 0 && diff < 60 ? s + diff : s;
+          }, 0);
+          const valid = dtRows.filter(r => {
+            const d = (new Date(r.last_event_date) - new Date(r.paid_at)) / 86400000;
+            return d > 0 && d < 60;
+          }).length;
+          avgEntregaDias = valid > 0 ? Math.round(soma / valid * 10) / 10 : null;
+        }
+
+        // Taxa de chargeback
+        const totalShipments = totalCount.count || 1;
+        const cbTotal = cbCount.count || 0;
+        const chargebackRate = ((cbTotal / totalShipments) * 100).toFixed(2);
+
+        // Top 10 estados com mais pedidos pendentes
+        const estadoMap = {};
+        for (const r of (topEstadosRaw.data || [])) {
+          let addr = r.shipping_address;
+          if (typeof addr === 'string') { try { addr = JSON.parse(addr); } catch (_) {} }
+          const uf = addr?.state;
+          if (uf) estadoMap[uf] = (estadoMap[uf] || 0) + 1;
+        }
+        const topEstados = Object.entries(estadoMap)
+          .sort(([,a],[,b]) => b - a)
+          .slice(0, 10)
+          .map(([uf, count]) => ({ uf, count }));
+
+        return { slaTickets, evolucaoMensal, avgEntregaDias, chargebackRate, cbTotal, topEstados };
       })(),
     ]);
 
