@@ -108,6 +108,25 @@
       color: var(--brand); cursor: pointer; transition: background .15s;
     }
     .suggestion-btn:hover { background: rgba(228,124,36,.16); }
+
+    /* FAQ */
+    .faq-item {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px; display: flex;
+      gap: 12px; align-items: flex-start;
+    }
+    .faq-body { flex: 1; min-width: 0; }
+    .faq-q { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .faq-a { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+    .faq-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .faq-actions button {
+      padding: 4px 10px; font-size: 11px; font-weight: 600;
+      border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-3); cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .faq-actions button:hover { background: var(--border); color: var(--text); }
+    .faq-actions button.danger:hover { background: rgba(var(--danger-rgb),.1); color: var(--danger); border-color: var(--danger); }
   </style>
 </head>
 <body>
@@ -169,7 +188,7 @@
 
       <!-- Chat completo -->
       <div style="margin-bottom:10px;font-size:11px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px">Conversar com Lina</div>
-      <div class="chat-full-wrap">
+      <div class="chat-full-wrap" style="margin-bottom:24px">
         <div class="chat-full-header">
           <div style="width:36px;height:36px;border-radius:99px;background:linear-gradient(135deg,#e47c24,#c46918);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:16px;color:#fff;position:relative">
             L
@@ -186,7 +205,6 @@
         </div>
 
         <div class="chat-full-messages" id="fullChatMessages">
-          <!-- Mensagem inicial -->
           <div class="msg-row">
             <div class="msg-av lina">L</div>
             <div>
@@ -218,14 +236,52 @@
         </div>
       </div>
 
+      <!-- FAQs da Lina -->
+      <div style="margin-bottom:10px;font-size:11px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px">Perguntas Frequentes (FAQs da Lina)</div>
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text)">Base de conhecimento</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px">Perguntas e respostas que a Lina usa para responder sobre políticas e procedimentos internos.</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openFaqModal()">+ Adicionar FAQ</button>
+        </div>
+        <div class="card-body" style="padding:16px">
+          <div id="faqList" style="display:flex;flex-direction:column;gap:10px">
+            <div style="text-align:center;color:var(--text-4);padding:24px;font-size:13px" id="faqEmpty">Carregando FAQs...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal FAQ -->
+<div id="faqModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:none;align-items:center;justify-content:center">
+  <div class="card" style="width:100%;max-width:560px;margin:16px">
+    <div class="card-header">
+      <span id="faqModalTitle" style="font-weight:700;font-size:15px">Nova FAQ</span>
+    </div>
+    <div class="card-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div class="form-group">
+        <label class="form-label">Pergunta</label>
+        <input type="text" class="form-input" id="faqQ" placeholder="Ex: Qual é o prazo de entrega?">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Resposta</label>
+        <textarea class="form-input" id="faqA" rows="4" placeholder="Ex: O prazo padrão é de 7 a 12 dias úteis após a postagem." style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="card-footer" style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn btn-secondary btn-sm" onclick="closeFaqModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="saveFaqItem()">Salvar</button>
     </div>
   </div>
 </div>
 
 <script>
-// Reutiliza a mesma API do ai-chat widget
 const USER_INIT = '<%= typeof currentUser !== "undefined" ? currentUser.name.charAt(0).toUpperCase() : "?" %>';
-let fullChatHistory = [];
 
 function autoResize(el) {
   el.style.height = 'auto';
@@ -276,26 +332,117 @@ async function sendFullChat() {
   input.style.height = 'auto';
 
   appendMsg('user', mdToHtml(text));
-  fullChatHistory.push({ role: 'user', content: text });
-
   const loading = appendMsg('lina', 'Lina está digitando...', true);
 
   try {
     const res = await fetch('/api/ai/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, history: fullChatHistory.slice(-10).map(m => ({ role: m.role, content: m.content })) }),
+      body: JSON.stringify({ message: text }),
     });
     const data = await res.json();
     loading.remove();
-    const reply = data.reply || 'Desculpe, não consegui processar sua mensagem.';
-    appendMsg('lina', mdToHtml(reply));
-    fullChatHistory.push({ role: 'assistant', content: reply });
+    appendMsg('lina', mdToHtml(data.reply || 'Desculpe, não consegui processar sua mensagem.'));
   } catch(e) {
     loading.remove();
     appendMsg('lina', 'Erro de conexão. Tente novamente.');
   }
 }
+
+// ── FAQs ────────────────────────────────────────────────────────────────
+let faqs = [];
+let editingIndex = -1;
+
+async function loadFaqs() {
+  try {
+    const res = await fetch('/api/ai/faqs');
+    const data = await res.json();
+    faqs = data.faqs || [];
+    renderFaqs();
+  } catch(e) {
+    document.getElementById('faqEmpty').textContent = 'Erro ao carregar FAQs.';
+  }
+}
+
+function renderFaqs() {
+  const list = document.getElementById('faqList');
+  if (!faqs.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text-4);padding:24px;font-size:13px">Nenhuma FAQ cadastrada. Adicione perguntas e respostas para enriquecer o conhecimento da Lina.</div>';
+    return;
+  }
+  list.innerHTML = faqs.map((f, i) => `
+    <div class="faq-item">
+      <div class="faq-body">
+        <div class="faq-q">${escHtml(f.q)}</div>
+        <div class="faq-a">${escHtml(f.a)}</div>
+      </div>
+      <div class="faq-actions">
+        <button onclick="openFaqModal(${i})">Editar</button>
+        <button class="danger" onclick="deleteFaq(${i})">Excluir</button>
+      </div>
+    </div>`).join('');
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function openFaqModal(index) {
+  editingIndex = (index !== undefined) ? index : -1;
+  document.getElementById('faqModalTitle').textContent = editingIndex >= 0 ? 'Editar FAQ' : 'Nova FAQ';
+  document.getElementById('faqQ').value = editingIndex >= 0 ? (faqs[editingIndex].q || '') : '';
+  document.getElementById('faqA').value = editingIndex >= 0 ? (faqs[editingIndex].a || '') : '';
+  document.getElementById('faqModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('faqQ').focus(), 50);
+}
+
+function closeFaqModal() {
+  document.getElementById('faqModal').style.display = 'none';
+}
+
+async function saveFaqItem() {
+  const q = document.getElementById('faqQ').value.trim();
+  const a = document.getElementById('faqA').value.trim();
+  if (!q || !a) return alert('Preencha a pergunta e a resposta.');
+
+  if (editingIndex >= 0) {
+    faqs[editingIndex] = { q, a };
+  } else {
+    faqs.push({ q, a });
+  }
+  closeFaqModal();
+  await persistFaqs();
+}
+
+function deleteFaq(index) {
+  showConfirm('Excluir esta FAQ?', async () => {
+    faqs.splice(index, 1);
+    await persistFaqs();
+  }, { okLabel: 'Excluir', okClass: 'btn-danger' });
+}
+
+async function persistFaqs() {
+  try {
+    const res = await fetch('/api/ai/faqs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ faqs }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Erro ao salvar');
+    renderFaqs();
+  } catch(e) {
+    alert('Erro ao salvar FAQs: ' + e.message);
+    // recarrega para ter estado consistente
+    await loadFaqs();
+  }
+}
+
+document.getElementById('faqModal').addEventListener('click', function(e) {
+  if (e.target === this) closeFaqModal();
+});
+
+loadFaqs();
 </script>
 
 <script>

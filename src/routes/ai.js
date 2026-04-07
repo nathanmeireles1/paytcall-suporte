@@ -16,6 +16,38 @@ async function getGeminiKey() {
   return process.env.GEMINI_API_KEY || '';
 }
 
+// Cache de FAQs (5 min)
+let _faqCache = null;
+let _faqCacheAt = 0;
+async function getFaqs() {
+  if (_faqCache !== null && Date.now() - _faqCacheAt < 5 * 60 * 1000) return _faqCache;
+  try {
+    const { data } = await db.from('portal_settings').select('value').eq('key', 'lina_faqs').single();
+    _faqCache = data?.value ? (Array.isArray(data.value) ? data.value : JSON.parse(data.value)) : [];
+  } catch(e) { _faqCache = []; }
+  _faqCacheAt = Date.now();
+  return _faqCache;
+}
+
+// Histórico persistente: últimas N mensagens do usuário
+const HISTORY_LIMIT = 20;
+async function loadHistory(userEmail) {
+  const { data } = await db.from('ai_conversations')
+    .select('role, content, created_at')
+    .eq('user_email', userEmail)
+    .order('created_at', { ascending: false })
+    .limit(HISTORY_LIMIT);
+  return (data || []).reverse(); // mais antigas primeiro
+}
+
+async function saveMessage(userEmail, role, content) {
+  await db.from('ai_conversations').insert({ user_email: userEmail, role, content });
+}
+
+async function clearHistory(userEmail) {
+  await db.from('ai_conversations').delete().eq('user_email', userEmail);
+}
+
 // Cache do conhecimento completo do banco (5 min)
 let _kbCache = null;
 let _kbCacheAt = 0;
@@ -188,6 +220,15 @@ async function buildFullKnowledgeBase() {
     kb += `${q.order_id||'—'} | ${q.company_name||'—'} | ${q.customer_name||'—'} | ${q.customer_doc||'—'} | ${q.product_name||'—'} | ${fmtDate(q.paid_at)}\n`;
   }
 
+  // ── 7. FAQs CONFIGURADAS PELO ADMIN ──
+  const faqs = await getFaqs();
+  if (faqs.length > 0) {
+    kb += `\n[PERGUNTAS FREQUENTES — RESPOSTAS OFICIAIS]\n`;
+    for (const faq of faqs) {
+      kb += `P: ${faq.q}\nR: ${faq.a}\n\n`;
+    }
+  }
+
   _kbCache = kb;
   _kbCacheAt = Date.now();
   return kb;
@@ -218,8 +259,10 @@ CAPACIDADES:
 // POST /api/ai/chat
 router.post('/api/ai/chat', requireAuth, async (req, res) => {
   try {
-    const { message, history = [] } = req.body;
+    const { message } = req.body;
     if (!message || !message.trim()) return res.status(400).json({ error: 'Mensagem vazia' });
+
+    const userEmail = req.user?.email || req.user?.name || 'anon';
 
     const GEMINI_KEY = await getGeminiKey();
     if (!GEMINI_KEY) return res.status(500).json({ error: 'API do Gemini não configurada. Acesse Admin → Configurações para adicionar a chave.' });
@@ -231,24 +274,26 @@ router.post('/api/ai/chat', requireAuth, async (req, res) => {
       return '(Erro ao carregar dados do banco — tente novamente)';
     });
 
-    // Histórico de conversa
+    // Histórico persistente do usuário (banco)
+    const persistedHistory = await loadHistory(userEmail).catch(() => []);
+
+    // Monta conversa para o Gemini (histórico + mensagem atual)
     const contents = [];
-    for (const msg of history.slice(-10)) {
+    for (const msg of persistedHistory.slice(-10)) {
       contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] });
     }
 
-    // Mensagem com contexto completo
-    const userText = `${knowledgeBase}\n\n${'='.repeat(60)}\nPERGUNTA DO USUÁRIO: ${message}`;
+    // Mensagem atual com knowledge base apenas na primeira mensagem ou a cada N msgs
+    const injectKb = persistedHistory.length === 0 || persistedHistory.length % 10 === 0;
+    const userText = injectKb
+      ? `${knowledgeBase}\n\n${'='.repeat(60)}\nPERGUNTA DO USUÁRIO: ${message}`
+      : message;
     contents.push({ role: 'user', parts: [{ text: userText }] });
 
     const payload = {
       contents,
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 2048,
-        topP: 0.95,
-      },
+      generationConfig: { temperature: 0.3, maxOutputTokens: 2048, topP: 0.95 },
     };
 
     const { data } = await axios.post(GEMINI_URL, payload, {
@@ -257,11 +302,70 @@ router.post('/api/ai/chat', requireAuth, async (req, res) => {
     });
 
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Não consegui gerar uma resposta. Tente novamente.';
+
+    // Salva mensagens no banco (fire-and-forget)
+    saveMessage(userEmail, 'user', message).catch(() => {});
+    saveMessage(userEmail, 'assistant', reply).catch(() => {});
+
     res.json({ reply });
   } catch (err) {
     console.error('[AI] Erro Gemini:', err.response?.data || err.message);
     const msg = err.response?.data?.error?.message || err.message;
     res.status(500).json({ error: 'Erro ao contatar o Gemini: ' + msg });
+  }
+});
+
+// DELETE /api/ai/history — limpa histórico do usuário
+router.delete('/api/ai/history', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.user?.email || req.user?.name || 'anon';
+    await clearHistory(userEmail);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/ai/history — retorna histórico do usuário
+router.get('/api/ai/history', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.user?.email || req.user?.name || 'anon';
+    const history = await loadHistory(userEmail);
+    res.json({ history });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/ai/faqs — lista FAQs
+router.get('/api/ai/faqs', requireAuth, async (req, res) => {
+  try {
+    const faqs = await getFaqs();
+    res.json({ faqs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/ai/faqs — salva FAQs (admin only)
+router.post('/api/ai/faqs', requireAuth, async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Apenas admins podem editar FAQs' });
+    const { faqs } = req.body;
+    if (!Array.isArray(faqs)) return res.status(400).json({ error: 'FAQs deve ser um array' });
+    await db.from('portal_settings').upsert({
+      key: 'lina_faqs',
+      value: JSON.stringify(faqs),
+      label: 'FAQs da Lina',
+      description: 'Perguntas e respostas que a Lina usa para responder sobre políticas e procedimentos',
+      updated_at: new Date().toISOString(),
+      updated_by: req.user.name,
+    }, { onConflict: 'key' });
+    // Invalida cache
+    _faqCache = null;
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
