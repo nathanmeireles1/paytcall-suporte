@@ -55,23 +55,45 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
 %>
 
       <!-- Page header -->
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
-        <div>
+      <div class="p-page-header" style="margin-bottom:16px">
+        <div class="p-page-header-left">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <h1 style="font-family:'Calistoga',serif;font-size:24px;font-weight:400;color:var(--text);letter-spacing:-0.01em;line-height:1.1">#<%= shipment.order_id || shipment.tracking_code %></h1>
+            <h1>#<%= shipment.order_id || shipment.tracking_code %></h1>
             <span class="badge badge-<%= shipment.status %>"><%= statusLabel[shipment.status] || shipment.status %></span>
+            <% if (shipment.payment_status && !['paid','waiting_payment'].includes(shipment.payment_status)) { %>
+            <span class="badge <%= ['chargeback','chargeback_presented'].includes(shipment.payment_status) ? 'badge-danger' : 'badge-warning' %>">
+              <%= paymentStatusLabel[shipment.payment_status] || shipment.payment_status %>
+            </span>
+            <% } %>
+            <% if (shipment.sale_type && shipment.sale_type !== 'venda_direta') { %>
+            <span class="badge badge-info" style="font-size:10px"><%= shipment.sale_type === 'upsell' ? 'Upsell' : shipment.sale_type === 'order_bump' ? 'Order Bump' : shipment.sale_type %></span>
+            <% } %>
           </div>
-          <div style="font-size:13px;color:var(--text-3);margin-top:4px">
-            <%= shipment.customer_name || '—' %><% if (shipment.company_name) { %> · <%= shipment.company_name %><% } %>
-          </div>
+          <p class="p-subtitle"><%= shipment.customer_name || '—' %><% if (shipment.company_name) { %> · <%= shipment.company_name %><% } %></p>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="p-page-header-right">
           <button class="btn btn-secondary btn-sm" onclick="refreshTracking(event)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
             Atualizar rastreio
           </button>
           <a href="/rastreios" class="btn btn-ghost btn-sm">← Voltar</a>
         </div>
+      </div>
+
+      <!-- Summary strip -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px">
+        <% const summaryItems = [
+          { label: 'Transportadora', value: shipment.carrier || '—' },
+          { label: 'Pago em',        value: shipment.paid_at ? fmtDate(shipment.paid_at) : '—' },
+          { label: 'Total pago',     value: shipment.total_price ? 'R$ ' + (shipment.total_price/100).toFixed(2).replace('.',',') : '—', color: 'var(--success)' },
+          { label: 'Previsão',       value: shipment.expected_date ? new Date(String(shipment.expected_date).replace(' ','T')).toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric'}) : '—', color: shipment.expected_date ? 'var(--info)' : null },
+        ]; %>
+        <% summaryItems.forEach(item => { %>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px">
+          <div style="font-size:11px;color:var(--text-4);margin-bottom:4px"><%= item.label %></div>
+          <div style="font-size:13px;font-weight:600;color:<%= item.color || 'var(--text)' %>"><%= item.value %></div>
+        </div>
+        <% }) %>
       </div>
 
       <!-- Grid principal -->
@@ -277,7 +299,9 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
           <% tickets.forEach(t => {
             const cfg = TICKET_CONFIG[t.tipo] || {};
             const isTerminal = (cfg.terminalStatuses || []).includes(t.status);
-            const hoursOpen = Math.floor((Date.now() - new Date(t.created_at).getTime()) / 3600000);
+            const hoursOpen = isTerminal && t.closed_at
+              ? Math.floor((new Date(t.closed_at) - new Date(t.created_at)) / 3600000)
+              : Math.floor((Date.now() - new Date(t.created_at).getTime()) / 3600000);
             const prioColor = {1:'var(--danger)',2:'var(--warning)',3:'var(--text-3)'}[t.priority] || 'var(--text-3)';
             const tipoLabel = t.tipo === 'RETENCAO' ? 'Retenção' : 'Logística';
           %>
@@ -330,12 +354,12 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
           <% } %>
 
           <!-- Abrir novo ticket -->
-          <details>
-            <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--brand);list-style:none;display:flex;align-items:center;gap:6px">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <div style="border-top:<%= tickets.length > 0 ? '1px solid var(--border)' : 'none' %>;padding-top:<%= tickets.length > 0 ? '14px' : '0' %>">
+            <button onclick="toggleNovoTicket()" id="btnNovoTicket" class="btn btn-secondary btn-sm" style="display:flex;align-items:center;gap:6px">
+              <svg id="btnNovoTicketIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Abrir novo ticket
-            </summary>
-            <form method="POST" action="<%= shipment.tracking_code ? '/shipment/' + shipment.tracking_code + '/ticket' : '/pedido/' + shipment.order_id + '/ticket' %>" style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+            </button>
+            <form id="formNovoTicket" method="POST" action="<%= shipment.tracking_code ? '/shipment/' + shipment.tracking_code + '/ticket' : '/pedido/' + shipment.order_id + '/ticket' %>" style="display:none;margin-top:14px;display:none;flex-direction:column;gap:10px">
               <select name="tipo" id="ticketTipo" class="form-select" required>
                 <option value="">Selecione o tipo</option>
                 <option value="RETENCAO">Retenção</option>
@@ -353,9 +377,12 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
                 </select>
               </div>
               <textarea name="observacao" placeholder="Observações (opcional)" class="form-textarea" style="min-height:80px"></textarea>
-              <div><button type="submit" class="btn btn-primary btn-sm">Abrir ticket</button></div>
+              <div style="display:flex;gap:8px">
+                <button type="submit" class="btn btn-primary btn-sm">Abrir ticket</button>
+                <button type="button" onclick="toggleNovoTicket()" class="btn btn-ghost btn-sm">Cancelar</button>
+              </div>
             </form>
-          </details>
+          </div>
         </div>
       </div>
 
@@ -364,6 +391,14 @@ const cleanLocation = (loc) => (!loc || loc.includes('undefined') || loc.trim() 
 </div>
 
 <script>
+
+function toggleNovoTicket() {
+  const form = document.getElementById('formNovoTicket');
+  const icon = document.getElementById('btnNovoTicketIcon');
+  const open = form.style.display === 'none' || !form.style.display;
+  form.style.display = open ? 'flex' : 'none';
+  if (icon) icon.style.transform = open ? 'rotate(45deg)' : '';
+}
 
 function copyText(text) {
   navigator.clipboard.writeText(text).then(() => showToast('Copiado!')).catch(() => {});
