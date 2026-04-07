@@ -59,6 +59,12 @@
           <option value="<%= s %>" <%= filters.status_atendimento===s?'selected':'' %>><%= s %></option>
           <% }) %>
         </select>
+        <select name="status_objeto" class="form-select">
+          <option value="">Status de Envio</option>
+          <% (statusObjetos || []).forEach(s => { %>
+          <option value="<%= s %>" <%= filters.status_objeto===s?'selected':'' %>><%= s %></option>
+          <% }) %>
+        </select>
         <input type="text" name="search" placeholder="Buscar..." value="<%= filters.search || '' %>" class="form-input search-input">
         <button type="submit" class="btn btn-primary">Filtrar</button>
         <a href="/relatorios/retencao" class="btn btn-secondary">Limpar</a>
@@ -88,14 +94,14 @@
             <table>
               <thead>
                 <tr>
-                  <th class="group-header" colspan="6">Controle</th>
+                  <th class="group-header" colspan="7">Controle</th>
                   <th class="group-header" colspan="10">Dados da Compra</th>
                   <th class="group-header" colspan="3">Logística</th>
                   <th class="group-header" colspan="4">Devolução</th>
                 </tr>
                 <tr>
                   <th>Tipo</th><th>Atendimento</th><th>Status Pgto.</th><th>Status Entrega</th>
-                  <th>Rastreio</th><th>Suspenso?</th>
+                  <th>Status Objeto</th><th>Rastreio</th><th>Suspenso?</th>
                   <th>Data Compra</th><th>ID</th><th>SRC</th><th>Cliente</th><th>CPF</th>
                   <th>Produto</th><th>Qtd</th><th>Valor</th><th>Motivo</th><th>Obs</th>
                   <th>NF ID</th><th>NF Status</th><th>NF Data</th>
@@ -118,6 +124,7 @@
                   </td>
                   <td style="font-size:11px"><%= paymentLabels[r.payment_status] || r.payment_status %></td>
                   <td style="font-size:11px"><%= r.status_entrega || '—' %></td>
+                  <td style="font-size:11px"><%= r.status_objeto || '—' %></td>
                   <td><span class="code" style="font-size:11px"><%= r.tracking_code || '—' %></span></td>
                   <td>
                     <select class="inline-select" onchange="updateField('<%= r.id %>','pedido_suspenso',this.value)">

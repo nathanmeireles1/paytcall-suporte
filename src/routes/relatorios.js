@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Shipment = require('../models/Shipment');
 const { requirePermission } = require('../middleware/auth');
+const { db } = require('../config/database');
 
 // Compatibilidade: /cancelamentos → /retencao
 router.get('/cancelamentos', (req, res) => res.redirect(301, '/relatorios/retencao'));
@@ -53,12 +54,15 @@ router.get('/tickets', requirePermission('relatorio_tickets', 'can_view'), async
 // GET /relatorios/retencao — Relatório de chargebacks e reembolsos
 router.get('/retencao', requirePermission('relatorio_cancelamentos', 'can_view'), async (req, res) => {
   try {
-    const { tipo, payment_status, status_atendimento, search, page = 1, perPage } = req.query;
+    const { tipo, payment_status, status_atendimento, status_objeto, search, page = 1, perPage } = req.query;
     const limit = parsePerPage(perPage);
 
-    const result = await Shipment.getCancelamentos({
-      tipo, payment_status, status_atendimento, search, page: parseInt(page), limit,
-    });
+    const [result, statusObjetos] = await Promise.all([
+      Shipment.getCancelamentos({ tipo, payment_status, status_atendimento, status_objeto, search, page: parseInt(page), limit }),
+      db.from('shipments').select('status').not('status', 'is', null).limit(1000).then(r =>
+        [...new Set((r.data || []).map(s => s.status).filter(Boolean))].sort()
+      ),
+    ]);
 
     res.render('relatorios-cancelamentos', {
       items: result.rows,
@@ -66,7 +70,8 @@ router.get('/retencao', requirePermission('relatorio_cancelamentos', 'can_view')
       pages: result.pages,
       currentPage: parseInt(page),
       perPage: limit,
-      filters: { tipo, payment_status, status_atendimento, search },
+      statusObjetos,
+      filters: { tipo, payment_status, status_atendimento, status_objeto, search },
     });
   } catch (err) {
     console.error('[Relatórios] Erro em /retencao:', err.message);
