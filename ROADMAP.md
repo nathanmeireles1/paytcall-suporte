@@ -20,7 +20,7 @@
 | 10 | Analytics/KPIs avançado | ✅ Concluído |
 | 11 | UX/UI — refinamentos visuais | 🟡 Em andamento |
 | 12 | Seleção múltipla + ações em lote (rastreios) | ✅ Concluído |
-| 13 | Subdomínio / domínio definitivo | 🔲 Pendente |
+| 13 | Subdomínio definitivo (operacao.paytcall.com.br) | ✅ Concluído |
 | 14 | Paginação universal (por página + ir para página) | ✅ Concluído |
 | 15 | Módulo Catálogo (Empresas, Produtos, Nichos, Feedbacks, Mídias) | ✅ Concluído |
 | 16 | Importador Excel/Airtable para Vendas | 🟡 Em andamento |
@@ -34,7 +34,7 @@
 | 24 | Modo compacto na tabela de rastreios | ✅ Concluído |
 | 25 | Histórico de ticket nos módulos retenção, tickets logística e solicitações | ✅ Concluído |
 | 26 | Responsividade ≤ 1200px + ranking de vendedoras por abas + gráfico multi-linha regional | ✅ Concluído |
-| 27 | Diagnóstico/fix: linha Natal no gráfico de faturamento | 🟡 Aguardando logs do Railway |
+| 27 | Fix: linha Natal no gráfico de faturamento | ✅ Concluído |
 
 ---
 
