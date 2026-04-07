@@ -912,77 +912,16 @@ router.post('/vendas/import', upload.single('arquivo'), async (req, res) => {
 
 // ─── COLABORADORES ───────────────────────────────────────────────────────────
 
-// GET /gestao/colaboradores
+// GET /gestao/colaboradores — somente leitura, dados do portal-gestao (rh_colaboradores)
 router.get('/colaboradores', requireRole(['admin']), async (req, res) => {
   try {
-    const { data: colaboradores, error } = await db
-      .from('vendas_colaboradores')
-      .select('*')
-      .order('primeiro_nome');
-    if (error) throw error;
+    const todos = await getColaboradores();
     res.render('gestao-colaboradores', {
       activePage: 'gestao-colaboradores',
-      colaboradores: colaboradores || [],
+      colaboradores: todos,
     });
   } catch (err) {
     res.status(500).render('error', { message: err.message });
-  }
-});
-
-// POST /gestao/colaboradores — criar
-router.post('/colaboradores', requireRole(['admin']), async (req, res) => {
-  try {
-    const { email, primeiro_nome, nome, equipe, regiao, tipo_venda } = req.body;
-    if (!email?.trim()) return res.status(400).json({ error: 'Email obrigatório' });
-    const src = email.trim().toLowerCase().split('@')[0];
-    const { error } = await db.from('vendas_colaboradores').insert({
-      email: email.trim().toLowerCase(),
-      src,
-      primeiro_nome: primeiro_nome?.trim() || null,
-      nome: nome?.trim() || null,
-      equipe: equipe?.trim() || null,
-      regiao: regiao?.trim() || null,
-      tipo_venda: tipo_venda?.trim() || null,
-      ativo: true,
-    });
-    if (error) return res.status(400).json({ error: error.message });
-    // invalida cache de filtros
-    _filterCache = null;
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /gestao/colaboradores/:id/editar
-router.post('/colaboradores/:id/editar', requireRole(['admin']), async (req, res) => {
-  try {
-    const { primeiro_nome, nome, equipe, regiao, tipo_venda, ativo } = req.body;
-    const { error } = await db.from('vendas_colaboradores').update({
-      primeiro_nome: primeiro_nome?.trim() || null,
-      nome: nome?.trim() || null,
-      equipe: equipe?.trim() || null,
-      regiao: regiao?.trim() || null,
-      tipo_venda: tipo_venda?.trim() || null,
-      ativo: ativo === 'true' || ativo === true,
-    }).eq('id', req.params.id);
-    if (error) return res.status(400).json({ error: error.message });
-    _filterCache = null;
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /gestao/colaboradores/:id/excluir
-router.post('/colaboradores/:id/excluir', requireRole(['admin']), async (req, res) => {
-  try {
-    const { error } = await db.from('vendas_colaboradores').delete().eq('id', req.params.id);
-    if (error) return res.status(400).json({ error: error.message });
-    _filterCache = null;
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
 });
 
