@@ -32,7 +32,7 @@
 | 22 | Status de mídia no Catálogo (indicador visual por produto) | ✅ Concluído |
 | 23 | Histórico de mudanças de ticket (timeline de status no shipment) | ✅ Concluído |
 | 24 | Modo compacto na tabela de rastreios | ✅ Concluído |
-| 25 | Histórico de ticket nos módulos retenção, tickets logística e solicitações | 🟡 Em andamento |
+| 25 | Histórico de ticket nos módulos retenção, tickets logística e solicitações | ✅ Concluído |
 | 26 | Responsividade ≤ 1200px + ranking de vendedoras por abas + gráfico multi-linha regional | ✅ Concluído |
 | 27 | Diagnóstico/fix: linha Natal no gráfico de faturamento | 🟡 Aguardando logs do Railway |
 
