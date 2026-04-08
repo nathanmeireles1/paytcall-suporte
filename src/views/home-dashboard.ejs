@@ -463,8 +463,7 @@ async function refreshAll() {
   try {
     const r = await fetch('/api/tracking/refresh', { method: 'POST' });
     const data = await r.json();
-    const total = data.total || 0;
-    showToast(`H7 acionado — ${total} envio(s) em processamento. Recarregando em 5s…`, 'warning');
+    showToast(`H7 acionado — ${data.total || 0} envio(s) em processamento. Recarregando em 5s…`, 'warning');
     setTimeout(() => location.reload(), 5000);
   } catch (e) {
     showToast('Erro ao acionar H7.', 'error');

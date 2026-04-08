@@ -403,7 +403,7 @@ function closeFaqModal() {
 async function saveFaqItem() {
   const q = document.getElementById('faqQ').value.trim();
   const a = document.getElementById('faqA').value.trim();
-  if (!q || !a) return alert('Preencha a pergunta e a resposta.');
+  if (!q || !a) return showToast('Preencha a pergunta e a resposta.', 'warning');
 
   if (editingIndex >= 0) {
     faqs[editingIndex] = { q, a };
@@ -432,7 +432,7 @@ async function persistFaqs() {
     if (!data.ok) throw new Error(data.error || 'Erro ao salvar');
     renderFaqs();
   } catch(e) {
-    alert('Erro ao salvar FAQs: ' + e.message);
+    showToast('Erro ao salvar FAQs: ' + e.message, 'error');
     // recarrega para ter estado consistente
     await loadFaqs();
   }

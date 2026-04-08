@@ -347,7 +347,7 @@ async function uploadMidias(input, tipo) {
         body: JSON.stringify({ base64, mimeType: file.type, tipo, slug: PLAYBOOK_SLUG }),
       });
       const data = await resp.json();
-      if (!data.ok) { alert('Erro: ' + data.error); continue; }
+      if (!data.ok) { showToast('Erro: ' + data.error, 'error'); continue; }
 
       // Adiciona ao DOM sem recarregar
       const isVideo = file.type.startsWith('video/');
@@ -373,7 +373,7 @@ async function uploadMidias(input, tipo) {
       const countEl = document.getElementById(tipo === 'fotos' ? 'fotos-count' : 'dep-count');
       if (countEl) countEl.textContent = parseInt(countEl.textContent || 0) + 1;
     } catch (e) {
-      alert('Erro ao enviar arquivo');
+      showToast('Erro ao enviar arquivo', 'error');
     }
   }
 
@@ -390,14 +390,14 @@ async function deletarMidia(path, el) {
         body: JSON.stringify({ path }),
       });
       const data = await resp.json();
-      if (!data.ok) { alert('Erro: ' + data.error); return; }
+      if (!data.ok) { showToast('Erro: ' + data.error, 'error'); return; }
 
       const tipo = path.includes('/fotos/') ? 'fotos' : 'depoimentos';
       const countEl = document.getElementById(tipo === 'fotos' ? 'fotos-count' : 'dep-count');
       if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent || 1) - 1);
       el.remove();
     } catch (e) {
-      alert('Erro ao remover mídia');
+      showToast('Erro ao remover mídia', 'error');
     }
   }, { okLabel: 'Remover', okClass: 'btn-danger' });
 }

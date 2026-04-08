@@ -46,11 +46,9 @@
       const originColor = (o) => o === 'manual' ? 'var(--info)' : 'var(--text-3)';
       %>
 
-      <!-- Header com botão de atualizar -->
+      <!-- Header com botões -->
       <div class="p-page-header" style="margin-bottom:16px">
-        <div class="p-page-header-left">
-          <h1>Logs de rastreios</h1>
-        </div>
+        <div class="p-page-header-left"><h1>Logs de rastreios</h1></div>
         <div class="p-page-header-right">
           <button class="btn btn-primary btn-sm" onclick="triggerRefresh(this)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
@@ -318,17 +316,15 @@ document.addEventListener('click',(e)=>{ const dd=document.getElementById('notif
 async function triggerRefresh(btn) {
   const ok = await showConfirm('Atualizar todos os envios ativos via H7? O processamento roda em background e pode levar alguns minutos.');
   if (!ok) return;
-  btn.disabled = true;
-  btn.textContent = 'Iniciando…';
+  btn.disabled = true; btn.textContent = 'Iniciando…';
   try {
     const r = await fetch('/api/tracking/refresh', { method: 'POST' });
     const data = await r.json();
-    showToast(`H7 acionado — ${data.total || 0} envio(s) em processamento. Recarregando em 5s…`, 'warning');
+    showToast(`H7 acionado — ${data.total || 0} envio(s). Recarregando em 5s…`, 'warning');
     setTimeout(() => location.reload(), 5000);
   } catch (e) {
     showToast('Erro ao acionar H7.', 'error');
-    btn.disabled = false;
-    btn.textContent = 'Atualizar agora';
+    btn.disabled = false; btn.textContent = 'Atualizar agora';
   }
 }
 </script>

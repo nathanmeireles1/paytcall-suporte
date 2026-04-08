@@ -255,8 +255,8 @@ function uploadAvatar(input) {
           newImg.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:inherit';
           avatar.insertBefore(newImg, avatar.querySelector('.avatar-overlay'));
         }
-      } else { alert(d.error || 'Erro ao salvar foto'); }
-    } catch(e) { alert('Erro ao enviar foto'); }
+      } else { showToast(d.error || 'Erro ao salvar foto', 'error'); }
+    } catch(e) { showToast('Erro ao enviar foto', 'error'); }
   };
   reader.readAsDataURL(file);
 }

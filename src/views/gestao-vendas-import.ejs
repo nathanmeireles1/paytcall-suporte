@@ -121,7 +121,7 @@ document.getElementById('file-input').addEventListener('change', function() {
 
 function startImport() {
   const fileInput = document.getElementById('file-input');
-  if (!fileInput.files[0]) { alert('Selecione um arquivo primeiro.'); return; }
+  if (!fileInput.files[0]) { showToast('Selecione um arquivo primeiro.', 'warning'); return; }
 
   const btn        = document.getElementById('submit-btn');
   const cancelBtn  = document.getElementById('cancel-btn');
