@@ -183,8 +183,8 @@ function updateField(id, field, value) {
     body: JSON.stringify({ [field]: value }),
   })
   .then(r => r.json())
-  .then(d => { if (!d.ok) alert(d.error || 'Erro'); })
-  .catch(() => alert('Erro ao salvar'));
+  .then(d => { if (!d.ok) showToast(d.error || 'Erro', 'error'); })
+  .catch(() => showToast('Erro ao salvar', 'error'));
 }
 
 // Notificações (compartilhado)

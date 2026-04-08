@@ -37,15 +37,11 @@ async function getSlugsMidias() {
 
 let _colabCache = null;
 let _colabCacheTs = 0;
-
-// Normaliza o nome da unidade para um valor canônico consistente
-// Lida com variações como "Natal - RN", "natal", "Palhoça - SC", "palhoca" etc.
 function normalizeUnidade(u) {
   if (!u) return null;
   const s = u.toLowerCase().trim();
-  if (s.includes('natal'))                          return 'Natal';
-  if (s.includes('palho') || s.includes('florianó')) return 'Palhoça';
-  // Mantém o valor original capitalizado para outras unidades
+  if (s.includes('natal')) return 'Natal';
+  if (s.includes('palho') || s.includes('florianó') || s.includes('floriano')) return 'Palhoça';
   return u.trim();
 }
 
@@ -56,20 +52,13 @@ async function getColaboradores() {
     .from('rh_colaboradores')
     .select('email_corporativo, nome, setor, unidade, status')
     .not('email_corporativo', 'is', null);
-
-  const rows = data || [];
-  // Diagnóstico: mostra distribuição de unidades no Railway
-  const unidadeCount = {};
-  for (const c of rows) unidadeCount[c.unidade || '(null)'] = (unidadeCount[c.unidade || '(null)'] || 0) + 1;
-  console.log('[Colaboradores] unidades:', JSON.stringify(unidadeCount));
-
-  _colabCache = rows.map(c => ({
-    email:         c.email_corporativo.toLowerCase().trim(),
-    nome:          c.nome || '',
+  _colabCache = (data || []).map(c => ({
+    email:        c.email_corporativo.toLowerCase().trim(),
+    nome:         c.nome || '',
     primeiro_nome: (c.nome || '').split(' ')[0],
-    equipe:        c.setor || null,
-    regiao:        normalizeUnidade(c.unidade),
-    ativo:         c.status === 'Ativo',
+    equipe:       c.setor   || null,
+    regiao:       normalizeUnidade(c.unidade),
+    ativo:        c.status === 'Ativo',
   }));
   _colabCacheTs = Date.now();
   return _colabCache;
@@ -677,9 +666,7 @@ router.get('/api/vendas', async (req, res) => {
       // Diagnóstico: regiões detectadas e total de vendas por região
       const regStats = Object.entries(dailyByRegiao).map(([r, days]) => `${r}:${days.reduce((s,d)=>s+d.count,0)}v/${days.reduce((s,d)=>s+d.total,0).toFixed(0)}`);
       const emailsMapped = Object.values(dailyRegMap).reduce((s, m) => s + Object.values(m).reduce((ss, d) => ss + d.count, 0), 0);
-      const sampleMapEmails = Object.keys(emailToRegiao).slice(0, 3);
-      const sampleVendasEmails = [...new Set(formasData.filter(r=>r.email).map(r=>r.email.toLowerCase().trim()))].slice(0, 3);
-      console.log(`[Vendas/dailyByRegiao] formasData=${formasData.length} matched=${emailsMapped} regioes=[${regStats.join(', ')}] emailToRegiao_keys=${Object.keys(emailToRegiao).length} sampleMap=${JSON.stringify(sampleMapEmails)} sampleVendas=${JSON.stringify(sampleVendasEmails)}`);
+      console.log(`[Vendas/dailyByRegiao] formasData=${formasData.length} matched=${emailsMapped} regioes=[${regStats.join(', ')}] emailToRegiao_keys=${Object.keys(emailToRegiao).length}`);
     }
 
     const reembolsos      = Number(r.reembolsos || 0);

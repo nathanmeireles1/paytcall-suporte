@@ -521,7 +521,7 @@ router.get('/api/search', requireAuth, async (req, res) => {
 });
 
 // POST /api/tickets/bulk — cria tickets em massa
-router.post('/api/tickets/bulk', async (req, res) => {
+router.post('/api/tickets/bulk', requirePermission('tickets', 'can_create'), async (req, res) => {
   try {
     const { tracking_codes, tipo, motivo, observacao } = req.body;
     if (!tracking_codes?.length || !tipo || !motivo) return res.status(400).json({ error: 'Campos obrigatórios ausentes' });

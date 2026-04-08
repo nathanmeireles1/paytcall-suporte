@@ -188,7 +188,7 @@ document.getElementById('invite-form').addEventListener('submit', async (e) => {
   if (data.ok) {
     if (data.immediate) {
       // Usuário criado com senha — ativo na hora
-      alert('Usuário criado com sucesso! Já pode fazer login.');
+      showToast('Usuário criado com sucesso! Já pode fazer login.');
     } else {
       // Fluxo de convite por link
       document.getElementById('invite-url').textContent = data.inviteLink;
@@ -203,10 +203,10 @@ document.getElementById('invite-form').addEventListener('submit', async (e) => {
     e.target.reset();
     toggleCompanies();
     location.reload();
-  } else { alert(data.error || 'Erro ao criar usuário'); }
+  } else { showToast(data.error || 'Erro ao criar usuário', 'error'); }
 });
 
-function copyInvite() { navigator.clipboard.writeText(document.getElementById('invite-url').textContent).then(() => alert('Link copiado!')); }
+function copyInvite() { navigator.clipboard.writeText(document.getElementById('invite-url').textContent).then(() => showToast('Link copiado!')); }
 async function changeRole(id, role) { await fetch('/admin/users/' + id + '/role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) }); }
 async function toggleUser(id, btn) { const res = await fetch('/admin/users/' + id + '/toggle', { method: 'POST' }); const data = await res.json(); if (data.ok) location.reload(); }
 
@@ -239,7 +239,7 @@ async function deleteInvite(id, name) {
     const res = await fetch('/admin/users/' + id, { method: 'DELETE' });
     const data = await res.json();
     if (data.ok) location.reload();
-    else alert(data.error || 'Erro ao excluir convite');
+    else showToast(data.error || 'Erro ao excluir convite', 'error');
   }, { okLabel: 'Excluir', okClass: 'btn-danger' });
 }
 
@@ -251,9 +251,8 @@ async function resendInvite(id, btn) {
   btn.disabled = false;
   btn.style.opacity = '';
   if (data.ok) {
-    const msg = data.emailSent ? 'Email reenviado com sucesso!' : 'Email não configurado. Link: ' + data.inviteLink;
-    alert(msg);
-  } else alert(data.error || 'Erro ao reenviar convite');
+    showToast(data.emailSent ? 'Email reenviado com sucesso!' : 'Email não configurado — compartilhe o link manualmente.');
+  } else showToast(data.error || 'Erro ao reenviar convite', 'error');
 }
 
 function openPasswordModal(id, name) {
@@ -286,7 +285,7 @@ async function savePassword() {
   });
   const data = await res.json();
   btn.disabled = false; btn.textContent = 'Salvar';
-  if (data.ok) { closePasswordModal(); alert('Senha alterada com sucesso!'); }
+  if (data.ok) { closePasswordModal(); showToast('Senha alterada com sucesso!'); }
   else errEl.textContent = data.error || 'Erro ao alterar senha';
 }
 
@@ -299,7 +298,7 @@ async function saveCompanies() {
   });
   const data = await res.json();
   if (data.ok) { closeCompaniesModal(); location.reload(); }
-  else alert(data.error || 'Erro ao salvar empresas');
+  else showToast(data.error || 'Erro ao salvar empresas', 'error');
 }
 
 // Notificações
