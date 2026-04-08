@@ -456,12 +456,20 @@ function showConfirm(msg) {
 }
 
 async function refreshAll() {
-  const ok = await showConfirm('Atualizar todos os envios ativos via H7?');
+  const ok = await showConfirm('Atualizar todos os envios ativos via H7? O processamento roda em background e pode levar alguns minutos.');
   if (!ok) return;
-  showToast('Atualização iniciada…', 'warning');
-  fetch('/api/tracking/refresh', { method: 'POST' })
-    .then(() => showToast('H7 acionado com sucesso.'))
-    .catch(() => showToast('Erro ao acionar H7.', 'error'));
+  const btn = document.querySelector('button[onclick="refreshAll()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Iniciando…'; }
+  try {
+    const r = await fetch('/api/tracking/refresh', { method: 'POST' });
+    const data = await r.json();
+    const total = data.total || 0;
+    showToast(`H7 acionado — ${total} envio(s) em processamento. Recarregando em 5s…`, 'warning');
+    setTimeout(() => location.reload(), 5000);
+  } catch (e) {
+    showToast('Erro ao acionar H7.', 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg> Atualizar agora'; }
+  }
 }
 
 // Check unread on load
