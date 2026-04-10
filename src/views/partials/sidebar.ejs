@@ -17,96 +17,112 @@
 <aside class="sidebar" id="sidebar">
 
   <!-- Brand -->
-  <div class="sidebar-brand">
-    <div class="brand-logo">
-      <span style="color:#fff;font-size:14px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;line-height:28px;display:block;text-align:center">O</span>
+  <div class="sidebar-brand" onclick="handleBrandClick(event)">
+    <div class="sidebar-brand-logo-wrap">
+      <div class="brand-logo">
+        <span style="color:#fff;font-size:14px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;line-height:28px;display:block;text-align:center">O</span>
+      </div>
+      <div class="sidebar-collapsed-indicator">
+        <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
     </div>
     <div>
       <div class="brand-name">PAYTCALL</div>
       <div class="brand-tag">Operação</div>
     </div>
+    <button class="sidebar-toggle-btn" onclick="toggleSidebar(event)" title="Recolher menu">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
   </div>
 
   <!-- Navigation -->
   <nav class="sidebar-nav">
 
     <!-- Principal -->
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Principal</div>
+    <div class="sidebar-section" data-section="principal">
+      <button class="sidebar-section-header" onclick="toggleSection('principal')">
+        Principal
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
 
       <% if (canView('dashboard')) { %>
-      <a href="/dashboard" class="nav-item <%= _page === 'dashboard' ? 'active' : '' %>">
+      <a href="/dashboard" class="nav-item <%= _page === 'dashboard' ? 'active' : '' %>" title="Dashboard">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         </span>
-        Dashboard
+        <span class="nav-label">Dashboard</span>
       </a>
       <% } %>
 
-      <a href="/rastreios" class="nav-item <%= _page === 'rastreios' ? 'active' : '' %>">
+      <a href="/rastreios" class="nav-item <%= _page === 'rastreios' ? 'active' : '' %>" title="Rastreios">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </span>
-        Rastreios
+        <span class="nav-label">Rastreios</span>
       </a>
 
       <% if (canView('tickets')) { %>
-      <a href="/relatorios/tickets" class="nav-item <%= _page === 'tickets' ? 'active' : '' %>">
+      <a href="/relatorios/tickets" class="nav-item <%= _page === 'tickets' ? 'active' : '' %>" title="Tickets">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
         </span>
-        Tickets
+        <span class="nav-label">Tickets</span>
       </a>
       <% } %>
 
       <% if (_isAdmin) { %>
-      <a href="/admin/mural" class="nav-item <%= _page === 'admin-mural' ? 'active' : '' %>">
+      <a href="/admin/mural" class="nav-item <%= _page === 'admin-mural' ? 'active' : '' %>" title="Mural de Avisos">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16h6M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         </span>
-        Mural de Avisos
+        <span class="nav-label">Mural de Avisos</span>
       </a>
       <% } %>
     </div>
 
     <!-- Gestão -->
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Gestão</div>
+    <div class="sidebar-section" data-section="gestao">
+      <button class="sidebar-section-header" onclick="toggleSection('gestao')">
+        Gestão
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
 
-      <a href="/gestao/vendas" class="nav-item <%= _page === 'gestao-vendas' ? 'active' : '' %>">
+      <a href="/gestao/vendas" class="nav-item <%= _page === 'gestao-vendas' ? 'active' : '' %>" title="Vendas">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </span>
-        Vendas
+        <span class="nav-label">Vendas</span>
       </a>
 
-      <a href="/gestao/catalogo" class="nav-item <%= _page === 'gestao-catalogo' ? 'active' : '' %>">
+      <a href="/gestao/catalogo" class="nav-item <%= _page === 'gestao-catalogo' ? 'active' : '' %>" title="Catálogo">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         </span>
-        Catálogo
+        <span class="nav-label">Catálogo</span>
       </a>
-
     </div>
 
     <!-- Relatórios -->
     <% if (canView('relatorio_cancelamentos') || _isAdmin) { %>
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Relatórios</div>
+    <div class="sidebar-section" data-section="relatorios">
+      <button class="sidebar-section-header" onclick="toggleSection('relatorios')">
+        Relatórios
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
 
-      <a href="/analytics" class="nav-item <%= _page === 'analytics' ? 'active' : '' %>">
+      <a href="/analytics" class="nav-item <%= _page === 'analytics' ? 'active' : '' %>" title="Análises">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </span>
-        Análises
+        <span class="nav-label">Análises</span>
       </a>
 
       <% if (canView('relatorio_cancelamentos')) { %>
-      <a href="/relatorios/retencao" class="nav-item <%= _page === 'retencao' ? 'active' : '' %>">
+      <a href="/relatorios/retencao" class="nav-item <%= _page === 'retencao' ? 'active' : '' %>" title="Retenção">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
         </span>
-        Retenção
+        <span class="nav-label">Retenção</span>
       </a>
       <% } %>
     </div>
@@ -114,84 +130,96 @@
 
     <!-- Logística -->
     <% if (canView('relatorio_logistica') || _isAdmin) { %>
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Logística</div>
+    <div class="sidebar-section" data-section="logistica">
+      <button class="sidebar-section-header" onclick="toggleSection('logistica')">
+        Logística
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
 
-      <a href="/relatorios/logistica" class="nav-item <%= _page === 'logistica' ? 'active' : '' %>">
+      <a href="/relatorios/logistica" class="nav-item <%= _page === 'logistica' ? 'active' : '' %>" title="Tickets Logística">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
         </span>
-        Tickets Logística
+        <span class="nav-label">Tickets Logística</span>
       </a>
 
-      <a href="/relatorios/logistica/solicitacoes" class="nav-item <%= _page === 'solicitacoes' ? 'active' : '' %>">
+      <a href="/relatorios/logistica/solicitacoes" class="nav-item <%= _page === 'solicitacoes' ? 'active' : '' %>" title="Solicitações">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         </span>
-        Solicitações
+        <span class="nav-label">Solicitações</span>
       </a>
     </div>
     <% } %>
 
     <!-- Administração -->
     <% if (_isAdmin || canView('admin_usuarios') || canView('admin_permissoes')) { %>
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Administração</div>
+    <div class="sidebar-section" data-section="administracao">
+      <button class="sidebar-section-header" onclick="toggleSection('administracao')">
+        Administração
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
 
       <% if (_isAdmin || canView('admin_usuarios')) { %>
-      <a href="/admin/configuracoes" class="nav-item <%= _page === 'admin-configuracoes' ? 'active' : '' %>">
+      <a href="/admin/configuracoes" class="nav-item <%= _page === 'admin-configuracoes' ? 'active' : '' %>" title="Configurações">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
         </span>
-        Configurações
+        <span class="nav-label">Configurações</span>
       </a>
       <% } %>
+
       <% if (_isAdmin) { %>
-      <a href="/admin/docs" class="nav-item <%= _page === 'admin-docs' ? 'active' : '' %>">
+      <a href="/admin/docs" class="nav-item <%= _page === 'admin-docs' ? 'active' : '' %>" title="Documentação">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         </span>
-        Documentação
+        <span class="nav-label">Documentação</span>
       </a>
       <% } %>
+
       <% if (_isAdmin) { %>
-      <a href="/admin/ia" class="nav-item <%= _page === 'admin-ia' ? 'active' : '' %>">
+      <a href="/admin/ia" class="nav-item <%= _page === 'admin-ia' ? 'active' : '' %>" title="Agente Lina">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M12 2a8 8 0 00-8 8c0 3.1 1.7 5.8 4.2 7.2L7 20h10l-1.2-2.8A8 8 0 0012 2z"/><circle cx="9" cy="10" r="1.2" fill="currentColor"/><circle cx="15" cy="10" r="1.2" fill="currentColor"/><path d="M9.5 14.5s.8 1 2.5 1 2.5-1 2.5-1"/></svg>
         </span>
-        Agente Lina
+        <span class="nav-label">Agente Lina</span>
       </a>
       <% } %>
+
       <% if (_isAdmin || canView('rastreio_log')) { %>
-      <a href="/relatorios/rastreio-log" class="nav-item <%= _page === 'rastreio-log' ? 'active' : '' %>">
+      <a href="/relatorios/rastreio-log" class="nav-item <%= _page === 'rastreio-log' ? 'active' : '' %>" title="Logs de rastreios">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         </span>
-        Logs de rastreios
+        <span class="nav-label">Logs de rastreios</span>
       </a>
       <% } %>
+
       <% if (_isAdmin) { %>
-      <a href="/admin/bi" class="nav-item <%= _page === 'admin-bi' ? 'active' : '' %>">
+      <a href="/admin/bi" class="nav-item <%= _page === 'admin-bi' ? 'active' : '' %>" title="BI">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         </span>
-        BI
+        <span class="nav-label">BI</span>
       </a>
       <% } %>
+
       <% if (_isAdmin) { %>
-      <a href="/admin/auditoria" class="nav-item <%= _page === 'admin-auditoria' ? 'active' : '' %>">
+      <a href="/admin/auditoria" class="nav-item <%= _page === 'admin-auditoria' ? 'active' : '' %>" title="Auditoria">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         </span>
-        Auditoria
+        <span class="nav-label">Auditoria</span>
       </a>
       <% } %>
+
       <% if (_isAdmin) { %>
-      <a href="/gestao/colaboradores" class="nav-item <%= _page === 'gestao-colaboradores' ? 'active' : '' %>">
+      <a href="/gestao/colaboradores" class="nav-item <%= _page === 'gestao-colaboradores' ? 'active' : '' %>" title="Colaboradores">
         <span class="nav-icon">
           <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </span>
-        Colaboradores
+        <span class="nav-label">Colaboradores</span>
       </a>
       <% } %>
     </div>
@@ -228,6 +256,52 @@
   </div>
 
 <script>
+// ── Sidebar collapse ──────────────────────────────────────────────────────────
+(function() {
+  if (localStorage.getItem('payt-sidebar-collapsed') === '1') {
+    document.documentElement.classList.add('sidebar-collapsed');
+  }
+})();
+
+function toggleSidebar(e) {
+  if (e) e.stopPropagation();
+  const collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+  localStorage.setItem('payt-sidebar-collapsed', collapsed ? '1' : '0');
+}
+
+// Clique na área da logo: só faz toggle quando está collapsed (logo vira o botão)
+function handleBrandClick(e) {
+  if (document.documentElement.classList.contains('sidebar-collapsed')) {
+    toggleSidebar(e);
+  }
+}
+
+// ── Seções retráteis ──────────────────────────────────────────────────────────
+(function() {
+  const state = JSON.parse(localStorage.getItem('payt-sidebar-sections') || '{}');
+  Object.entries(state).forEach(([key, isCollapsed]) => {
+    if (isCollapsed) {
+      const section = document.querySelector('.sidebar-section[data-section="' + key + '"]');
+      if (section) section.setAttribute('data-collapsed', '');
+    }
+  });
+})();
+
+function toggleSection(key) {
+  const section = document.querySelector('.sidebar-section[data-section="' + key + '"]');
+  if (!section) return;
+  const wasCollapsed = section.hasAttribute('data-collapsed');
+  if (wasCollapsed) {
+    section.removeAttribute('data-collapsed');
+  } else {
+    section.setAttribute('data-collapsed', '');
+  }
+  const state = JSON.parse(localStorage.getItem('payt-sidebar-sections') || '{}');
+  state[key] = !wasCollapsed;
+  localStorage.setItem('payt-sidebar-sections', JSON.stringify(state));
+}
+
+// ── Avatar upload ─────────────────────────────────────────────────────────────
 function uploadAvatar(input) {
   const file = input.files[0];
   if (!file) return;

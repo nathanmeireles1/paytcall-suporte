@@ -628,7 +628,7 @@ router.get('/api/vendas', async (req, res) => {
         const f    = row.forma_pagamento || 'outros';
         const prod = (row.produto || '').toLowerCase().trim();
         const sku  = (row.sku    || '').toLowerCase().trim();
-        const val  = Number(row.valor_venda || 0) / 100; // centavos → reais
+        const val  = Number(row.valor_venda || 0); // reais (valores do Excel já em reais)
         const nicho = _nichoCache[prod] || _nichoSkuCache[sku] || 'Sem nicho';
 
         if (!formasMap[f]) formasMap[f] = { forma: f, count: 0, total: 0 };
@@ -756,7 +756,7 @@ router.get('/api/vendas/ranking', async (req, res) => {
       if (!row.email) continue;
       const k      = row.email.toLowerCase().trim();
       const regiao = emailToRegiao[k] || null;
-      const val    = Number(row.valor_venda || 0) / 100; // centavos → reais
+      const val    = Number(row.valor_venda || 0); // reais (valores do Excel já em reais)
       const info   = emailToNome[k] || {};
       if (!map[k]) map[k] = { email: row.email, nome: info.nome || null, primeiro_nome: info.primeiro_nome || null, qtd: 0, total: 0 };
       map[k].qtd++;
