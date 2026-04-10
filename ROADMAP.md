@@ -1,7 +1,7 @@
 # ROADMAP — Portal de Suporte Paytcall
 
-> Atualizado em: 07/04/2026
-> Status: 1–10, 12, 14, 15, 17, 18, 19, 20–26 concluídos. Em andamento: 16 (Importador Excel — aguarda colunas), 27 (diagnóstico Natal no gráfico), 25 (histórico nos módulos retenção/solicitações). Recente: #9 memória persistente + FAQs, #10 KPIs extras (tempo médio entrega, chargeback rate, top estados), #2/5 SLA pill visual + motivo_cancelamento visível.
+> Atualizado em: 08/04/2026
+> Status: 1–10, 12, 14, 15, 17, 18, 19, 20–27 concluídos. Em andamento: 16 (script CLI atualizado — interface web de upload pendente). Recente: #16 mapeamento colunas Paytcall + lógica de juros por empresa (import + webhook), #27 fix normalizeUnidade aplicado.
 
 ---
 
@@ -23,7 +23,7 @@
 | 13 | Subdomínio definitivo (operacao.paytcall.com.br) | ✅ Concluído |
 | 14 | Paginação universal (por página + ir para página) | ✅ Concluído |
 | 15 | Módulo Catálogo (Empresas, Produtos, Nichos, Feedbacks, Mídias) | ✅ Concluído |
-| 16 | Importador Excel/Airtable para Vendas | 🟡 Em andamento |
+| 16 | Importador Excel/Airtable para Vendas | 🟡 Em andamento (script CLI pronto; interface web pendente) |
 | 17 | Log de auditoria global (Admin) — convites, imports, alterações | ✅ Concluído |
 | 18 | Barra de progresso no import de planilhas | ✅ Concluído |
 | 19 | Módulo Logística (mover /relatorios/logistica + renomear Relatórios) | ✅ Concluído |
@@ -34,7 +34,7 @@
 | 24 | Modo compacto na tabela de rastreios | ✅ Concluído |
 | 25 | Histórico de ticket nos módulos retenção, tickets logística e solicitações | ✅ Concluído |
 | 26 | Responsividade ≤ 1200px + ranking de vendedoras por abas + gráfico multi-linha regional | ✅ Concluído |
-| 27 | Fix: linha Natal no gráfico de faturamento | ✅ Concluído |
+| 27 | Fix: linha Natal no gráfico de faturamento | ✅ Concluído (normalizeUnidade aplicado — aguarda confirmação nos logs do Railway) |
 
 ---
 
@@ -414,18 +414,23 @@ Seu portal **já está seguro** — código no GitHub, dados no Supabase. O que 
 
 ---
 
-## 16 — IMPORTADOR EXCEL/AIRTABLE (VENDAS) 🔲 Pendente
+## 16 — IMPORTADOR EXCEL (VENDAS PAYTCALL) 🟡 Em andamento
 
 ### Contexto
-- Dados recentes ficam no Airtable; quando chega perto de 120k linhas, usuário exporta para Excel e exclui do Airtable
-- Os Excels ficam em uma pasta local
+- Planilhas `.xlsx` exportadas direto da Paytcall (relatório de vendas)
+- Script CLI `scripts/import-payt-pedidos.mjs` já pronto e atualizado
 - Pacote `xlsx` já instalado no projeto
 
-### Pendente
-- [ ] Usuário fornecer nomes das colunas do Excel exportado do Airtable
-- [ ] Criar rota de upload/import em `/gestao/vendas/import`
-- [ ] Mapear colunas Excel → tabela hub `vendas` (ou equivalente)
+### Concluído (script CLI)
+- [x] Mapeamento completo das colunas do Excel Paytcall → banco
+- [x] Lógica de juros: `has_interest` por empresa → `total_price` = `Saldo da Venda` ou `Valor da Venda`
+- [x] Novos campos: `product_sku`, `product_price`, `total_price`, `tracking_url`, `shipping_address` (JSON)
+- [x] Mesma lógica de juros aplicada ao webhook (`COMPANIES_WITH_INTEREST` em `src/routes/webhook.js`)
+
+### Pendente (interface web)
+- [ ] Rota de upload em `/gestao/vendas/import`
 - [ ] Interface de upload com preview antes de confirmar
+- [ ] Resultado com contagem de inseridos / ignorados (duplicados)
 
 ---
 
@@ -444,22 +449,13 @@ Seu portal **já está seguro** — código no GitHub, dados no Supabase. O que 
 
 ---
 
-## 27 — FIX: LINHA NATAL NO GRÁFICO 🟡 Aguardando diagnóstico
+## 27 — FIX: LINHA NATAL NO GRÁFICO ✅ Fix aplicado
 
-### Sintoma
-Linha Natal no gráfico Faturamento por Dia aparece próxima de zero enquanto Palhoça e Geral têm valores normais.
+### Fix aplicado
+`normalizeUnidade()` adicionada — normaliza variações de "Natal" e "Palhoça" independente de maiúsculas, acentos ou sufixos (ex: "natal", "NATAL", "Natal - RN" → "Natal").
 
-### Diagnóstico em andamento
-Log adicionado no Railway: `[Vendas/dailyByRegiao] formasData=X matched=Y regioes=[...] emailToRegiao_keys=Z`
-
-### O que verificar nos logs
-- `emailToRegiao_keys=0` → `dbGestao` não conectando ou `unidade` nulo para todos
-- `matched=0` com keys > 0 → emails em `vendas.email` não coincidem com `rh_colaboradores.email_corporativo`
-- `regioes=[Natal:0v]` com keys > 0 → somente emails de Palhoça estão no mapa
-
-### Possíveis causas
-1. `rh_colaboradores.unidade` para vendedoras de Natal está com valor diferente de "Natal" (ex: "natal", "NATAL", "Natal - RN")
-2. `rh_colaboradores.email_corporativo` para Natal usa domínio diferente do que aparece em `vendas.email`
+### Aguardando confirmação
+Verificar nos logs do Railway se a linha Natal exibe valores corretos após o próximo carregamento do dashboard de vendas.
 
 ---
 

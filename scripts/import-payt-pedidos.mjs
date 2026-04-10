@@ -6,7 +6,6 @@
  * Usage: node scripts/import-payt-pedidos.mjs
  */
 
-import { readFileSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
 import XLSX from 'xlsx';
 import * as dotenv from 'dotenv';
@@ -20,9 +19,12 @@ const ROOT = join(__dir, '..');
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
+// Empresas que cobram juros no parcelamento.
+// has_interest: true  → total_price = Saldo da Venda (com juros)
+// has_interest: false → total_price = Valor da Venda = product_price (sem juros)
 const FILES = [
-  { path: join(ROOT, 'vendas/payt/fly_now_vendas_31_03_2026.xlsx'),      seller_id: 'L8Q8DK', company_name: 'FLY NOW AGENCIA DIGITAL LTDA' },
-  { path: join(ROOT, 'vendas/payt/nutravita_vendas_31_03_2026.xlsx'),    seller_id: 'RD3PJL', company_name: 'NUTRAVITA LTDA' },
+  { path: join(ROOT, 'vendas/payt/fly_now_vendas_31_03_2026.xlsx'),   seller_id: 'L8Q8DK', company_name: 'FLY NOW AGENCIA DIGITAL LTDA', has_interest: true  },
+  { path: join(ROOT, 'vendas/payt/nutravita_vendas_31_03_2026.xlsx'), seller_id: 'RD3PJL', company_name: 'NUTRAVITA LTDA',               has_interest: false },
 ];
 
 function parseBRL(val) {
@@ -52,7 +54,7 @@ function mapSaleType(tipo) {
 }
 
 async function run() {
-  const withTracking   = [];
+  const withTracking    = [];
   const withoutTracking = [];
   const seen = new Set();
 
@@ -76,6 +78,20 @@ async function run() {
       const tracking    = trackingRaw && trackingRaw !== '-' && trackingRaw !== '' ? trackingRaw.toUpperCase() : null;
       const paidAt      = parseDate(r['Data']);
 
+      const productPrice = parseBRL(r['Valor da Venda']);
+      const totalPrice   = file.has_interest ? parseBRL(r['Saldo da Venda']) : productPrice;
+
+      const shippingAddress = {
+        street:     r['Rua']         || null,
+        number:     r['Número']      || null,
+        complement: r['Complemento'] || null,
+        district:   r['Bairro']      || null,
+        city:       r['Cidade']      || null,
+        state:      r['Estado']      || null,
+        zipcode:    String(r['CEP'] || '').replace(/\D/g, '') || null,
+      };
+      const hasAddress = Object.values(shippingAddress).some(v => v);
+
       const base = {
         order_id:         orderId,
         seller_id:        file.seller_id,
@@ -85,10 +101,14 @@ async function run() {
         customer_phone:   String(r['Telefone'] || '').replace(/\D/g, '') || null,
         customer_doc:     String(r['Documento'] || '').replace(/\D/g, '') || null,
         product_name:     r['Produto']             || null,
+        product_sku:      r['Sku']                 || null,
         product_quantity: r['Quantidade de produtos'] ? parseInt(r['Quantidade de produtos']) : null,
+        product_price:    productPrice,
+        total_price:      totalPrice,
         payment_method:   r['Forma de Pagamento']  || null,
         payment_status:   'paid',
         sale_type:        mapSaleType(r['Tipo Venda']),
+        shipping_address: hasAddress ? shippingAddress : null,
         paid_at:          paidAt || new Date().toISOString(),
       };
 
@@ -96,6 +116,7 @@ async function run() {
         withTracking.push({
           ...base,
           tracking_code: tracking,
+          tracking_url:  r['Url de Acompanhamento'] || null,
           carrier:       detectCarrier(tracking),
           status:        'pending',
           updated_at:    new Date().toISOString(),
@@ -110,7 +131,7 @@ async function run() {
   console.log(`\nCom rastreio → shipments:       ${withTracking.length}`);
   console.log(`Sem rastreio → customer_queue:  ${withoutTracking.length}`);
 
-  // Insere em shipments (ON CONFLICT order_id → ignora duplicados)
+  // Insere em shipments (ON CONFLICT tracking_code → ignora duplicados)
   if (withTracking.length) {
     const BATCH = 100;
     let inserted = 0;

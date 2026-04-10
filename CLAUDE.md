@@ -249,10 +249,17 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 ## Importação de pedidos (scripts/)
 
 ### `import-payt-pedidos.mjs`
-- Importa pedidos de planilhas `.xlsx` da Paytcall
+- Importa pedidos de planilhas `.xlsx` exportadas da Paytcall
 - Pedidos com código de rastreio → `shipments`; sem código → `customer_queue`
 - Upsert `onConflict: 'tracking_code'` / `onConflict: 'order_id'` (ignora duplicados)
-- Sellers configurados no array `FILES` dentro do script
+- Sellers configurados no array `FILES` dentro do script — cada entrada tem `seller_id`, `company_name` e **`has_interest`**
+- **`has_interest: true`** → `total_price` = coluna `Saldo da Venda` (com juros); `product_price` = `Valor da Venda`
+- **`has_interest: false`** → `total_price` = `Valor da Venda` (sem juros) = `product_price`
+- Campos mapeados: `order_id`, `customer_*`, `product_name`, `product_sku`, `product_quantity`, `product_price`, `total_price`, `payment_method`, `sale_type`, `paid_at`, `tracking_code`, `tracking_url`, `shipping_address` (JSON montado de Rua/Número/Complemento/Bairro/Cidade/Estado/CEP)
+- Colunas esperadas no Excel Paytcall: `Código`, `Cliente`, `Tipo Venda`, `Sku`, `Produto`, `Quantidade de produtos`, `Status Pagamento`, `Valor da Venda`, `Saldo da Venda`, `Forma de Pagamento`, `Data`, `Email`, `Documento`, `Telefone`, `Código de Rastreio`, `Url de Acompanhamento`, `Rua`, `Número`, `Complemento`, `Bairro`, `Cidade`, `Estado`, `CEP`
+
+### Lógica de juros (webhook + import)
+Empresas que cobram juros no parcelamento têm `total_price` diferente de `product_price`. A lista canônica está em `COMPANIES_WITH_INTEREST` no topo de `src/routes/webhook.js`. Para o script de import, o flag `has_interest` por entrada no array `FILES` é a fonte de verdade. Ao adicionar nova empresa: definir `has_interest` no FILES e adicionar o nome na lista do webhook.
 
 ### `migrate-hub-to-operacional.mjs`
 - Migra tabelas `empresas`, `produtos`, `feedbacks`, `configuracoes` do hub para operacional
@@ -274,6 +281,7 @@ O partial preserva todos os query params automaticamente via `window.location`.
 
 ---
 
-*Atualizado em: 2026-04-01*
+*Atualizado em: 2026-04-08*
 *Migração hub → operacional: CONCLUÍDA. Hub pode ser deletado.*
 *Integração portal-gestao (rh_colaboradores): CONCLUÍDA. Variáveis GESTAO_SUPABASE_URL e GESTAO_SUPABASE_SERVICE_KEY já no Railway.*
+*Lógica de juros (import + webhook): IMPLEMENTADA. Lista em webhook.js + flag has_interest em FILES.*

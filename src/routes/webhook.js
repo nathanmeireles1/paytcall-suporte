@@ -8,6 +8,43 @@ const Shipment = require('../models/Shipment');
  * Rastreio 100% via H7 (scheduler 09h e 15h BRT)
  */
 
+// Empresas que cobram juros no parcelamento.
+// Para essas, total_price = transaction.total_price (com juros).
+// Para as demais, total_price = product.price (sem juros).
+const COMPANIES_WITH_INTEREST = new Set([
+  'lj digital / lp soluções digitais',
+  'bcg empreendimentos / bcl',
+  'fly now agencia',
+  'avs monteiro digital',
+  'neocaps / g4 caps',
+  'ms comercio',
+  'ms digital labs',
+  'biocare',
+  'loja experience',
+  'essence saude',
+  'ra negocios',
+  'universal',
+  'universal produtos ltda',
+  'nl comercio',
+  'odin health / cps informatica',
+  'apexvita comercio / apexvita ltda / wepartner',
+  'oblivium / apexvita comercio / apexvita ltda / wepartner',
+  'bellamax',
+  'rm comercio digital',
+  'nutralisse comércio de produtos naturais ltda',
+  'vitali health',
+  'business creative / bcg empreendimentos / bcl',
+  'renolife / b2c produtos',
+  'bi produtos',
+  'ams produtos',
+  'gelatina slim (asvi) fly now',
+  'bi educação / bi produtos',
+]);
+
+function companyHasInterest(name) {
+  return name ? COMPANIES_WITH_INTEREST.has(name.toLowerCase()) : false;
+}
+
 // GET /webhook — responde para testes de disponibilidade
 router.get('/', (req, res) => {
   res.json({ success: true, message: 'Webhook ativo' });
@@ -82,10 +119,11 @@ router.post('/', async (req, res) => {
     customer_doc:     customer.doc || null,
     product_name:     product.name || null,
     product_price:    product.price || null,
+    product_sku:      product.sku || null,
     product_quantity: product.quantity || null,
     payment_method:   transaction.payment_method || null,
     payment_status:   body.status || transaction.payment_status || null,
-    total_price:      transaction.total_price || null,
+    total_price:      companyHasInterest(producer?.name) ? (transaction.total_price || null) : (product.price || null),
     shipping_address: shippingAddress,
     tracking_url:     trackingUrl,
     paid_at:          paidAt,
