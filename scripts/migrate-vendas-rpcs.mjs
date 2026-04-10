@@ -45,11 +45,16 @@ async function runSQL(sql) {
   return body;
 }
 
+// ── Índice de performance ─────────────────────────────────────────────────────
+// Cobre todos os filtros das queries de vendas (status + data)
+const SQL_INDEX = `
+CREATE INDEX IF NOT EXISTS idx_vendas_status_dt
+  ON vendas(status_pagamento, dt_aprovacao);
+`;
+
 // ── RPC 1: get_vendas_formas_nichos ──────────────────────────────────────────
-// Substitui a query de 300k linhas que alimenta:
-//   - formasPagamento (agrupado por forma_pagamento)
-//   - topNichos       (JOIN com tabela produtos por nome/sku)
-//   - daily_by_email  (aggregado por dia+email → usado no Node para dailyByRegiao)
+// Usa saldo_venda (igual ao get_vendas_dashboard) para totais consistentes.
+// Retorna formas_pagamento, top_nichos (JOIN produtos) e daily_by_email (para dailyByRegiao no Node).
 const SQL_FORMAS_NICHOS = `
 CREATE OR REPLACE FUNCTION get_vendas_formas_nichos(
   p_from      text,
@@ -72,13 +77,13 @@ WITH filtered AS (
     v.forma_pagamento,
     LOWER(TRIM(COALESCE(v.produto, ''))) AS prod_norm,
     LOWER(TRIM(COALESCE(v.sku, '')))     AS sku_norm,
-    v.valor_venda,
+    COALESCE(v.saldo_venda, 0)           AS val,
     v.email,
     (v.dt_aprovacao::date)::text AS dia
   FROM vendas v
   WHERE v.status_pagamento = 'paid'
     AND v.dt_aprovacao >= p_from::date
-    AND v.dt_aprovacao <= p_to::timestamp
+    AND v.dt_aprovacao <= p_to::date
     AND (p_emails    IS NULL OR v.email             = ANY(p_emails))
     AND (p_tipo      IS NULL OR v.tipo_venda        = p_tipo)
     AND (p_empresas  IS NULL OR v.empresa           = ANY(p_empresas))
@@ -90,8 +95,8 @@ WITH filtered AS (
 formas AS (
   SELECT
     COALESCE(forma_pagamento, 'outros') AS forma,
-    COUNT(*)::int  AS count,
-    SUM(valor_venda) AS total
+    COUNT(*)::int AS count,
+    SUM(val)      AS total
   FROM filtered
   GROUP BY forma_pagamento
   ORDER BY total DESC NULLS LAST
@@ -99,8 +104,8 @@ formas AS (
 nichos AS (
   SELECT
     COALESCE(pr.nicho, 'Sem nicho') AS nicho,
-    COUNT(*)::int       AS qtd,
-    SUM(f.valor_venda)  AS total
+    COUNT(*)::int  AS qtd,
+    SUM(f.val)     AS total
   FROM filtered f
   LEFT JOIN produtos pr
     ON (f.prod_norm = LOWER(TRIM(COALESCE(pr.nome, '')))
@@ -110,10 +115,10 @@ nichos AS (
 ),
 daily_email AS (
   SELECT
-    dia                 AS data,
+    dia            AS data,
     email,
-    SUM(valor_venda)    AS total,
-    COUNT(*)::int       AS count
+    SUM(val)       AS total,
+    COUNT(*)::int  AS count
   FROM filtered
   WHERE email IS NOT NULL
   GROUP BY dia, email
@@ -128,8 +133,7 @@ $$;
 `;
 
 // ── RPC 2: get_vendas_ranking_agg ────────────────────────────────────────────
-// Substitui a query de ranking que busca 300k linhas para agregar por email.
-// Retorna todos os emails agregados; o Node faz o top-5 por região.
+// Usa saldo_venda (igual ao get_vendas_dashboard) para totais consistentes.
 const SQL_RANKING_AGG = `
 CREATE OR REPLACE FUNCTION get_vendas_ranking_agg(
   p_from      text,
@@ -154,12 +158,12 @@ SELECT COALESCE(
 FROM (
   SELECT
     email,
-    SUM(valor_venda)  AS total,
-    COUNT(*)::int     AS qtd
+    COALESCE(SUM(saldo_venda), 0) AS total,
+    COUNT(*)::int                  AS qtd
   FROM vendas
   WHERE status_pagamento = 'paid'
     AND dt_aprovacao >= p_from::date
-    AND dt_aprovacao <= p_to::timestamp
+    AND dt_aprovacao <= p_to::date
     AND (p_emails    IS NULL OR email           = ANY(p_emails))
     AND (p_tipo      IS NULL OR tipo_venda      = p_tipo)
     AND (p_empresas  IS NULL OR empresa         = ANY(p_empresas))
@@ -174,6 +178,10 @@ $$;
 `;
 
 async function main() {
+  console.log('Criando índice idx_vendas_status_dt...');
+  await runSQL(SQL_INDEX);
+  console.log('  OK');
+
   console.log('Criando RPC get_vendas_formas_nichos...');
   await runSQL(SQL_FORMAS_NICHOS);
   console.log('  OK');
@@ -182,7 +190,7 @@ async function main() {
   await runSQL(SQL_RANKING_AGG);
   console.log('  OK');
 
-  console.log('\nMigração concluída. Atualize gestao.js para usar os novos RPCs.');
+  console.log('\nMigração concluída.');
 }
 
 main().catch(err => {
