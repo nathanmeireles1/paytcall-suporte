@@ -127,7 +127,7 @@ img { max-width: 100%; }
   display: flex; flex-direction: column;
   position: fixed; top: 0; left: 0; bottom: 0;
   z-index: 100; overflow-x: hidden; overflow-y: auto;
-  transition: background .2s, border-color .2s;
+  transition: background .2s, border-color .2s, width .2s ease;
 }
 
 .sidebar-brand {
@@ -233,7 +233,7 @@ html.dark .nav-item.active { color: var(--brand); }
 .sidebar-user .btn-logout svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ===== Main ===== */
-.main { margin-left: var(--sidebar-w); flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.main { margin-left: var(--sidebar-w); flex: 1; min-width: 0; display: flex; flex-direction: column; transition: margin-left .2s ease; }
 
 /* ===== Topbar ===== */
 .topbar {
@@ -604,6 +604,74 @@ html.dark .badge-overdue   { color: var(--brand); }
 .notif-item:hover { background: var(--surface-2); }
 .notif-item.unread { background: var(--brand-dim2); }
 .notif-item:last-child { border-bottom: none; }
+
+/* ===== Sidebar collapse ===== */
+html.sidebar-collapsed { --sidebar-w: 56px; }
+
+/* Botão toggle na área da logo */
+.sidebar-brand-logo-wrap {
+  position: relative; flex-shrink: 0; cursor: pointer;
+}
+.sidebar-collapsed-indicator {
+  display: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--brand-dark);
+  position: absolute; bottom: -3px; right: -5px;
+  align-items: center; justify-content: center;
+}
+.sidebar-collapsed-indicator svg { width: 8px; height: 8px; stroke: #fff; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+html.sidebar-collapsed .sidebar-collapsed-indicator { display: flex; }
+
+.sidebar-toggle-btn {
+  margin-left: auto; display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: var(--radius-md);
+  color: var(--text-4); transition: background .1s, color .1s; flex-shrink: 0; cursor: pointer;
+  border: none; background: none;
+}
+.sidebar-toggle-btn:hover { background: var(--surface-2); color: var(--text-3); }
+.sidebar-toggle-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+html.sidebar-collapsed .sidebar-toggle-btn { display: none; }
+html.sidebar-collapsed .sidebar-brand .brand-name,
+html.sidebar-collapsed .sidebar-brand .brand-tag { display: none; }
+html.sidebar-collapsed .sidebar-brand { padding: 0; justify-content: center; cursor: pointer; }
+
+/* Nav no modo colapsado: só ícone, centralizado, tooltip nativo via title */
+html.sidebar-collapsed .sidebar-nav .nav-item {
+  justify-content: center; padding: 7px;
+}
+html.sidebar-collapsed .nav-label { display: none; }
+html.sidebar-collapsed .nav-badge { display: none; }
+html.sidebar-collapsed .sidebar-section-label { display: none; }
+
+/* Footer colapsado: só avatar */
+html.sidebar-collapsed .sidebar-user .user-info,
+html.sidebar-collapsed .sidebar-user .btn-logout,
+html.sidebar-collapsed .theme-toggle { display: none; }
+html.sidebar-collapsed .sidebar-user { justify-content: center; }
+html.sidebar-collapsed .sidebar-footer { padding: 8px 0; }
+
+/* ===== Seções retráteis ===== */
+.sidebar-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 6px 12px 6px 10px;
+  background: none; border: none; cursor: pointer;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text-3); border-radius: var(--radius); transition: color .15s, background .15s;
+  font-family: var(--font);
+}
+.sidebar-section-header:hover { color: var(--text); background: var(--surface-2); }
+.sidebar-section-header svg {
+  width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+  transition: transform .2s; flex-shrink: 0;
+}
+.sidebar-section[data-collapsed] .sidebar-section-header svg { transform: rotate(-90deg); }
+
+/* Esconde itens quando seção está recolhida (só no modo expandido) */
+html:not(.sidebar-collapsed) .sidebar-section[data-collapsed] .nav-item { display: none; }
+
+/* No modo ícone-only, seções não se ocultam — todos os ícones aparecem sempre */
+html.sidebar-collapsed .sidebar-section-header { display: none; }
 
 /* ===== Responsive ===== */
 @media (max-width: 1200px) {
