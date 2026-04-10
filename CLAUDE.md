@@ -252,14 +252,14 @@ Roles são salvos em `user_profiles.role`. Permissões por módulo em `role_perm
 - Importa pedidos de planilhas `.xlsx` exportadas da Paytcall
 - Pedidos com código de rastreio → `shipments`; sem código → `customer_queue`
 - Upsert `onConflict: 'tracking_code'` / `onConflict: 'order_id'` (ignora duplicados)
-- Sellers configurados no array `FILES` dentro do script — cada entrada tem `seller_id`, `company_name` e **`has_interest`**
-- **`has_interest: true`** → `total_price` = coluna `Saldo da Venda` (com juros); `product_price` = `Valor da Venda`
-- **`has_interest: false`** → `total_price` = `Valor da Venda` (sem juros) = `product_price`
+- Sellers configurados no array `FILES` dentro do script — cada entrada tem `seller_id` e `company_name`
+- **`total_price` = sempre coluna `f. Saldo da Venda`** (independente de juros — regra para planilhas Excel)
+- **`product_price` = sempre coluna `Valor da Venda`**
 - Campos mapeados: `order_id`, `customer_*`, `product_name`, `product_sku`, `product_quantity`, `product_price`, `total_price`, `payment_method`, `sale_type`, `paid_at`, `tracking_code`, `tracking_url`, `shipping_address` (JSON montado de Rua/Número/Complemento/Bairro/Cidade/Estado/CEP)
 - Colunas esperadas no Excel Paytcall: `Código`, `Cliente`, `Tipo Venda`, `Sku`, `Produto`, `Quantidade de produtos`, `Status Pagamento`, `Valor da Venda`, `Saldo da Venda`, `Forma de Pagamento`, `Data`, `Email`, `Documento`, `Telefone`, `Código de Rastreio`, `Url de Acompanhamento`, `Rua`, `Número`, `Complemento`, `Bairro`, `Cidade`, `Estado`, `CEP`
 
-### Lógica de juros (webhook + import)
-Empresas que cobram juros no parcelamento têm `total_price` diferente de `product_price`. A lista canônica está em `COMPANIES_WITH_INTEREST` no topo de `src/routes/webhook.js`. Para o script de import, o flag `has_interest` por entrada no array `FILES` é a fonte de verdade. Ao adicionar nova empresa: definir `has_interest` no FILES e adicionar o nome na lista do webhook.
+### Lógica de juros — SOMENTE webhook
+A distinção entre `total_price` (com juros) e `product_price` (sem juros) aplica-se **exclusivamente a pedidos que chegam via webhook**. A lista canônica `COMPANIES_WITH_INTEREST` está no topo de `src/routes/webhook.js`. Para planilhas Excel (import script ou web importer), sempre usar `f. Saldo da Venda` como `total_price` — sem exceções.
 
 ### `migrate-hub-to-operacional.mjs`
 - Migra tabelas `empresas`, `produtos`, `feedbacks`, `configuracoes` do hub para operacional
@@ -281,7 +281,10 @@ O partial preserva todos os query params automaticamente via `window.location`.
 
 ---
 
-*Atualizado em: 2026-04-08*
+*Atualizado em: 2026-04-09*
 *Migração hub → operacional: CONCLUÍDA. Hub pode ser deletado.*
 *Integração portal-gestao (rh_colaboradores): CONCLUÍDA. Variáveis GESTAO_SUPABASE_URL e GESTAO_SUPABASE_SERVICE_KEY já no Railway.*
-*Lógica de juros (import + webhook): IMPLEMENTADA. Lista em webhook.js + flag has_interest em FILES.*
+*Lógica de juros: webhook usa COMPANIES_WITH_INTEREST (total_price vs product_price); planilha Excel sempre usa f. Saldo da Venda.*
+*Performance vendas: RPCs get_vendas_formas_nichos + get_vendas_ranking_agg + índice idx_vendas_status_dt criados. Agregação server-side, ~500ms.*
+*Nichos: coluna `nicho` adicionada em `vendas`. Atualmente vazia (nomes Paytcall não batem com catálogo). Populável via import futuro.*
+*Módulo "Gestão" renomeado para "Comercial" no sidebar.*

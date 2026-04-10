@@ -19,12 +19,11 @@ const ROOT = join(__dir, '..');
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
-// Empresas que cobram juros no parcelamento.
-// has_interest: true  → total_price = Saldo da Venda (com juros)
-// has_interest: false → total_price = Valor da Venda = product_price (sem juros)
+// Planilhas a importar. Sempre usa "f. Saldo da Venda" para total_price.
+// A distinção has_interest (total_price vs product_price) aplica-se APENAS ao webhook.
 const FILES = [
-  { path: join(ROOT, 'vendas/payt/fly_now_vendas_31_03_2026.xlsx'),   seller_id: 'L8Q8DK', company_name: 'FLY NOW AGENCIA DIGITAL LTDA', has_interest: true  },
-  { path: join(ROOT, 'vendas/payt/nutravita_vendas_31_03_2026.xlsx'), seller_id: 'RD3PJL', company_name: 'NUTRAVITA LTDA',               has_interest: false },
+  { path: join(ROOT, 'vendas/payt/fly_now_vendas_31_03_2026.xlsx'),   seller_id: 'L8Q8DK', company_name: 'FLY NOW AGENCIA DIGITAL LTDA' },
+  { path: join(ROOT, 'vendas/payt/nutravita_vendas_31_03_2026.xlsx'), seller_id: 'RD3PJL', company_name: 'NUTRAVITA LTDA' },
 ];
 
 function parseBRL(val) {
@@ -79,7 +78,7 @@ async function run() {
       const paidAt      = parseDate(r['Data']);
 
       const productPrice = parseBRL(r['Valor da Venda']);
-      const totalPrice   = file.has_interest ? parseBRL(r['Saldo da Venda']) : productPrice;
+      const totalPrice   = parseBRL(r['Saldo da Venda']); // sempre f. Saldo da Venda (regra has_interest só vale no webhook)
 
       const shippingAddress = {
         street:     r['Rua']         || null,
