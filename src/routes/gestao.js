@@ -68,9 +68,6 @@ const { logAudit } = require('../services/audit');
 
 // ── Cache em memória (45s) para respostas da API de Vendas ────────────────────
 const _apiCache = new Map();
-let _nichoCache    = null;
-let _nichoSkuCache = null;
-let _nichoCacheTs  = 0;
 
 // Permissão de edição: admin ou role_permissions.catalogo.can_edit
 function canEdit(req, res, next) {
@@ -562,37 +559,22 @@ router.get('/api/vendas', async (req, res) => {
       }
     }
 
-    let formasData = null;
-    if (!lite) {
-      let formasQuery = db.from('vendas')
-        .select('forma_pagamento, valor_venda, produto, sku, email, dt_aprovacao')
-        .eq('status_pagamento', 'paid')
-        .gte('dt_aprovacao', fromStr)
-        .lte('dt_aprovacao', toStr);
-      if (emailFilter) formasQuery = formasQuery.in('email', emailFilter);
-      if (fonte && fonte !== 'all') formasQuery = formasQuery.ilike('email', `%${fonte}%`);
-      if (vendedora && vendedora !== 'all') formasQuery = formasQuery.eq('email', vendedora);
-      if (empresasFiltro.length) formasQuery = formasQuery.in('empresa', empresasFiltro);
-      if (produtosFiltro.length) formasQuery = formasQuery.in('produto', produtosFiltro);
-      if (tipo && tipo !== 'all') formasQuery = formasQuery.eq('tipo_venda', tipo);
-      if (forma && forma !== 'all') formasQuery = formasQuery.eq('forma_pagamento', forma);
-      const res2 = await formasQuery.limit(300000);
-      formasData = res2.data;
-    }
+    const rpcParams = {
+      p_from:      fromStr,
+      p_to:        toStr,
+      p_emails:    emailFilter || null,
+      p_tipo:      (tipo      && tipo      !== 'all') ? tipo      : null,
+      p_empresas:  empresasFiltro.length ? empresasFiltro : null,
+      p_produtos:  produtosFiltro.length ? produtosFiltro : null,
+      p_forma:     (forma     && forma     !== 'all') ? forma     : null,
+      p_fonte:     (fonte     && fonte     !== 'all') ? fonte     : null,
+      p_vendedora: (vendedora && vendedora !== 'all') ? vendedora : null,
+    };
 
-    const [{ data: result, error }] = await Promise.all([
-      db.rpc('get_vendas_dashboard', {
-        p_from:      fromStr,
-        p_to:        toStr,
-        p_emails:    emailFilter || null,
-        p_tipo:      (tipo      && tipo      !== 'all') ? tipo      : null,
-        p_empresas:  empresasFiltro.length ? empresasFiltro : null,
-        p_produtos:  produtosFiltro.length ? produtosFiltro : null,
-        p_forma:     (forma     && forma     !== 'all') ? forma     : null,
-        p_fonte:     (fonte     && fonte     !== 'all') ? fonte     : null,
-        p_vendedora: (vendedora && vendedora !== 'all') ? vendedora : null,
-      }),
-    ]);
+    const calls = [db.rpc('get_vendas_dashboard', rpcParams)];
+    if (!lite) calls.push(db.rpc('get_vendas_formas_nichos', rpcParams));
+
+    const [{ data: result, error }, formasRes] = await Promise.all(calls);
 
     if (error) return res.status(500).json({ error: error.message });
 
@@ -604,69 +586,35 @@ router.get('/api/vendas', async (req, res) => {
     const ticketMedio= totalPaid ? faturamento / totalPaid : 0;
     const taxaCb     = (totalPaid + chargebacks) ? (chargebacks / (totalPaid + chargebacks)) * 100 : 0;
 
-    // Agrega formas e nichos a partir das linhas pagas (somente no modo completo)
+    // Formas, nichos e dailyByRegiao — agregados server-side pelo RPC
     let formasPagamento = [];
     let topNichos       = [];
     let dailyByRegiao   = {};
-    if (!lite && formasData) {
-      // Nicho map em cache (produtos mudam raramente)
-      if (!_nichoCache || Date.now() - _nichoCacheTs > 5 * 60 * 1000) {
-        const { data: pnData } = await db.from('produtos').select('nome, sku, nicho');
-        _nichoCache   = {};
-        _nichoSkuCache = {};
-        for (const p of (pnData || [])) {
-          if (p.nome && p.nicho) _nichoCache[p.nome.toLowerCase().trim()]  = p.nicho;
-          if (p.sku  && p.nicho) _nichoSkuCache[p.sku.toLowerCase().trim()] = p.nicho;
-        }
-        _nichoCacheTs = Date.now();
-      }
+    if (!lite && formasRes?.data) {
+      const agg = formasRes.data;
+      formasPagamento = (agg.formas_pagamento || []).map(f => ({ forma: f.forma, count: Number(f.count), total: Number(f.total) }));
+      topNichos       = (agg.top_nichos       || []).map(n => ({ nicho: n.nicho, qtd: Number(n.qtd), total: Number(n.total) }));
 
-      const formasMap   = {};
-      const nichoAggMap = {};
+      // daily_by_email: array pequeno de {data, email, total, count} → agrupar por região no Node
       const dailyRegMap = {};
-      for (const row of formasData) {
-        const f    = row.forma_pagamento || 'outros';
-        const prod = (row.produto || '').toLowerCase().trim();
-        const sku  = (row.sku    || '').toLowerCase().trim();
-        const val  = Number(row.valor_venda || 0); // reais (valores do Excel já em reais)
-        const nicho = _nichoCache[prod] || _nichoSkuCache[sku] || 'Sem nicho';
-
-        if (!formasMap[f]) formasMap[f] = { forma: f, count: 0, total: 0 };
-        formasMap[f].count++;
-        formasMap[f].total += val;
-
-        if (!nichoAggMap[nicho]) nichoAggMap[nicho] = { nicho, total: 0, qtd: 0 };
-        nichoAggMap[nicho].total += val;
-        nichoAggMap[nicho].qtd++;
-
-        // Daily por região
-        if (row.dt_aprovacao && row.email) {
-          const reg = emailToRegiao[row.email.toLowerCase().trim()];
-          if (reg) {
-            // Normaliza para YYYY-MM-DD independente do formato (date, timestamp, timestamptz)
-            const rawDt = String(row.dt_aprovacao);
-            const dia = rawDt.length >= 10 ? rawDt.slice(0, 10) : null;
-            if (dia) {
-              if (!dailyRegMap[reg]) dailyRegMap[reg] = {};
-              if (!dailyRegMap[reg][dia]) dailyRegMap[reg][dia] = { data: dia, total: 0, count: 0 };
-              dailyRegMap[reg][dia].total += val;
-              dailyRegMap[reg][dia].count++;
-            }
-          }
-        }
+      for (const row of (agg.daily_by_email || [])) {
+        if (!row.email) continue;
+        const reg = emailToRegiao[row.email.toLowerCase().trim()];
+        if (!reg) continue;
+        if (!dailyRegMap[reg]) dailyRegMap[reg] = {};
+        const dia = String(row.data).slice(0, 10);
+        if (!dailyRegMap[reg][dia]) dailyRegMap[reg][dia] = { data: dia, total: 0, count: 0 };
+        dailyRegMap[reg][dia].total += Number(row.total);
+        dailyRegMap[reg][dia].count += Number(row.count);
       }
-      formasPagamento = Object.values(formasMap).sort((a, b) => b.total - a.total);
-      topNichos       = Object.values(nichoAggMap).sort((a, b) => b.total - a.total);
-      dailyByRegiao   = Object.fromEntries(
+      dailyByRegiao = Object.fromEntries(
         Object.entries(dailyRegMap).map(([reg, dayMap]) => [
           reg,
-          Object.values(dayMap).sort((a, b) => a.data.localeCompare(b.data)).map(d => ({ data: d.data, total: d.total, count: d.count })),
+          Object.values(dayMap).sort((a, b) => a.data.localeCompare(b.data)),
         ])
       );
-      // Diagnóstico: regiões detectadas e total de vendas por região
-      const regStats = Object.entries(dailyByRegiao).map(([r, days]) => `${r}:${days.reduce((s,d)=>s+d.count,0)}v/${days.reduce((s,d)=>s+d.total,0).toFixed(0)}`);
       const emailsMapped = Object.values(dailyRegMap).reduce((s, m) => s + Object.values(m).reduce((ss, d) => ss + d.count, 0), 0);
-      console.log(`[Vendas/dailyByRegiao] formasData=${formasData.length} matched=${emailsMapped} regioes=[${regStats.join(', ')}] emailToRegiao_keys=${Object.keys(emailToRegiao).length}`);
+      console.log(`[Vendas/dailyByRegiao] daily_by_email=${(agg.daily_by_email||[]).length} matched=${emailsMapped} regioes=[${Object.keys(dailyByRegiao).join(',')}]`);
     }
 
     const reembolsos      = Number(r.reembolsos || 0);
@@ -735,43 +683,38 @@ router.get('/api/vendas/ranking', async (req, res) => {
       if (c.email && c.nome)   emailToNome[c.email]   = { nome: c.nome, primeiro_nome: c.primeiro_nome };
     }
 
-    let q = db.from('vendas')
-      .select('email, valor_venda')
-      .eq('status_pagamento', 'paid')
-      .gte('dt_aprovacao', fromStr)
-      .lte('dt_aprovacao', toStr)
-      .not('email', 'is', null);
-    if (fonte && fonte !== 'all') q = q.ilike('email', `%${fonte}%`);
-    if (vendedora && vendedora !== 'all') q = q.eq('email', vendedora);
-    if (emailsPermitidos) q = q.in('email', emailsPermitidos);
-    if (tipo && tipo !== 'all') q = q.eq('tipo_venda', tipo);
-    if (forma && forma !== 'all') q = q.eq('forma_pagamento', forma);
-    if (empresasFiltro.length) q = q.in('empresa', empresasFiltro);
-    if (produtosFiltro.length) q = q.in('produto', produtosFiltro);
-    const { data } = await q.limit(300000);
+    const { data: aggData, error: rankErr } = await db.rpc('get_vendas_ranking_agg', {
+      p_from:      fromStr,
+      p_to:        toStr,
+      p_emails:    emailsPermitidos || null,
+      p_tipo:      (tipo      && tipo      !== 'all') ? tipo      : null,
+      p_empresas:  empresasFiltro.length ? empresasFiltro : null,
+      p_produtos:  produtosFiltro.length ? produtosFiltro : null,
+      p_forma:     (forma     && forma     !== 'all') ? forma     : null,
+      p_fonte:     (fonte     && fonte     !== 'all') ? fonte     : null,
+      p_vendedora: (vendedora && vendedora !== 'all') ? vendedora : null,
+    });
+    if (rankErr) return res.status(500).json({ error: rankErr.message });
 
-    const map = {};
+    const rows = Array.isArray(aggData) ? aggData : (aggData || []);
+    const map         = {};
     const mapByRegiao = {};
-    for (const row of (data || [])) {
+    for (const row of rows) {
       if (!row.email) continue;
       const k      = row.email.toLowerCase().trim();
       const regiao = emailToRegiao[k] || null;
-      const val    = Number(row.valor_venda || 0); // reais (valores do Excel já em reais)
       const info   = emailToNome[k] || {};
-      if (!map[k]) map[k] = { email: row.email, nome: info.nome || null, primeiro_nome: info.primeiro_nome || null, qtd: 0, total: 0 };
-      map[k].qtd++;
-      map[k].total += val;
+      const entry  = { email: row.email, nome: info.nome || null, primeiro_nome: info.primeiro_nome || null, qtd: Number(row.qtd), total: Number(row.total) };
+      map[k] = entry;
       if (regiao) {
-        if (!mapByRegiao[regiao]) mapByRegiao[regiao] = {};
-        if (!mapByRegiao[regiao][k]) mapByRegiao[regiao][k] = { email: row.email, nome: info.nome || null, primeiro_nome: info.primeiro_nome || null, qtd: 0, total: 0 };
-        mapByRegiao[regiao][k].qtd++;
-        mapByRegiao[regiao][k].total += val;
+        if (!mapByRegiao[regiao]) mapByRegiao[regiao] = [];
+        mapByRegiao[regiao].push(entry);
       }
     }
     const ranking = Object.values(map).sort((a, b) => b.total - a.total).slice(0, 5);
     const rankingByRegiao = {};
     for (const reg of Object.keys(mapByRegiao)) {
-      rankingByRegiao[reg] = Object.values(mapByRegiao[reg]).sort((a, b) => b.total - a.total).slice(0, 5);
+      rankingByRegiao[reg] = mapByRegiao[reg].sort((a, b) => b.total - a.total).slice(0, 5);
     }
     res.json({ ranking, rankingByRegiao });
   } catch (err) {
